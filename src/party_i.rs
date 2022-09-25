@@ -60,8 +60,8 @@ pub struct Parameters {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Keys<E: Curve = Secp256k1> {
-    pub x_i: Scalar<E>,
-    pub pub_X_i: Point<E>,
+    pub u_i: Scalar<E>,
+    pub pub_y_i: Point<E>,
     // Paillier keys
     pub dk: DecryptionKey,
     pub ek: EncryptionKey,
@@ -167,14 +167,14 @@ pub fn generate_s_t_N_tilde() -> (BigInt, BigInt, BigInt) {
 
 impl Keys {
     pub fn create(index: usize) -> Self {
-        let x = Scalar::<Secp256k1>::random();
-        let pub_X = Point::generator() * &x;
+        let u = Scalar::<Secp256k1>::random();
+        let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair().keys();
         let rid = rand::thread_rng().gen::<[u8; SECURITY / 8]>();
         let (N_tilde, s, t) = generate_s_t_N_tilde();
         Self {
-            x_i: x,
-            pub_X_i: pub_X,
+            u_i: u,
+            pub_y_i: y,
             dk,
             ek,
             party_index: index,
@@ -187,15 +187,15 @@ impl Keys {
 
     // we recommend using safe primes if the code is used in production
     pub fn create_safe_prime(rid: [u8; SECURITY / 8], index: usize) -> Self {
-        let x = Scalar::<Secp256k1>::random();
-        let pub_X = Point::generator() * &x;
+        let u = Scalar::<Secp256k1>::random();
+        let pub_y = Point::generator() * &u;
 
         let (ek, dk) = Paillier::keypair_safe_primes().keys();
         let (N_tilde, s, t) = generate_s_t_N_tilde();
 
         Self {
-            x_i: x,
-            pub_X_i: pub_X,
+            u_i: u,
+            pub_y_i: pub_y,
             dk,
             ek,
             party_index: index,
@@ -205,14 +205,14 @@ impl Keys {
             t,
         }
     }
-    pub fn create_from(x: Scalar<Secp256k1>, rid: [u8; SECURITY / 8], index: usize) -> Self {
-        let pub_X = Point::generator() * &x;
+    pub fn create_from(u: Scalar<Secp256k1>, rid: [u8; SECURITY / 8], index: usize) -> Self {
+        let pub_y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair().keys();
         let (N_tilde, s, t) = generate_s_t_N_tilde();
 
         Self {
-            x_i: x,
-            pub_X_i: pub_X,
+            u_i: u,
+            pub_y_i: pub_y,
             dk,
             ek,
             party_index: index,
