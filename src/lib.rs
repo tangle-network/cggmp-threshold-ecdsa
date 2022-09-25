@@ -21,6 +21,7 @@ pub mod keygen;
 pub mod sign;
 pub mod party_i;
 pub mod traits;
+pub mod utilities;
 
 #[derive(Copy, PartialEq, Eq, Clone, Debug)]
 pub enum Error {
