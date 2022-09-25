@@ -59,10 +59,13 @@ pub struct Parameters {
 pub struct Keys<E: Curve = Secp256k1> {
     pub x_i: Scalar<E>,
     pub pub_X_i: Point<E>,
+    // Paillier keys
     pub dk: DecryptionKey,
     pub ek: EncryptionKey,
+    // Party index in the MPC set
     pub party_index: usize,
     pub rid: [u8; SECURITY / 8],
+    // Pedersen parameters
     pub N_tilde: BigInt,
     pub s: BigInt,
     pub t: BigInt,
