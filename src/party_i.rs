@@ -76,11 +76,6 @@ pub struct Keys<E: Curve = Secp256k1> {
     pub xhi_inv: BigInt,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct RingPedersenParameters {
-
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PartyPrivate {
     x_i: Scalar<Secp256k1>,
