@@ -72,8 +72,6 @@ pub struct Keys<E: Curve = Secp256k1> {
     pub N_tilde: BigInt,
     pub s: BigInt,
     pub t: BigInt,
-    pub xhi: BigInt,
-    pub xhi_inv: BigInt,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -144,25 +142,27 @@ pub struct SignatureRecid {
 // TODO: Identify if this satisfies the properties of a Ring-Pedersen Scheme
 // TODO: Otherwise, implement ring-pedersen:
 // https://github.com/taurusgroup/multi-party-sig/blob/main/pkg/math/sample/sample.go#L75
-pub fn generate_s_t_N_tilde() -> (BigInt, BigInt, BigInt, BigInt, BigInt) {
+pub fn generate_s_t_N_tilde() -> (BigInt, BigInt, BigInt) {
     // note, should be safe primes:
     // let (ek_tilde, dk_tilde) = Paillier::keypair_safe_primes().keys();
     let (ek_tilde, dk_tilde) = Paillier::keypair().keys();
     let one = BigInt::one();
     let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
-    let s = BigInt::sample_below(&ek_tilde.n);
-    let (mut xhi, mut xhi_inv) = loop {
-        let xhi_ = BigInt::sample_below(&phi);
-        match BigInt::mod_inv(&xhi_, &phi) {
-            Some(inv) => break (xhi_, inv),
+    // Sample \lambda from Z_\phi
+    let lambda = BigInt::sample_below(&phi);
+    // Sample \tau from Z_N^* (unit values)
+    // Tau must have an inverse, we loop until we find one in `N`
+    let (mut tau, mut tau_inv) = loop {
+        let tau_ = BigInt::sample_below(&ek_tilde.n);
+        match BigInt::mod_inv(&tau_, &ek_tilde.n) {
+            Some(inv) => break (tau_, inv),
             None => continue,
         }
     };
-    let t = BigInt::mod_pow(&s, &xhi, &ek_tilde.n);
-    xhi = BigInt::sub(&phi, &xhi);
-    xhi_inv = BigInt::sub(&phi, &xhi_inv);
+    let t = BigInt::mod_mul(&tau, &tau, &ek_tilde.n);
+    let s = BigInt::mod_pow(&t, &lambda, &ek_tilde.n);
 
-    (ek_tilde.n, s, t, xhi, xhi_inv)
+    (ek_tilde.n, s, t)
 }
 
 impl Keys {
@@ -171,7 +171,7 @@ impl Keys {
         let pub_X = Point::generator() * &x;
         let (ek, dk) = Paillier::keypair().keys();
         let rid = rand::thread_rng().gen::<[u8; SECURITY / 8]>();
-        let (N_tilde, s, t, xhi, xhi_inv) = generate_s_t_N_tilde();
+        let (N_tilde, s, t) = generate_s_t_N_tilde();
         Self {
             x_i: x,
             pub_X_i: pub_X,
@@ -182,8 +182,6 @@ impl Keys {
             N_tilde,
             s,
             t,
-            xhi,
-            xhi_inv,
         }
     }
 
@@ -193,7 +191,7 @@ impl Keys {
         let pub_X = Point::generator() * &x;
 
         let (ek, dk) = Paillier::keypair_safe_primes().keys();
-        let (N_tilde, s, t, xhi, xhi_inv) = generate_s_t_N_tilde();
+        let (N_tilde, s, t) = generate_s_t_N_tilde();
 
         Self {
             x_i: x,
@@ -205,14 +203,12 @@ impl Keys {
             N_tilde,
             s,
             t,
-            xhi,
-            xhi_inv,
         }
     }
     pub fn create_from(x: Scalar<Secp256k1>, rid: [u8; SECURITY / 8], index: usize) -> Self {
         let pub_X = Point::generator() * &x;
         let (ek, dk) = Paillier::keypair().keys();
-        let (N_tilde, s, t, xhi, xhi_inv) = generate_s_t_N_tilde();
+        let (N_tilde, s, t) = generate_s_t_N_tilde();
 
         Self {
             x_i: x,
@@ -224,8 +220,6 @@ impl Keys {
             N_tilde,
             s,
             t,
-            xhi,
-            xhi_inv,
         }
     }
 }
