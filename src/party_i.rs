@@ -59,6 +59,7 @@ pub struct Parameters {
 pub struct Keys<E: Curve = Secp256k1> {
     pub u_i: Scalar<E>,
     pub y_i: Point<E>,
+    // Paillier keys
     pub dk: DecryptionKey,
     pub ek: EncryptionKey,
     pub party_index: usize,
