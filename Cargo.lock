@@ -1257,6 +1257,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs-dkr"
+version = "0.1.0"
+source = "git+https://github.com/webb-tools/fs-dkr?branch=drew/update-versions#8f51d5f4fe1547d5ec68f159e7f676e4e8783d7d"
+dependencies = [
+ "curv-kzen",
+ "kzen-paillier",
+ "multi-party-ecdsa",
+ "round-based",
+ "serde",
+ "serde_derive",
+ "sha2 0.9.9",
+ "thiserror",
+ "zeroize",
+ "zk-paillier",
+]
+
+[[package]]
 name = "fuchsia-cprng"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2140,6 +2157,7 @@ dependencies = [
  "criterion",
  "curv-kzen",
  "derivative",
+ "fs-dkr",
  "futures 0.3.24",
  "hex",
  "kzen-paillier",
@@ -2179,6 +2197,24 @@ dependencies = [
  "tokio 1.21.1",
  "tokio-util",
  "version_check",
+]
+
+[[package]]
+name = "multi-party-ecdsa"
+version = "0.8.2"
+source = "git+https://github.com/webb-tools/multi-party-ecdsa#992c4bd1782aeed32566343babb0b7e6730d64c6"
+dependencies = [
+ "centipede",
+ "curv-kzen",
+ "derivative",
+ "kzen-paillier",
+ "round-based",
+ "serde",
+ "sha2 0.9.9",
+ "subtle",
+ "thiserror",
+ "zeroize",
+ "zk-paillier",
 ]
 
 [[package]]
