@@ -115,7 +115,7 @@ pub struct Round2 {
 }
 
 impl Round2 {
-	pub fn proceed<O>(self, input: BrodcastMsgs<KeyRefreshBroadcastMessageRound1>,) -> Result<LocalKey<Secp256k1>>
+	pub fn proceed(self, input: BrodcastMsgs<KeyRefreshBroadcastMessageRound1>,) -> Result<LocalKey<Secp256k1>>
     {
 		match party_type {
 			ExistingOrNewParty::Existing(local_key) => {
