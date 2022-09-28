@@ -3,7 +3,7 @@ use fs_dkr::{add_party_message::*, refresh_message::*};
 use round_based::Msg;
 use crate::party_i::Keys;
 
-pub enum NewOrExistingParty {
+pub enum ExistingOrNew {
 	Existing(LocalKey<Secp256k1>),
 	New((JoinMessage, Keys)),
 }
@@ -25,7 +25,7 @@ impl Round0 {
 					body: None,
 				});
 				Ok(Round1 {
-					party_type: NewOrExistingParty::Existing(local_key),
+					party_type: ExistingOrNew::Existing(local_key),
 				})
 			},
 			None => {
@@ -36,7 +36,7 @@ impl Round0 {
 					body: join_message,
 				});
 				Ok(Round1 {
-					party_type: NewOrExisting::New((join_message, paillier_keys)),
+					party_type: ExistingOrNew::New((join_message, paillier_keys)),
 				})
 			}
 		}
@@ -47,7 +47,7 @@ impl Round0 {
 }
 
 pub struct Round1 {
-	party_type: NewOrExistingParty,
+	party_type: ExistingOrNew,
 }
 
 impl Round1 {
