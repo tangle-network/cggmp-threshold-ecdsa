@@ -115,6 +115,15 @@ pub struct Round2 {
 }
 
 impl Round2 {
+	pub fn proceed<O>(self, input: BrodcastMsgs<KeyRefreshBroadcastMessageRound1>,) -> Result<LocalKey<Secp256k1>>
+    {
+		match party_type {
+			ExistingOrNewParty::Existing(local_key) => {
+
+			},
+			ExistingOrNewParty::New((join_message, paillier_keys)) => {},
+		}
+	}
 
 	pub fn is_expensive(&self) -> bool {
 		true
