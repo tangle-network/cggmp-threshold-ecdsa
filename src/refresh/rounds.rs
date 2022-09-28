@@ -20,6 +20,7 @@ pub struct PaillierKeys {
 pub struct Round0 {
 	pub local_key_option: Option<LocalKey<Secp256k1>>,
 	t: usize,
+	n: usize,
 }
 
 impl Round0 {
@@ -37,6 +38,7 @@ impl Round0 {
 				Ok(Round1 {
 					party_type: ExistingOrNewParty::Existing(local_key),
 					t: self.t,
+					n: self.n,
 				})
 			},
 			None => {
@@ -49,6 +51,7 @@ impl Round0 {
 				Ok(Round1 {
 					party_type: ExistingOrNewParty::New((join_message, paillier_keys)),
 					t: self.t,
+					n: self.n,
 				})
 			}
 		}
@@ -61,6 +64,7 @@ impl Round0 {
 pub struct Round1 {
 	pub party_type: ExistingOrNewParty,
 	t: usize,
+	n: usize,
 }
 
 impl Round1 {
@@ -99,6 +103,7 @@ impl Round1 {
 						dk: new_paillier_dk,
 					},
 					t: self.t,
+					n: self.n,
 				})
 			}
 
@@ -117,6 +122,7 @@ impl Round1 {
 						dk: paillier_keys.dk,
 					},
 					t: self.t,
+					n: self.n,
 				})
 			}
 		}
@@ -132,6 +138,7 @@ pub struct Round2 {
 	pub join_messages: Vec<JoinMessage>,		
 	pub new_paillier_keys: PaillierKeys,
 	t: usize,
+	n: usize,
 }
 
 impl Round2 {
@@ -159,8 +166,8 @@ impl Round2 {
 			ExistingOrNewParty::New((join_message, paillier_keys)) => {
 				let join_message_slice = self.join_messages.as_slice();
 				let refresh_message_slice = refresh_message_vec.as_slice();
-				// TODO: Not sure if refresh_message_vec.len()+join_message_vec.len() is the right value for n.
-				JoinMessage::collect(refresh_message_slice, paillier_keys, join_message_slice, self.t, refresh_message_vec.len() + join_message_vec.len())
+				// TODO: Not sure if refresh_message_vec.len() is the right value for n.
+				JoinMessage::collect(refresh_message_slice, paillier_keys, join_message_slice, self.t, self.n)
 			},
 		}
 	}
