@@ -1,9 +1,15 @@
 use crate::keygen::rounds::*;
 use fs_dkr::{add_party_message::*, refresh_message::*};
 use round_based::Msg;
+use crate::party_i::Keys;
+
+pub enum NewOrExistingParty {
+	Existing(LocalKey<Secp256k1>),
+	New((JoinMessage, Keys)),
+}
 
 pub struct Round0 {
-	local_key_option: Option<LocalKey<Secp256k1>>
+	local_key_option: Option<LocalKey<Secp256k1>>,
 }
 
 impl Round0 {
@@ -11,26 +17,29 @@ impl Round0 {
     where
         O: Push<Msg<>>,
     {
-        // Match on local_key
 		match local_key_option {
 			Some(local_key) => {
-				// Push JoinMessage to output
-				output.push(Msg {
+				output.push(Msg{
 					sender: local_key.i,
 					receiver: None,
 					body: None,
 				});
-				// Send local key to round 1
 				Ok(Round1 {
-					local_key: local_key,
+					party_type: NewOrExistingParty::Existing(local_key),
 				})
 			},
 			None => {
-				// Push JoinMessage to output
-				// Generate new local key
+				let (join_message, paillier_keys) = JoinMessage::distribute();
+				output.push(Msg{
+					sender: join_message.party_index.unwrap(),
+					receiver: None,
+					body: join_message,
+				});
+				Ok(Round1 {
+					party_type: NewOrExisting::New((join_message, paillier_keys)),
+				})
 			}
 		}
-
     }
     pub fn is_expensive(&self) -> bool {
 		true
@@ -38,7 +47,7 @@ impl Round0 {
 }
 
 pub struct Round1 {
-	local_key: LocalKey<Secp256k1>,
+	party_type: NewOrExistingParty,
 }
 
 impl Round1 {
