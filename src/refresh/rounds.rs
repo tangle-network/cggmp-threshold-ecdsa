@@ -1,5 +1,5 @@
 use crate::keygen::rounds::*;
-use fs_dkr::{add_party_message::*, refresh_message::*};
+use fs_dkr::{add_party_message::*, refresh_message::*, error::*};
 use round_based::{containers::BroadcastMsgs, Msg};
 use crate::party_i::Keys;
 use paillier::{EncryptionKey, DecryptionKey};
@@ -59,26 +59,38 @@ pub struct Round1 {
 impl Round1 {
 	pub fn proceed<O>(self, input: BrodcastMsgs<Option<JoinMessage>>, mut output: O) -> Result<Round2>
     where
-        O: Push<Msg<Option<RefreshMessage>>>,
+        O: Push<Msg<Option<FsDkrResult>>>,
     {
 		match party_type {
 			ExistingOrNewParty::Existing(local_key) => {
-				// Broadcast Refresh Message
-				let (refresh_message, new_decryption_key) = RefreshMessage::distribute(local_key);
+				// Parse JoinMessage
+				let join_message_option_vec = input.into_vec();
+				let mut join_message_vec: Vec<JoinMessage> = Vec::new();
+				for join_message_option in join_message_option_vec {
+					match elem {
+						Some(join_message_option) => {
+							join_message_vec.push(join_message_option)
+						},
+						_ => {},
+					}
+				}
+				let join_messages = join_message_vec.as_slice();
+				let refresh_message_result: FsDkrResult = RefreshMessage::replace(join_messages, &mut local_key);
 				output.push(Msg {
 					sender: local_key.i,
 					receiver: None,
-					body: refresh_message,
+					body: refresh_message_result
 				});
+				let refresh_message_result_unwrapped = refresh_message_result.unwrap();
 				Ok(Round2 {
 					party_type: ExistingOrNewParty::Existing(local_key),
 					new_paillier_keys: PaillierKeys {
-						refresh_message.ek,
-						new_decryption_key,
+						ek: refresh_message_result_unwrapped.refresh_message.ek,
+						dk: refresh_message_result_unwrapped.dk,
 					}
 				})
-				
-			},
+			}
+
 			ExistingOrNewParty::New((join_message, paillier_keys)) => {
 				// Do Nothing
 				output.push(Msg {
@@ -88,7 +100,10 @@ impl Round1 {
 				});
 				Ok(Round2 {
 					party_type: ExistingOrNewParty::New((join_message, paillier_keys)),
-					new_paillier_keys: paillier_keys,
+					new_paillier_keys: PaillierKeys {
+						ek: paillier_keys.ek,
+						dk: paillier_keys.dk,
+					},
 				})
 			}
 		}
@@ -101,7 +116,7 @@ impl Round1 {
 
 pub struct Round2 {
 	pub party_type: ExistingOrNewParty,
-	pub new_paillier_keys: PaillierKeys,
+	pub new_paillier_keys: PaillierKeys,		
 }
 
 impl Round2 {}
