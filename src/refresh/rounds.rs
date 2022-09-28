@@ -3,7 +3,7 @@ use fs_dkr::{add_party_message::*, refresh_message::*};
 use round_based::Msg;
 use crate::party_i::Keys;
 
-pub enum ExistingOrNew {
+pub enum ExistingOrNewParty {
 	Existing(LocalKey<Secp256k1>),
 	New((JoinMessage, Keys)),
 }
@@ -15,7 +15,7 @@ pub struct Round0 {
 impl Round0 {
 	pub fn proceed<O>(self, mut output: O) -> Result<Round1>
     where
-        O: Push<Msg<>>,
+        O: Push<Msg<Option<JoinMessage>>>,
     {
 		match local_key_option {
 			Some(local_key) => {
@@ -25,7 +25,7 @@ impl Round0 {
 					body: None,
 				});
 				Ok(Round1 {
-					party_type: ExistingOrNew::Existing(local_key),
+					party_type: ExistingOrNewParty::Existing(local_key),
 				})
 			},
 			None => {
@@ -36,7 +36,7 @@ impl Round0 {
 					body: join_message,
 				});
 				Ok(Round1 {
-					party_type: ExistingOrNew::New((join_message, paillier_keys)),
+					party_type: ExistingOrNewParty::New((join_message, paillier_keys)),
 				})
 			}
 		}
@@ -47,17 +47,29 @@ impl Round0 {
 }
 
 pub struct Round1 {
-	party_type: ExistingOrNew,
+	party_type: ExistingOrNewParty,
 }
 
 impl Round1 {
+	pub fn proceed<O>(self, mut output: O) -> Result<Round2>
+    where
+        O: Push<Msg<Option<RefreshMessage>>>,
+    {
+		match party_type {
+			ExistingOrNewParty::Existing(local_key) => {
+			},
+			ExistingOrNewParty::New((join_message, paillier_keys)) => {
+			}
+		}
+	}
 
+	pub fn is_expensive(&self) -> bool {
+		true
+    }  
 }
 
-pub struct Round2 {
-	local_key: LocalKey<Secp256k1>,
+pub struct Round1 {
+	party_type: ExistingOrNewParty,
 }
 
-impl Round2 {
-
-}
+impl Round2 {}
