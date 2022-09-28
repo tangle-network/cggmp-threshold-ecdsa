@@ -28,9 +28,7 @@ use curv::cryptographic_primitives::proofs::sigma_dlog::DLogProof;
 use curv::cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS;
 use curv::elliptic::curves::{secp256_k1::Secp256k1, Curve, Point, Scalar};
 use curv::BigInt;
-use fs_dkr::error::FsDkrResult;
 use sha2::Sha256;
-use fs_dkr::{add_party_message::*, refresh_message::*};
 
 use crate::Error::{self, InvalidSig, Phase5BadSum, Phase6Error};
 use paillier::{
@@ -87,10 +85,6 @@ pub struct KeyGenBroadcastMessage1 {
     pub correct_key_proof: NiCorrectKeyProof,
     pub composite_dlog_proof_base_h1: CompositeDLogProof,
     pub composite_dlog_proof_base_h2: CompositeDLogProof,
-}
-
-pub struct KeyRefreshBroadcastMessageRound1 {
-    pub refresh_message_result: Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>,
 }
 
 
