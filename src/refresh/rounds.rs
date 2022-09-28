@@ -3,6 +3,7 @@ use fs_dkr::{add_party_message::*, refresh_message::*, error::*};
 use round_based::{containers::BroadcastMsgs, Msg};
 use crate::party_i::Keys;
 use paillier::{EncryptionKey, DecryptionKey};
+use crate::party_i::KeyRefreshBroadcastMessageRound1;
 
 pub enum ExistingOrNewParty {
 	Existing(LocalKey<Secp256k1>),
@@ -10,8 +11,8 @@ pub enum ExistingOrNewParty {
 }
 
 pub struct PaillierKeys {
-	pub ek: EncryptionKey,
-	pub dk: DecryptionKey,
+	ek: EncryptionKey,
+	dk: DecryptionKey,
 }
 
 pub struct Round0 {
@@ -37,7 +38,7 @@ impl Round0 {
 			None => {
 				let (join_message, paillier_keys) = JoinMessage::distribute();
 				output.push(Msg{
-					sender: join_message.party_index.unwrap(),
+					sender: join_message.get_party_index()?,
 					receiver: None,
 					body: join_message,
 				});
@@ -59,51 +60,45 @@ pub struct Round1 {
 impl Round1 {
 	pub fn proceed<O>(self, input: BrodcastMsgs<Option<JoinMessage>>, mut output: O) -> Result<Round2>
     where
-        O: Push<Msg<Option<FsDkrResult>>>,
+        O: Push<Msg<Option<KeyRefreshBroadcastMessageRound1>>>,
     {
+		let join_message_option_vec = input.into_vec();
+		let mut join_message_vec: Vec<JoinMessage> = Vec::new();
+		for join_message_option in join_message_option_vec {
+			match elem {
+				Some(join_message_option) => {
+					join_message_vec.push(join_message_option)
+				},
+				_ => {},
+			}
+		}
 		match party_type {
 			ExistingOrNewParty::Existing(local_key) => {
-				// Parse JoinMessage
-				let join_message_option_vec = input.into_vec();
-				let mut join_message_vec: Vec<JoinMessage> = Vec::new();
-				for join_message_option in join_message_option_vec {
-					match elem {
-						Some(join_message_option) => {
-							join_message_vec.push(join_message_option)
-						},
-						_ => {},
-					}
-				}
-				let join_messages = join_message_vec.as_slice();
-				let refresh_message_result: FsDkrResult = RefreshMessage::replace(join_messages, &mut local_key);
+				// Existing parties form a refresh message and broadcast it.
+				let join_message_slice = join_message_vec.as_slice();
 				output.push(Msg {
 					sender: local_key.i,
 					receiver: None,
-					body: refresh_message_result
+					body: KeyRefreshBroadcastMessageRound1 {
+						refresh_message_result: RefreshMessage::replace(join_message_slice, &mut local_key),
+					}
 				});
-				let refresh_message_result_unwrapped = refresh_message_result.unwrap();
 				Ok(Round2 {
 					party_type: ExistingOrNewParty::Existing(local_key),
-					new_paillier_keys: PaillierKeys {
-						ek: refresh_message_result_unwrapped.refresh_message.ek,
-						dk: refresh_message_result_unwrapped.dk,
-					}
+					join_messages: join_message_vec,
 				})
 			}
 
 			ExistingOrNewParty::New((join_message, paillier_keys)) => {
-				// Do Nothing
+				// New parties don't need to form a refresh message.
 				output.push(Msg {
-					sender: join_message.party_index.unwrap(),
+					sender: join_message.get_party_index()?,
 					receiver: None,
 					body: None,
 				});
 				Ok(Round2 {
 					party_type: ExistingOrNewParty::New((join_message, paillier_keys)),
-					new_paillier_keys: PaillierKeys {
-						ek: paillier_keys.ek,
-						dk: paillier_keys.dk,
-					},
+					join_messages: join_message_vec,
 				})
 			}
 		}
@@ -116,7 +111,12 @@ impl Round1 {
 
 pub struct Round2 {
 	pub party_type: ExistingOrNewParty,
-	pub new_paillier_keys: PaillierKeys,		
+	pub join_messages: Vec<JoinMessage>,		
 }
 
-impl Round2 {}
+impl Round2 {
+
+	pub fn is_expensive(&self) -> bool {
+		true
+    }  
+}
