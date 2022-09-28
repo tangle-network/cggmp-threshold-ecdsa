@@ -165,7 +165,6 @@ impl Round2 {
 			ExistingOrNewParty::New((join_message, paillier_keys)) => {
 				let join_message_slice = self.join_messages.as_slice();
 				let refresh_message_slice = refresh_message_vec.as_slice();
-				// TODO: Not sure if refresh_message_vec.len() is the right value for n.
 				JoinMessage::collect(refresh_message_slice, paillier_keys, join_message_slice, self.t, self.n)
 			},
 		}
