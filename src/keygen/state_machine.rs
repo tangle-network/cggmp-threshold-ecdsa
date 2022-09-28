@@ -16,9 +16,9 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use thiserror::Error;
 
-use private::InternalError;
 pub use super::rounds::{LocalKey, ProceedError};
 use super::rounds::{Round0, Round1, Round2, Round3, Round4};
+use private::InternalError;
 
 /// Keygen protocol state machine
 ///

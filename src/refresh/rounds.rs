@@ -70,8 +70,8 @@ pub struct Round1 {
 impl Round1 {
 	pub fn proceed<O>(self, input: BrodcastMsgs<Option<JoinMessage>>, mut output: O) -> Result<Round2>
     where
-        O: Push<Msg<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>>,
-    {
+        O: Push<Msg<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>>, 
+	{
 		let join_message_option_vec = input.into_vec();
 		let mut join_message_vec: Vec<JoinMessage> = Vec::new();
 		for join_message_option in join_message_option_vec {
@@ -142,8 +142,7 @@ pub struct Round2 {
 }
 
 impl Round2 {
-	pub fn proceed(self, input: BrodcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>,) -> Result<LocalKey<Secp256k1>>
-    {
+	pub fn proceed(self, input: BrodcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>,) -> Result<LocalKey<Secp256k1>> {
 		let refresh_message_option_vec = input.into_vec();
 		let mut refresh_message_vec: Vec<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>> = Vec::new();
 		for refresh_message_option in refresh_message_option_vec {

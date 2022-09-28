@@ -14,11 +14,11 @@ use round_based::containers::push::Push;
 use round_based::containers::{self, BroadcastMsgs, P2PMsgs, Store};
 use round_based::Msg;
 
-use curv::cryptographic_primitives::proofs::sigma_correct_homomorphic_elgamal_enc::HomoELGamalProof;
-use curv::cryptographic_primitives::proofs::sigma_valid_pedersen::PedersenProof;
 use crate::party_i::{
     LocalSignature, SignBroadcastPhase1, SignDecommitPhase1, SignKeys, SignatureRecid,
 };
+use curv::cryptographic_primitives::proofs::sigma_correct_homomorphic_elgamal_enc::HomoELGamalProof;
+use curv::cryptographic_primitives::proofs::sigma_valid_pedersen::PedersenProof;
 
 use crate::ErrorType;
 

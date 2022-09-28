@@ -39,8 +39,8 @@ use serde::{Deserialize, Serialize};
 use zk_paillier::zkproofs::NiCorrectKeyProof;
 use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
-use crate::ErrorType;
 use crate::utilities::zk_pdl_with_slack::{PDLwSlackProof, PDLwSlackStatement, PDLwSlackWitness};
+use crate::ErrorType;
 use curv::cryptographic_primitives::proofs::sigma_valid_pedersen::PedersenProof;
 
 use std::convert::TryInto;
@@ -86,7 +86,6 @@ pub struct KeyGenBroadcastMessage1 {
     pub composite_dlog_proof_base_h1: CompositeDLogProof,
     pub composite_dlog_proof_base_h2: CompositeDLogProof,
 }
-
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct KeyGenDecommitMessage1 {

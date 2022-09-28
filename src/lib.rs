@@ -18,8 +18,8 @@
 */
 
 pub mod keygen;
-pub mod sign;
 pub mod party_i;
+pub mod sign;
 pub mod traits;
 pub mod utilities;
 
@@ -32,7 +32,6 @@ pub enum Error {
     Phase5BadSum,
     Phase6Error,
 }
-
 
 #[derive(Clone, Debug)]
 pub struct ErrorType {

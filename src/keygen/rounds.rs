@@ -16,10 +16,8 @@ use round_based::containers::{self, BroadcastMsgs, MessageStore, P2PMsgs, P2PMsg
 use round_based::Msg;
 use zk_paillier::zkproofs::DLogStatement;
 
-use crate::party_i::{
-    KeyGenBroadcastMessage1, KeyGenDecommitMessage1, Keys,
-};
-use crate::{ErrorType};
+use crate::party_i::{KeyGenBroadcastMessage1, KeyGenDecommitMessage1, Keys};
+use crate::ErrorType;
 
 pub struct Round0 {
     pub party_i: u16,
