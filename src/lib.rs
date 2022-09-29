@@ -19,6 +19,7 @@
 
 pub mod keygen;
 pub mod party_i;
+pub mod refresh;
 pub mod sign;
 pub mod traits;
 pub mod utilities;
