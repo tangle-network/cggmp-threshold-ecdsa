@@ -217,9 +217,47 @@ impl StateMachine for KeyRefresh {
 }
 
 impl crate::traits::RoundBlame for Keygen {
+    fn round_blame(&self) -> (u16, Vec<u16>) {
+        let store1_blame = self.round0_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
+        let store2_blame = self.round1_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
+
+        let default = (0, vec![]);
+        match &self.round {
+            R::Round0(_) => default,
+            R::Round1(_) => store1_blame,
+            R::Round2(_) => store2_blame,
+            R::Final(_) | R::Gone => default,
+        }
+    }
 }
 
-impl fmt::Debug for KeyRefresh {}
+impl fmt::Debug for KeyRefresh {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let current_round = match &self.round {
+            R::Round0(_) => "0",
+            R::Round1(_) => "1",
+            R::Round2(_) => "2",
+            R::Final(_) => "[Final]",
+            R::Gone => "[Gone]",
+        };
+        let round0_msgs = match self.round0_msgs.as_ref() {
+            Some(msgs) => format!("[{}/{}]", msgs.messages_received(), msgs.messages_total()),
+            None => "[None]".into(),
+        };
+        let round1_msgs = match self.round1_msgs.as_ref() {
+            Some(msgs) => format!("[{}/{}]", msgs.messages_received(), msgs.messages_total()),
+            None => "[None]".into(),
+        };
+        write!(
+            f,
+            "{{Keygen at round={} msgs1={} msgs2={} msgs3={} msgs4={} queue=[len={}]}}",
+            current_round,
+            round0_msgs,
+            round1_msgs,
+            self.msgs_queue.len()
+        )
+    }
+}
 
 
 // Rounds
