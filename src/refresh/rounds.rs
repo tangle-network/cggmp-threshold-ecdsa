@@ -1,10 +1,13 @@
 use crate::keygen::rounds::*;
-use crate::party_i::Keys;
 use crate::ErrorType;
 use curv::elliptic::curves::Secp256k1;
 use fs_dkr::{add_party_message::*, error::*, refresh_message::*};
-use paillier::{DecryptionKey, EncryptionKey};
+use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
+    party_i::Keys, state_machine::keygen::LocalKey,
+};
+use paillier::DecryptionKey;
 use round_based::containers::push::Push;
+use round_based::containers::{BroadcastMsgsStore, Store};
 use round_based::{containers::BroadcastMsgs, Msg};
 use sha2::Sha256;
 use thiserror::Error;
@@ -14,15 +17,10 @@ pub enum ExistingOrNewParty {
     New((JoinMessage, Keys)),
 }
 
-pub struct PaillierKeys {
-    ek: EncryptionKey,
-    dk: DecryptionKey,
-}
-
 pub struct Round0 {
     pub local_key_option: Option<LocalKey<Secp256k1>>,
-    pub t: usize,
-    pub n: usize,
+    pub t: u16,
+    pub n: u16,
 }
 
 impl Round0 {
@@ -46,9 +44,9 @@ impl Round0 {
             None => {
                 let (join_message, paillier_keys) = JoinMessage::distribute();
                 output.push(Msg {
-                    sender: join_message.get_party_index()?,
+                    sender: join_message.clone().get_party_index()?.try_into().unwrap(),
                     receiver: None,
-                    body: Some(join_message),
+                    body: Some(join_message.clone()),
                 });
                 Ok(Round1 {
                     party_type: ExistingOrNewParty::New((join_message, paillier_keys)),
@@ -65,8 +63,8 @@ impl Round0 {
 
 pub struct Round1 {
     pub party_type: ExistingOrNewParty,
-    t: usize,
-    n: usize,
+    t: u16,
+    n: u16,
 }
 
 impl Round1 {
@@ -87,25 +85,22 @@ impl Round1 {
             }
         }
         match self.party_type {
-            ExistingOrNewParty::Existing(local_key) => {
+            ExistingOrNewParty::Existing(mut local_key) => {
                 // Existing parties form a refresh message and broadcast it.
                 let join_message_slice = join_message_vec.as_slice();
                 let refresh_message_result =
                     RefreshMessage::replace(join_message_slice, &mut local_key);
-                let new_paillier_ek = refresh_message_result.unwrap().0.ek;
-                let new_paillier_dk = refresh_message_result.unwrap().1;
+                let refresh_message = refresh_message_result.unwrap();
+                let new_paillier_dk = refresh_message.clone().1;
                 output.push(Msg {
                     sender: local_key.i,
                     receiver: None,
-                    body: Some(refresh_message_result),
+                    body: Some(Ok(refresh_message.0)),
                 });
                 Ok(Round2 {
                     party_type: ExistingOrNewParty::Existing(local_key),
                     join_messages: join_message_vec,
-                    new_paillier_keys: PaillierKeys {
-                        ek: new_paillier_ek,
-                        dk: new_paillier_dk,
-                    },
+                    new_paillier_decryption_key: new_paillier_dk,
                     t: self.t,
                     n: self.n,
                 })
@@ -114,17 +109,14 @@ impl Round1 {
             ExistingOrNewParty::New((join_message, paillier_keys)) => {
                 // New parties don't need to form a refresh message.
                 output.push(Msg {
-                    sender: join_message.get_party_index()?,
+                    sender: join_message.get_party_index()?.try_into().unwrap(),
                     receiver: None,
                     body: None,
                 });
                 Ok(Round2 {
-                    party_type: ExistingOrNewParty::New((join_message, paillier_keys)),
+                    party_type: ExistingOrNewParty::New((join_message, paillier_keys.clone())),
                     join_messages: join_message_vec,
-                    new_paillier_keys: PaillierKeys {
-                        ek: paillier_keys.ek,
-                        dk: paillier_keys.dk,
-                    },
+                    new_paillier_decryption_key: paillier_keys.dk,
                     t: self.t,
                     n: self.n,
                 })
@@ -135,14 +127,18 @@ impl Round1 {
     pub fn is_expensive(&self) -> bool {
         true
     }
+
+    pub fn expects_messages(i: u16, n: u16) -> Store<BroadcastMsgs<Option<JoinMessage>>> {
+        BroadcastMsgsStore::new(i, n)
+    }
 }
 
 pub struct Round2 {
     pub party_type: ExistingOrNewParty,
     pub join_messages: Vec<JoinMessage>,
-    pub new_paillier_keys: PaillierKeys,
-    t: usize,
-    n: usize,
+    pub new_paillier_decryption_key: DecryptionKey,
+    t: u16,
+    n: u16,
 }
 
 impl Round2 {
@@ -151,25 +147,24 @@ impl Round2 {
         input: BroadcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>,
     ) -> Result<LocalKey<Secp256k1>> {
         let refresh_message_option_vec = input.into_vec();
-        let mut refresh_message_vec: Vec<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>> =
-            Vec::new();
+        let mut refresh_message_vec: Vec<RefreshMessage<Secp256k1, Sha256>> = Vec::new();
         for refresh_message_option in refresh_message_option_vec {
             match refresh_message_option {
                 Some(refresh_message_option) => {
-                    refresh_message_vec.push(refresh_message_option.unwrap().0)
+                    refresh_message_vec.push(refresh_message_option.unwrap())
                 }
                 _ => {}
             }
         }
 
         match self.party_type {
-            ExistingOrNewParty::Existing(local_key) => {
+            ExistingOrNewParty::Existing(mut local_key) => {
                 let join_message_slice = self.join_messages.as_slice();
                 let refresh_message_slice = refresh_message_vec.as_slice();
                 RefreshMessage::collect(
                     refresh_message_slice,
                     &mut local_key,
-                    self.new_paillier_keys.dk,
+                    self.new_paillier_decryption_key,
                     join_message_slice,
                 );
                 Ok(local_key)
@@ -182,8 +177,8 @@ impl Round2 {
                     refresh_message_slice,
                     paillier_keys,
                     join_message_slice,
-                    self.t,
-                    self.n,
+                    self.t.try_into().unwrap(),
+                    self.n.try_into().unwrap(),
                 )
             }
         }
@@ -191,6 +186,12 @@ impl Round2 {
 
     pub fn is_expensive(&self) -> bool {
         true
+    }
+    pub fn expects_messages(
+        i: u16,
+        n: u16,
+    ) -> Store<BroadcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>> {
+        BroadcastMsgsStore::new(i, n)
     }
 }
 

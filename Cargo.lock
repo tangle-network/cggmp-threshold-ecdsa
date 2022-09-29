@@ -2161,6 +2161,7 @@ dependencies = [
  "futures 0.3.24",
  "hex",
  "kzen-paillier",
+ "multi-party-ecdsa",
  "rand 0.8.5",
  "reqwest",
  "rocket",

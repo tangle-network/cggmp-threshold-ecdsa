@@ -1,5 +1,18 @@
-use crate::keygen::state_machine::Error;
 use crate::refresh::rounds::{Round0, Round1, Round2};
+use curv::elliptic::curves::Secp256k1;
+use fs_dkr::add_party_message::JoinMessage;
+use fs_dkr::error::{FsDkrError, FsDkrResult};
+use fs_dkr::refresh_message::RefreshMessage;
+use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
+use private::InternalError;
+use round_based::containers::push::{Push, PushExt};
+use round_based::containers::{BroadcastMsgs, MessageStore, Store, StoreErr};
+use round_based::{IsCritical, Msg, StateMachine};
+use serde::{Deserialize, Serialize};
+use sha2::Sha256;
+use std::fmt;
+use std::mem::replace;
+use std::time::Duration;
 use thiserror::Error;
 
 pub struct KeyRefresh {
@@ -13,10 +26,19 @@ pub struct KeyRefresh {
 
     // Message queue
     msgs_queue: Vec<Msg<ProtocolMessage>>,
+
+    party_i: u16,
+
+    party_n: u16,
 }
 
 impl KeyRefresh {
-    pub fn new(local_key_option: Option<LocalKey<Secp256k1>>, t: u16, n: u16) -> Result<Self> {
+    pub fn new(
+        local_key_option: Option<LocalKey<Secp256k1>>,
+        i: u16,
+        t: u16,
+        n: u16,
+    ) -> Result<Self> {
         if n < 2 {
             return Err(Error::TooFewParties);
         }
@@ -34,6 +56,10 @@ impl KeyRefresh {
             round1_msgs: Some(Round2::expects_messages(i, n)),
 
             msgs_queue: vec![],
+
+            party_i: i,
+
+            party_n: n,
         };
 
         state.proceed_round(false)?;
@@ -55,7 +81,7 @@ impl KeyRefresh {
             .as_ref()
             .map(|s| s.wants_more())
             .unwrap_or(false);
-        let store2wants_more = self
+        let store2_wants_more = self
             .round1_msgs
             .as_ref()
             .map(|s| s.wants_more())
@@ -102,6 +128,10 @@ impl KeyRefresh {
                 true
             }
             s @ R::Round2(_) => {
+                next_state = s;
+                false
+            }
+            s @ R::Final(_) | s @ R::Gone => {
                 next_state = s;
                 false
             }
@@ -228,15 +258,15 @@ impl StateMachine for KeyRefresh {
     }
 
     fn party_ind(&self) -> u16 {
-        self.party_i
+        self.party_i.into()
     }
 
     fn parties(&self) -> u16 {
-        self.party_n
+        self.party_n.into()
     }
 }
 
-impl crate::traits::RoundBlame for Keygen {
+impl crate::traits::RoundBlame for KeyRefresh {
     fn round_blame(&self) -> (u16, Vec<u16>) {
         let store1_blame = self
             .round0_msgs
@@ -278,7 +308,7 @@ impl fmt::Debug for KeyRefresh {
         };
         write!(
             f,
-            "{{Keygen at round={} msgs1={} msgs2={} msgs3={} msgs4={} queue=[len={}]}}",
+            "{{Key refresh at round={} round0_msgs={} round1_msgs={} queue=[len={}]}}",
             current_round,
             round0_msgs,
             round1_msgs,
@@ -301,49 +331,73 @@ enum R {
 /// Protocol message which parties send on wire
 ///
 /// Hides actual messages structure so it could be changed without breaking semver policy.
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProtocolMessage(M);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 enum M {
     Round1(Option<JoinMessage>),
     Round2(Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>),
 }
 
-#[cfg(test)]
-pub mod test {
-    use round_based::dev::Simulation;
+// Error
 
-    use super::*;
+type Result<T> = std::result::Result<T, Error>;
 
-    pub fn simulate_keygen(t: u16, n: u16) -> Vec<LocalKey<Secp256k1>> {
-        let mut simulation = Simulation::new();
-        simulation.enable_benchmarks(true);
+/// Error type of key refresh protocol
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum Error {
+    /// Round proceeding resulted in error
+    #[error("proceed round: {0}")]
+    ProceedRound(#[source] FsDkrError),
 
-        for i in 1..=n {
-            simulation.add_party(Keygen::new(i, t, n).unwrap());
-        }
+    /// Too few parties (`n < 2`)
+    #[error("at least 2 parties are required for keygen")]
+    TooFewParties,
+    /// Threshold value `t` is not in range `[1; n-1]`
+    #[error("threshold is not in range [1; n-1]")]
+    InvalidThreshold,
+    /// Party index `i` is not in range `[1; n]`
+    #[error("party index is not in range [1; n]")]
+    InvalidPartyIndex,
 
-        let keys = simulation.run().unwrap();
+    /// Received message didn't pass pre-validation
+    #[error("received message didn't pass pre-validation: {0}")]
+    HandleMessage(#[source] StoreErr),
+    /// Received message which we didn't expect to receive now (e.g. message from previous round)
+    #[error(
+        "didn't expect to receive message from round {msg_round} (being at round {current_round})"
+    )]
+    ReceivedOutOfOrderMessage { current_round: u16, msg_round: u16 },
+    /// [Keygen::pick_output] called twice
+    #[error("pick_output called twice")]
+    DoublePickOutput,
 
-        println!("Benchmark results:");
-        println!("{:#?}", simulation.benchmark_results().unwrap());
+    /// Some internal assertions were failed, which is a bug
+    #[doc(hidden)]
+    #[error("internal error: {0:?}")]
+    InternalError(InternalError),
+}
 
-        keys
+impl IsCritical for Error {
+    fn is_critical(&self) -> bool {
+        true
     }
+}
 
-    #[test]
-    fn simulate_keygen_t1_n2() {
-        simulate_keygen(1, 2);
+impl From<InternalError> for Error {
+    fn from(err: InternalError) -> Self {
+        Self::InternalError(err)
     }
+}
 
-    #[test]
-    fn simulate_keygen_t1_n3() {
-        simulate_keygen(1, 3);
-    }
-
-    #[test]
-    fn simulate_keygen_t2_n3() {
-        simulate_keygen(2, 3);
+mod private {
+    #[derive(Debug)]
+    #[non_exhaustive]
+    pub enum InternalError {
+        /// [Messages store](super::MessageStore) reported that it received all messages it wanted to receive,
+        /// but refused to return message container
+        RetrieveRoundMessages(super::StoreErr),
+        #[doc(hidden)]
+        StoreGone,
     }
 }
