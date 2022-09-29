@@ -12,13 +12,95 @@ pub struct KeyRefresh {
 
 	// Message queue
 	msgs_queue: Vec<Msg<ProtocolMessage>>,
-
-	party_i: usize,
-	party_n: usize,
 }
 
 
 impl KeyRefresh {
+	pub fn new(local_key_option: Option<LocalKey<Secp256k1>>, t: u16, n: u16) -> Result<Self> {
+        if n < 2 {
+            return Err(Error::TooFewParties);
+        }
+        if t == 0 || t >= n {
+            return Err(Error::InvalidThreshold);
+        }
+        let mut state = Self {
+            round: R::Round0(Round0 { local_key_option, t, n }),
+
+            round0_msgs: Some(Round1::expects_messages(i, n)),
+           	round1_msgs: Some(Round2::expects_messages(i, n)),
+
+            msgs_queue: vec![],
+        };
+
+        state.proceed_round(false)?;
+        Ok(state)
+    }
+
+	fn gmap_queue<'a, T, F>(&'a mut self, mut f: F) -> impl Push<Msg<T>> + 'a
+    where
+        F: FnMut(T) -> M + 'a,
+    {
+        (&mut self.msgs_queue).gmap(move |m: Msg<T>| m.map_body(|m| ProtocolMessage(f(m))))
+    }
+
+	/// Proceeds round state if it received enough messages and if it's cheap to compute or
+    /// `may_block == true`
+    fn proceed_round(&mut self, may_block: bool) -> Result<()> {
+		let store1_wants_more = self.round0_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
+		let store2wants_more = self.round1_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
+
+		let next_state: R;
+
+		let try_again: bool = match replace(&mut self.round, R::Gone) {
+            R::Round0(round) if !round.is_expensive() || may_block => {
+                next_state = round
+                    .proceed(self.gmap_queue(M::Round1))
+                    .map(R::Round1)
+                    .map_err(Error::ProceedRound)?;
+                true
+            }
+            s @ R::Round0(_) => {
+                next_state = s;
+                false
+            }
+            R::Round1(round) if !store1_wants_more && (!round.is_expensive() || may_block) => {
+                let store = self.round0_msgs.take().ok_or(InternalError::StoreGone)?;
+                let msgs = store
+                    .finish()
+                    .map_err(InternalError::RetrieveRoundMessages)?;
+                next_state = round
+                    .proceed(msgs, self.gmap_queue(M::Round2))
+                    .map(R::Round2)
+                    .map_err(Error::ProceedRound)?;
+                true
+            }
+            s @ R::Round1(_) => {
+                next_state = s;
+                false
+            }
+            R::Round2(round) if !store2_wants_more && (!round.is_expensive() || may_block) => {
+                let store = self.round1_msgs.take().ok_or(InternalError::StoreGone)?;
+                let msgs = store
+                    .finish()
+                    .map_err(InternalError::RetrieveRoundMessages)?;
+                next_state = round
+                    .proceed(msgs)
+                    .map(R::Final)
+                    .map_err(Error::ProceedRound)?;
+                true
+            }
+            s @ R::Round2(_) => {
+                next_state = s;
+                false
+            }
+        };
+        self.round = next_state;
+        if try_again {
+            self.proceed_round(may_block)
+        } else {
+            Ok(())
+        }
+	}
 }
 
 impl StateMachine for KeyRefresh {
@@ -113,4 +195,3 @@ enum M {
     Round1(Option<JoinMessage>),
     Round2(Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>),
 }
-
