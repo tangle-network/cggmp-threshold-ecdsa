@@ -108,13 +108,62 @@ impl StateMachine for KeyRefresh {
 	type Err = Error;
 	type Output = LocalKey<Secp256k1>;
 
-	fn handle_incoming() {}
+	fn handle_incoming(&mut self, msg: Msg<Self::MessageBody>) -> Result<()> {
+		let current_round = self.current_round();
+
+        match msg.body {
+            ProtocolMessage(M::Round1(m)) => {
+                let store = self
+                    .round0_msgs
+                    .as_mut()
+                    .ok_or(Error::ReceivedOutOfOrderMessage {
+                        current_round,
+                        msg_round: 1,
+                    })?;
+                store
+                    .push_msg(Msg {
+                        sender: msg.sender,
+                        receiver: msg.receiver,
+                        body: m,
+                    })
+                    .map_err(Error::HandleMessage)?;
+                self.proceed_round(false)
+            }
+            ProtocolMessage(M::Round2(m)) => {
+                let store = self
+                    .round1_msgs
+                    .as_mut()
+                    .ok_or(Error::ReceivedOutOfOrderMessage {
+                        current_round,
+                        msg_round: 2,
+                    })?;
+                store
+                    .push_msg(Msg {
+                        sender: msg.sender,
+                        receiver: msg.receiver,
+                        body: m,
+                    })
+                    .map_err(Error::HandleMessage)?;
+                self.proceed_round(false)
+            }
+        }
+	}
 
 	fn message_queue(&mut self) -> &mut Vec<Msg<Self::MessageBody>> {
 		&mut self.msgs_queue
 	}
 
-	fn wants_to_proceed(){}
+    fn wants_to_proceed(&self) -> bool {
+        let store1_wants_more = self.round0_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
+        let store2_wants_more = self.round1_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
+
+        match &self.round {
+            R::Round0(_) => true,
+            R::Round1(_) => !store1_wants_more,
+            R::Round2(_) => !store2_wants_more,
+            R::Final(_) | R::Gone => false,
+        }
+    }
 
 	fn proceed(&mut self) -> Result<()> {
 		self.proceed_round(true)
@@ -170,7 +219,7 @@ impl StateMachine for KeyRefresh {
 impl crate::traits::RoundBlame for Keygen {
 }
 
-impl fmt::Debug for KeyRefresh{}
+impl fmt::Debug for KeyRefresh {}
 
 
 // Rounds
