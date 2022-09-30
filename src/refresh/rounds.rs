@@ -1,7 +1,7 @@
 use curv::elliptic::curves::Secp256k1;
 use fs_dkr::{add_party_message::*, error::*, refresh_message::*};
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
-	party_i::Keys, state_machine::keygen::*
+	party_i::Keys, state_machine::keygen::*,
 };
 use paillier::DecryptionKey;
 use round_based::{
@@ -52,7 +52,7 @@ impl Round0 {
 		}
 	}
 	pub fn is_expensive(&self) -> bool {
-		true
+		false
 	}
 }
 
@@ -120,7 +120,7 @@ impl Round1 {
 	}
 
 	pub fn is_expensive(&self) -> bool {
-		true
+		false
 	}
 
 	pub fn expects_messages(i: u16, n: u16) -> Store<BroadcastMsgs<Option<JoinMessage>>> {
@@ -161,6 +161,7 @@ impl Round2 {
 					self.new_paillier_decryption_key,
 					join_message_slice,
 				);
+				println!("local key 2 {:?}", local_key.clone().keys_linear.x_i);
 				Ok(local_key)
 			},
 			ExistingOrNewParty::New((join_message, paillier_keys)) => {
@@ -179,7 +180,7 @@ impl Round2 {
 	}
 
 	pub fn is_expensive(&self) -> bool {
-		true
+		false
 	}
 	pub fn expects_messages(
 		i: u16,
