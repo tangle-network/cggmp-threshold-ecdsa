@@ -286,8 +286,10 @@ enum R {
 /// Protocol message which parties send on wire
 ///
 /// Hides actual messages structure so it could be changed without breaking semver policy.
+#[derive(Debug, Clone)]
 pub struct ProtocolMessage(M);
 
+#[derive(Debug, Clone)]
 enum M {
 	Round1(Option<JoinMessage>),
 	Round2(Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>),
@@ -358,29 +360,68 @@ mod private {
 }
 
 pub mod test {
-    use curv::elliptic::curves::Secp256k1;
+    use curv::elliptic::curves::{Secp256k1};
     use round_based::dev::Simulation;
-	use crate::keygen::state_machine::*;
+	use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::*;
+	use crate::refresh::state_machine::KeyRefresh;
+	use curv::cryptographic_primitives::secret_sharing::feldman_vss::{
+        ShamirSecretSharing, VerifiableSS,
+    };
 
-	pub fn simulate_keygen(t: u16, n: u16) -> Vec<LocalKey<Secp256k1>> {
+    fn simulate_keygen(t: u16, n: u16) -> Vec<LocalKey<Secp256k1>> {
+        //simulate keygen
+        let mut simulation = Simulation::new();
+        simulation.enable_benchmarks(false);
+
+        for i in 1..=n {
+            simulation.add_party(Keygen::new(i, t, n).unwrap());
+        }
+
+        simulation.run().unwrap()
+    }
+
+	pub fn simulate_dkr_with_no_replacements(old_local_keys: Vec<LocalKey<Secp256k1>>) -> Vec<LocalKey<Secp256k1>> {
 		let mut simulation = Simulation::new();
-		simulation.enable_benchmarks(true);
+		simulation.enable_benchmarks(false);
 
-		for i in 1..n {
-			simulation.add_party(Keygen::new(i, t, n).unwrap());
+		for old_local_key in old_local_keys {
+			simulation.add_party(KeyRefresh::new(Some(old_local_key.clone()), old_local_key.clone().i, old_local_key.clone().t, old_local_key.n).unwrap());
 		}
 
-		let keys = simulation.run().unwrap();
-
-		println!("Benchmark results:");
-		println!("{:#?}", simulation.benchmark_results().unwrap());
-
-		keys
+		 simulation.run().unwrap()
 	}
 
-	// Keygen (Test to make sure keygen works...)
-
 	// Refresh Keys: Only Existing Parties (No New Parties)
+	#[test]
+	pub fn dkr_with_no_new_parties_test() {
+		let t = 3;
+		let n = 5;
+		let local_keys = simulate_keygen(t, n);
+
+		let mut old_local_keys = local_keys.clone();
+		let mut new_local_keys = simulate_dkr_with_no_replacements(local_keys);
+
+		// check that sum of old keys is equal to sum of new keys
+		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
+		.map(|i| old_local_keys[i].keys_linear.x_i.clone())
+		.collect();
+
+		let new_linear_secret_key: Vec<_> =
+			(0..new_local_keys.len()).map(|i| new_local_keys[i].keys_linear.x_i.clone()).collect();
+		let indices: Vec<_> = (0..(t + 1)).collect();
+		let vss = VerifiableSS::<Secp256k1> {
+			parameters: ShamirSecretSharing {
+				threshold: t,
+				share_count: n,
+			},
+			commitments: Vec::new(),
+		};
+		assert_eq!(
+			vss.reconstruct(&indices[..], &old_linear_secret_key[0..(t + 1) as usize]),
+			vss.reconstruct(&indices[..], &new_linear_secret_key[0..(t + 1) as usize])
+		);
+		assert_ne!(old_linear_secret_key, new_linear_secret_key);
+	}
 
 	// Refresh Keys: All Existing Parties Stay, New Parties Join
 

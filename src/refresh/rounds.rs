@@ -1,8 +1,7 @@
-use crate::{keygen::rounds::*, ErrorType};
 use curv::elliptic::curves::Secp256k1;
 use fs_dkr::{add_party_message::*, error::*, refresh_message::*};
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
-	party_i::Keys, state_machine::keygen::LocalKey,
+	party_i::Keys, state_machine::keygen::*
 };
 use paillier::DecryptionKey;
 use round_based::{
