@@ -413,7 +413,6 @@ pub mod test {
 		let mut old_local_keys = local_keys.clone();
 		let mut new_local_keys = simulate_dkr_with_no_replacements(local_keys);
 
-		// check that sum of old keys is equal to sum of new keys
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
 			.collect();
@@ -426,6 +425,7 @@ pub mod test {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n },
 			commitments: Vec::new(),
 		};
+
 		assert_eq!(
 			vss.reconstruct(&indices[..], &old_linear_secret_key[0..(t + 1) as usize]),
 			vss.reconstruct(&indices[..], &new_linear_secret_key[0..(t + 1) as usize])
