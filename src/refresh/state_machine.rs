@@ -356,3 +356,11 @@ mod private {
 		StoreGone,
 	}
 }
+
+pub mod test {
+	// Refresh Keys: Only Existing Parties (No New Parties)
+
+	// Refresh Keys: All Existing Parties Stay, New Parties Join
+
+	// Refresh Keys: Some Existing Parties Leave, New Parties Replace Them
+}
