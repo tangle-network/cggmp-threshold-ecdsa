@@ -358,6 +358,28 @@ mod private {
 }
 
 pub mod test {
+    use curv::elliptic::curves::Secp256k1;
+    use round_based::dev::Simulation;
+	use crate::keygen::state_machine::*;
+
+	pub fn simulate_keygen(t: u16, n: u16) -> Vec<LocalKey<Secp256k1>> {
+		let mut simulation = Simulation::new();
+		simulation.enable_benchmarks(true);
+
+		for i in 1..n {
+			simulation.add_party(Keygen::new(i, t, n).unwrap());
+		}
+
+		let keys = simulation.run().unwrap();
+
+		println!("Benchmark results:");
+		println!("{:#?}", simulation.benchmark_results().unwrap());
+
+		keys
+	}
+
+	// Keygen (Test to make sure keygen works...)
+
 	// Refresh Keys: Only Existing Parties (No New Parties)
 
 	// Refresh Keys: All Existing Parties Stay, New Parties Join
