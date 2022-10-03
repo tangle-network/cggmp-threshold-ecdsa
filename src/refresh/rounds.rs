@@ -97,7 +97,6 @@ impl Round1 {
 		}
 		match self.party_type {
 			ExistingOrNewParty::Existing(mut local_key) => {
-				println!("match1");
 				// Existing parties form a refresh message and broadcast it.
 				let join_message_slice = join_message_vec.as_slice();
 				let refresh_message_result =
@@ -175,12 +174,9 @@ impl Round2 {
 				_ => {},
 			}
 		}
-		println!("refresh message length {:?}", refresh_message_vec.len());
 
 		match self.party_type {
 			ExistingOrNewParty::Existing(mut local_key) => {
-				println!("match2");
-				println!("y_i {:?}", local_key.keys_linear.x_i);
 				let join_message_slice = self.join_messages.as_slice();
 				let refresh_message_slice = refresh_message_vec.as_slice();
 				RefreshMessage::collect(

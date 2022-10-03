@@ -16,6 +16,7 @@ use round_based::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use core::num;
 use std::{fmt, mem::replace, time::Duration};
 use thiserror::Error;
 
@@ -40,6 +41,7 @@ impl KeyRefresh {
 	pub fn new(
 		local_key_option: Option<LocalKey<Secp256k1>>,
 		new_party_index_option: Option<u16>,
+		num_of_new_parties: u16,
 		i: Option<u16>,
 		t: u16,
 		n: u16,
@@ -59,14 +61,14 @@ impl KeyRefresh {
 		let mut state = Self {
 			round: R::Round0(Round0 { local_key_option, new_party_index_option, t, n }),
 
-			round0_msgs: Some(Round1::expects_messages(i, n)),
-			round1_msgs: Some(Round2::expects_messages(i, n)),
+			round0_msgs: Some(Round1::expects_messages(i, n+num_of_new_parties)),
+			round1_msgs: Some(Round2::expects_messages(i, n+num_of_new_parties)),
 
 			msgs_queue: vec![],
 
 			party_i: i,
 
-			party_n: n,
+			party_n: n + num_of_new_parties,
 		};
 
 		state.proceed_round(false)?;
@@ -403,6 +405,7 @@ pub mod test {
 				KeyRefresh::new(
 					Some(old_local_key.clone()),
 					None,
+					0,
 					Some(old_local_key.clone().i),
 					old_local_key.clone().t,
 					old_local_key.n,
@@ -458,6 +461,7 @@ pub mod test {
 				KeyRefresh::new(
 					Some(old_local_key.clone()),
 					None,
+					2,
 					Some(old_local_key.clone().i),
 					old_local_key.clone().t,
 					old_local_key.n,
@@ -471,6 +475,7 @@ pub mod test {
 				KeyRefresh::new(
 					None,
 					Some(index),
+					2,
 					None,
 					t,
 					n,
@@ -488,7 +493,7 @@ pub mod test {
 		let local_keys = simulate_keygen(t, n);
 
 		let mut old_local_keys = local_keys.clone();
-		let mut new_local_keys = simulate_dkr_with_new_parties(local_keys, vec![7, 8], t, n);
+		let mut new_local_keys = simulate_dkr_with_new_parties(local_keys, vec![6, 7], t, n);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
@@ -512,4 +517,31 @@ pub mod test {
 
 
 	// Refresh Keys: Some Existing Parties Leave, New Parties Replace Them
+	pub fn test_dkr_with_replace_parties() {
+		let t = 3;
+		let n = 5;
+		let local_keys = simulate_keygen(t, n);
+
+		let mut old_local_keys = local_keys.clone();
+		let mut new_local_keys = simulate_dkr_with_new_parties(local_keys, vec![2, 6], t, n);
+
+		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
+			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
+			.collect();
+
+		let new_linear_secret_key: Vec<_> = (0..new_local_keys.len())
+			.map(|i| new_local_keys[i].keys_linear.x_i.clone())
+			.collect();
+		let indices: Vec<_> = (0..(t + 1)).collect();
+		let vss = VerifiableSS::<Secp256k1> {
+			parameters: ShamirSecretSharing { threshold: t, share_count: n },
+			commitments: Vec::new(),
+		};
+
+		assert_eq!(
+			vss.reconstruct(&indices[..], &old_linear_secret_key[0..(t + 1) as usize]),
+			vss.reconstruct(&indices[..], &new_linear_secret_key[0..(t + 1) as usize])
+		);
+		assert_ne!(old_linear_secret_key, new_linear_secret_key);
+	}
 }
