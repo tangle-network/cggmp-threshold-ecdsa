@@ -15,11 +15,12 @@ use crate::refresh;
 
 pub enum ExistingOrNewParty {
 	Existing(LocalKey<Secp256k1>),
-	New((JoinMessage, Keys)),
+	New((JoinMessage, Keys, u16)),
 }
 
 pub struct Round0 {
 	pub local_key_option: Option<LocalKey<Secp256k1>>,
+	pub new_party_index_option: Option<u16>,
 	pub t: u16,
 	pub n: u16,
 }
@@ -31,26 +32,38 @@ impl Round0 {
 	{
 		match self.local_key_option {
 			Some(local_key) => {
-				println!("match0");
 				output.push(Msg { sender: local_key.i, receiver: None, body: None });
-				Ok(Round1 {
-					party_type: ExistingOrNewParty::Existing(local_key),
-					t: self.t,
-					n: self.n,
-				})
+				match self.new_party_index_option {
+					None => Ok(Round1 {
+						party_type: ExistingOrNewParty::Existing(local_key),
+						t: self.t,
+						n: self.n,
+					}),
+					_ => Err(FsDkrError::NewPartyUnassignedIndexError),
+				}
 			},
 			None => {
-				let (join_message, paillier_keys) = JoinMessage::distribute();
-				output.push(Msg {
-					sender: join_message.clone().get_party_index()?.try_into().unwrap(),
-					receiver: None,
-					body: Some(join_message.clone()),
-				});
-				Ok(Round1 {
-					party_type: ExistingOrNewParty::New((join_message, paillier_keys)),
-					t: self.t,
-					n: self.n,
-				})
+				let (mut join_message, paillier_keys) = JoinMessage::distribute();
+				match self.new_party_index_option {
+					Some(new_party_index) => {
+						join_message.set_party_index(new_party_index);
+						output.push(Msg {
+							sender: join_message.clone().get_party_index()?.try_into().unwrap(),
+							receiver: None,
+							body: Some(join_message.clone()),
+						});
+						Ok(Round1 {
+							party_type: ExistingOrNewParty::New((
+								join_message.clone(),
+								paillier_keys,
+								new_party_index,
+							)),
+							t: self.t,
+							n: self.n,
+						})
+					},
+					None => Err(FsDkrError::NewPartyUnassignedIndexError),
+				}
 			},
 		}
 	}
@@ -107,7 +120,7 @@ impl Round1 {
 				})
 			},
 
-			ExistingOrNewParty::New((join_message, paillier_keys)) => {
+			ExistingOrNewParty::New((join_message, paillier_keys, new_party_index)) => {
 				// New parties don't need to form a refresh message.
 				output.push(Msg {
 					sender: join_message.get_party_index()?.try_into().unwrap(),
@@ -115,7 +128,11 @@ impl Round1 {
 					body: None,
 				});
 				Ok(Round2 {
-					party_type: ExistingOrNewParty::New((join_message, paillier_keys.clone())),
+					party_type: ExistingOrNewParty::New((
+						join_message,
+						paillier_keys.clone(),
+						new_party_index,
+					)),
 					join_messages: join_message_vec,
 					new_paillier_decryption_key: paillier_keys.dk,
 					refresh_message: None,
@@ -174,7 +191,7 @@ impl Round2 {
 				);
 				Ok(local_key)
 			},
-			ExistingOrNewParty::New((join_message, paillier_keys)) => {
+			ExistingOrNewParty::New((join_message, paillier_keys, new_party_index)) => {
 				let join_message_slice = self.join_messages.as_slice();
 				let refresh_message_slice = refresh_message_vec.as_slice();
 				JoinMessage::collect(
