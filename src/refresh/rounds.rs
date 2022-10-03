@@ -100,7 +100,7 @@ impl Round1 {
 				// Existing parties form a refresh message and broadcast it.
 				let join_message_slice = join_message_vec.as_slice();
 				let refresh_message_result =
-					RefreshMessage::replace(join_message_slice, &mut local_key);
+					RefreshMessage::replace(join_message_slice, &mut local_key, self.n);
 				let refresh_message = refresh_message_result.unwrap();
 				let new_paillier_dk = refresh_message.clone().1;
 				let new_local_key = local_key.clone();
@@ -183,6 +183,7 @@ impl Round2 {
 					refresh_message_slice,
 					&mut local_key,
 					self.new_paillier_decryption_key,
+					self.n,
 					join_message_slice,
 				);
 				Ok(local_key)
