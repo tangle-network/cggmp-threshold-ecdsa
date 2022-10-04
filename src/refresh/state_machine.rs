@@ -41,7 +41,6 @@ impl KeyRefresh {
 	pub fn new(
 		local_key_option: Option<LocalKey<Secp256k1>>,
 		new_party_index_option: Option<u16>,
-		i: Option<u16>,
 		t: u16,
 		n: u16,
 	) -> Result<Self> {
@@ -52,9 +51,9 @@ impl KeyRefresh {
 			return Err(Error::InvalidThreshold)
 		}
 
-		let i = match i {
+		let i = match local_key_option {
 			None => new_party_index_option.unwrap(),
-			_ => i.unwrap(),
+			_ => local_key_option.clone().unwrap().i,
 		};
 
 		let mut state = Self {
@@ -404,7 +403,6 @@ pub mod test {
 				KeyRefresh::new(
 					Some(old_local_key.clone()),
 					None,
-					Some(old_local_key.clone().i),
 					old_local_key.clone().t,
 					old_local_key.n,
 				)
@@ -459,7 +457,6 @@ pub mod test {
 				KeyRefresh::new(
 					Some(old_local_key.clone()),
 					None,
-					Some(old_local_key.clone().i),
 					old_local_key.clone().t,
 					n,
 				)
@@ -472,7 +469,6 @@ pub mod test {
 				KeyRefresh::new(
 					None,
 					Some(index),
-					None,
 					t,
 					n,
 				)
@@ -500,13 +496,18 @@ pub mod test {
 			.collect();
 		let indices: Vec<_> = (0..(t + 1)).collect();
 		let vss = VerifiableSS::<Secp256k1> {
-			parameters: ShamirSecretSharing { threshold: t, share_count: n+2 },
+			parameters: ShamirSecretSharing { threshold: t, share_count: n },
+			commitments: Vec::new(),
+		};
+
+		let new_vss = VerifiableSS::<Secp256k1> {
+			parameters: ShamirSecretSharing { threshold: t, share_count: n +2},
 			commitments: Vec::new(),
 		};
 
 		assert_eq!(
 			vss.reconstruct(&indices[..], &old_linear_secret_key[0..(t + 1) as usize]),
-			vss.reconstruct(&indices[..], &new_linear_secret_key[0..(t + 1) as usize])
+			new_vss.reconstruct(&indices[..], &new_linear_secret_key[0..(t + 1) as usize])
 		);
 		assert_ne!(old_linear_secret_key, new_linear_secret_key);
 	}
@@ -535,7 +536,6 @@ pub mod test {
 				KeyRefresh::new(
 					Some(non_removed_local_key.clone()),
 					None,
-					Some(non_removed_local_key.clone().i),
 					non_removed_local_key.clone().t,
 					n,
 				)
@@ -548,7 +548,6 @@ pub mod test {
 				KeyRefresh::new(
 					None,
 					Some(index),
-					None,
 					t,
 					n,
 				)
@@ -605,7 +604,6 @@ pub mod test {
 					KeyRefresh::new(
 						Some(old_local_key.clone()),
 						None,
-						Some(old_local_key.clone().i),
 						old_local_key.clone().t,
 						n,
 					)
@@ -619,7 +617,6 @@ pub mod test {
 				KeyRefresh::new(
 					None,
 					Some(index),
-					None,
 					t,
 					n,
 				)
