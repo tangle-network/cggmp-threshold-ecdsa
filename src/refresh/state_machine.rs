@@ -1,4 +1,5 @@
 use crate::refresh::rounds::{Round0, Round1, Round2};
+use core::num;
 use curv::elliptic::curves::Secp256k1;
 use fs_dkr::{
 	add_party_message::JoinMessage,
@@ -16,7 +17,6 @@ use round_based::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use core::num;
 use std::{fmt, mem::replace, time::Duration};
 use thiserror::Error;
 
@@ -454,26 +454,13 @@ pub mod test {
 
 		for old_local_key in old_local_keys {
 			simulation.add_party(
-				KeyRefresh::new(
-					Some(old_local_key.clone()),
-					None,
-					old_local_key.clone().t,
-					n,
-				)
-				.unwrap(),
+				KeyRefresh::new(Some(old_local_key.clone()), None, old_local_key.clone().t, n)
+					.unwrap(),
 			);
 		}
 
 		for index in new_party_indices {
-			simulation.add_party(
-				KeyRefresh::new(
-					None,
-					Some(index),
-					t,
-					n,
-				)
-				.unwrap(),
-			);
+			simulation.add_party(KeyRefresh::new(None, Some(index), t, n).unwrap());
 		}
 		simulation.run().unwrap()
 	}
@@ -485,7 +472,7 @@ pub mod test {
 		let local_keys = simulate_keygen(t, n);
 
 		let mut old_local_keys = local_keys.clone();
-		let mut new_local_keys = simulate_dkr_with_new_parties(local_keys, vec![6, 7], t, n+2);
+		let mut new_local_keys = simulate_dkr_with_new_parties(local_keys, vec![6, 7], t, n + 2);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
@@ -501,7 +488,7 @@ pub mod test {
 		};
 
 		let new_vss = VerifiableSS::<Secp256k1> {
-			parameters: ShamirSecretSharing { threshold: t, share_count: n +2},
+			parameters: ShamirSecretSharing { threshold: t, share_count: n + 2 },
 			commitments: Vec::new(),
 		};
 
@@ -523,12 +510,13 @@ pub mod test {
 	) -> Vec<LocalKey<Secp256k1>> {
 		let mut simulation = Simulation::new();
 		simulation.enable_benchmarks(false);
-		
+
 		let mut non_removed_parties_vec: Vec<LocalKey<Secp256k1>> = vec![];
 		for old_local_key in old_local_keys {
 			if remaining_old_party_indices.contains(&old_local_key.i) {
 				non_removed_parties_vec.push(old_local_key);
-			} else {}
+			} else {
+			}
 		}
 
 		for non_removed_local_key in non_removed_parties_vec {
@@ -544,19 +532,10 @@ pub mod test {
 		}
 
 		for index in new_party_indices {
-			simulation.add_party(
-				KeyRefresh::new(
-					None,
-					Some(index),
-					t,
-					n,
-				)
-				.unwrap(),
-			);
+			simulation.add_party(KeyRefresh::new(None, Some(index), t, n).unwrap());
 		}
 
 		simulation.run().unwrap()
-
 	}
 
 	#[test]
@@ -566,7 +545,8 @@ pub mod test {
 		let local_keys = simulate_keygen(t, n);
 
 		let mut old_local_keys = local_keys.clone();
-		let mut new_local_keys = simulate_dkr_with_remove_parties(local_keys, vec![1, 2, 3], vec![], t, n-2);
+		let mut new_local_keys =
+			simulate_dkr_with_remove_parties(local_keys, vec![1, 2, 3], vec![], t, n - 2);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
@@ -601,27 +581,15 @@ pub mod test {
 		for old_local_key in old_local_keys {
 			if !new_party_indices.contains(&old_local_key.i) {
 				simulation.add_party(
-					KeyRefresh::new(
-						Some(old_local_key.clone()),
-						None,
-						old_local_key.clone().t,
-						n,
-					)
-					.unwrap(),
+					KeyRefresh::new(Some(old_local_key.clone()), None, old_local_key.clone().t, n)
+						.unwrap(),
 				);
-			} else {}
+			} else {
+			}
 		}
 
 		for index in new_party_indices {
-			simulation.add_party(
-				KeyRefresh::new(
-					None,
-					Some(index),
-					t,
-					n,
-				)
-				.unwrap(),
-			);
+			simulation.add_party(KeyRefresh::new(None, Some(index), t, n).unwrap());
 		}
 		simulation.run().unwrap()
 	}
@@ -633,7 +601,8 @@ pub mod test {
 		let local_keys = simulate_keygen(t, n);
 
 		let mut old_local_keys = local_keys.clone();
-		let mut new_local_keys = simulate_dkr_with_replace_parties(local_keys, vec![2, 6], t, n+1);
+		let mut new_local_keys =
+			simulate_dkr_with_replace_parties(local_keys, vec![2, 6], t, n + 1);
 
 		for key in new_local_keys.clone() {
 			println!("key i {:?}", key.i);
@@ -655,7 +624,7 @@ pub mod test {
 		};
 
 		let new_vss = VerifiableSS::<Secp256k1> {
-			parameters: ShamirSecretSharing { threshold: t, share_count: n+1 },
+			parameters: ShamirSecretSharing { threshold: t, share_count: n + 1 },
 			commitments: Vec::new(),
 		};
 
