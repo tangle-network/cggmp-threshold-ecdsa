@@ -41,7 +41,6 @@ impl KeyRefresh {
 	pub fn new(
 		local_key_option: Option<LocalKey<Secp256k1>>,
 		new_party_index_option: Option<u16>,
-		num_of_new_parties: u16,
 		i: Option<u16>,
 		t: u16,
 		n: u16,
@@ -405,7 +404,6 @@ pub mod test {
 				KeyRefresh::new(
 					Some(old_local_key.clone()),
 					None,
-					0,
 					Some(old_local_key.clone().i),
 					old_local_key.clone().t,
 					old_local_key.n,
@@ -447,73 +445,71 @@ pub mod test {
 	}
 
 	// Refresh Keys: All Existing Parties Stay, New Parties Join
-	// pub fn simulate_dkr_with_new_parties(
-	// 	old_local_keys: Vec<LocalKey<Secp256k1>>,
-	// 	party_indices: Vec<u16>,
-	// 	t: u16,
-	// 	n: u16,
-	// ) -> Vec<LocalKey<Secp256k1>> {
-	// 	let mut simulation = Simulation::new();
-	// 	simulation.enable_benchmarks(false);
+	pub fn simulate_dkr_with_new_parties(
+		old_local_keys: Vec<LocalKey<Secp256k1>>,
+		new_party_indices: Vec<u16>,
+		t: u16,
+		n: u16,
+	) -> Vec<LocalKey<Secp256k1>> {
+		let mut simulation = Simulation::new();
+		simulation.enable_benchmarks(false);
 
-	// 	for old_local_key in old_local_keys {
-	// 		simulation.add_party(
-	// 			KeyRefresh::new(
-	// 				Some(old_local_key.clone()),
-	// 				None,
-	// 				2,
-	// 				Some(old_local_key.clone().i),
-	// 				old_local_key.clone().t,
-	// 				n,
-	// 			)
-	// 			.unwrap(),
-	// 		);
-	// 	}
+		for old_local_key in old_local_keys {
+			simulation.add_party(
+				KeyRefresh::new(
+					Some(old_local_key.clone()),
+					None,
+					Some(old_local_key.clone().i),
+					old_local_key.clone().t,
+					n,
+				)
+				.unwrap(),
+			);
+		}
 
-	// 	for index in new_party_indices {
-	// 		simulation.add_party(
-	// 			KeyRefresh::new(
-	// 				None,
-	// 				Some(index),
-	// 				2,
-	// 				None,
-	// 				t,
-	// 				n,
-	// 			)
-	// 			.unwrap(),
-	// 		);
-	// 	}
-	// 	simulation.run().unwrap()
-	// }
+		for index in new_party_indices {
+			simulation.add_party(
+				KeyRefresh::new(
+					None,
+					Some(index),
+					None,
+					t,
+					n,
+				)
+				.unwrap(),
+			);
+		}
+		simulation.run().unwrap()
+	}
 
-	// #[test]
-	// pub fn test_dkr_with_new_parties() {
-	// 	let t = 3;
-	// 	let n = 5;
-	// 	let local_keys = simulate_keygen(t, n);
+	#[test]
+	pub fn test_dkr_with_new_parties() {
+		let t = 3;
+		let n = 5;
+		let local_keys = simulate_keygen(t, n);
 
-	// 	let mut old_local_keys = local_keys.clone();
-	// 	let mut new_local_keys = simulate_dkr_with_new_parties(local_keys, vec![6, 7], t, n+2);
+		let mut old_local_keys = local_keys.clone();
+		let mut new_local_keys = simulate_dkr_with_new_parties(local_keys, vec![6, 7], t, n+2);
 
-	// 	let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
-	// 		.map(|i| old_local_keys[i].keys_linear.x_i.clone())
-	// 		.collect();
+		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
+			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
+			.collect();
 
-	// 	let new_linear_secret_key: Vec<_> = (0..new_local_keys.len())
-	// 		.map(|i| new_local_keys[i].keys_linear.x_i.clone())
-	// 		.collect();
-	// 	let indices: Vec<_> = (0..(t + 1)).collect();
-	// 	let vss = VerifiableSS::<Secp256k1> {
-	// 		parameters: ShamirSecretSharing { threshold: t, share_count: n },
-	// 		commitments: Vec::new(),
-	// 	};
+		let new_linear_secret_key: Vec<_> = (0..new_local_keys.len())
+			.map(|i| new_local_keys[i].keys_linear.x_i.clone())
+			.collect();
+		let indices: Vec<_> = (0..(t + 1)).collect();
+		let vss = VerifiableSS::<Secp256k1> {
+			parameters: ShamirSecretSharing { threshold: t, share_count: n+2 },
+			commitments: Vec::new(),
+		};
 
-	// 	assert_eq!(
-	// 		vss.reconstruct(&indices[..], &old_linear_secret_key[0..(t + 1) as usize]),
-	// 		vss.reconstruct(&indices[..], &new_linear_secret_key[0..(t + 1) as usize])
-	// 	);
-	// 	assert_ne!(old_linear_secret_key, new_linear_secret_key);
-	// }
+		assert_eq!(
+			vss.reconstruct(&indices[..], &old_linear_secret_key[0..(t + 1) as usize]),
+			vss.reconstruct(&indices[..], &new_linear_secret_key[0..(t + 1) as usize])
+		);
+		assert_ne!(old_linear_secret_key, new_linear_secret_key);
+	}
 
 	// Refresh keys with remove parties
 
@@ -539,7 +535,6 @@ pub mod test {
 				KeyRefresh::new(
 					Some(non_removed_local_key.clone()),
 					None,
-					2,
 					Some(non_removed_local_key.clone().i),
 					non_removed_local_key.clone().t,
 					n,
@@ -553,7 +548,6 @@ pub mod test {
 				KeyRefresh::new(
 					None,
 					Some(index),
-					2,
 					None,
 					t,
 					n,
@@ -596,31 +590,82 @@ pub mod test {
 	}
 
 	// Refresh Keys: Some Existing Parties Leave, New Parties Replace Them
-	// pub fn test_dkr_with_replace_parties() {
-	// 	let t = 3;
-	// 	let n = 5;
-	// 	let local_keys = simulate_keygen(t, n);
+	pub fn simulate_dkr_with_replace_parties(
+		old_local_keys: Vec<LocalKey<Secp256k1>>,
+		new_party_indices: Vec<u16>,
+		t: u16,
+		n: u16,
+	) -> Vec<LocalKey<Secp256k1>> {
+		let mut simulation = Simulation::new();
+		simulation.enable_benchmarks(false);
 
-	// 	let mut old_local_keys = local_keys.clone();
-	// 	let mut new_local_keys = simulate_dkr_with_new_parties(local_keys, vec![2, 6], t, n);
+		for old_local_key in old_local_keys {
+			if !new_party_indices.contains(&old_local_key.i) {
+				simulation.add_party(
+					KeyRefresh::new(
+						Some(old_local_key.clone()),
+						None,
+						Some(old_local_key.clone().i),
+						old_local_key.clone().t,
+						n,
+					)
+					.unwrap(),
+				);
+			} else {}
+		}
 
-	// 	let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
-	// 		.map(|i| old_local_keys[i].keys_linear.x_i.clone())
-	// 		.collect();
+		for index in new_party_indices {
+			simulation.add_party(
+				KeyRefresh::new(
+					None,
+					Some(index),
+					None,
+					t,
+					n,
+				)
+				.unwrap(),
+			);
+		}
+		simulation.run().unwrap()
+	}
 
-	// 	let new_linear_secret_key: Vec<_> = (0..new_local_keys.len())
-	// 		.map(|i| new_local_keys[i].keys_linear.x_i.clone())
-	// 		.collect();
-	// 	let indices: Vec<_> = (0..(t + 1)).collect();
-	// 	let vss = VerifiableSS::<Secp256k1> {
-	// 		parameters: ShamirSecretSharing { threshold: t, share_count: n },
-	// 		commitments: Vec::new(),
-	// 	};
+	#[test]
+	pub fn test_dkr_with_replace_parties() {
+		let t = 3;
+		let n = 5;
+		let local_keys = simulate_keygen(t, n);
 
-	// 	assert_eq!(
-	// 		vss.reconstruct(&indices[..], &old_linear_secret_key[0..(t + 1) as usize]),
-	// 		vss.reconstruct(&indices[..], &new_linear_secret_key[0..(t + 1) as usize])
-	// 	);
-	// 	assert_ne!(old_linear_secret_key, new_linear_secret_key);
-	// }
+		let mut old_local_keys = local_keys.clone();
+		let mut new_local_keys = simulate_dkr_with_replace_parties(local_keys, vec![2, 6], t, n+1);
+
+		for key in new_local_keys.clone() {
+			println!("key i {:?}", key.i);
+		}
+
+		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
+			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
+			.collect();
+
+		let new_linear_secret_key: Vec<_> = (0..new_local_keys.len())
+			.map(|i| new_local_keys[i].keys_linear.x_i.clone())
+			.collect();
+
+		let old_indices = vec![0, 1, 2, 3];
+		let new_indices = vec![3, 4, 1, 5];
+		let vss = VerifiableSS::<Secp256k1> {
+			parameters: ShamirSecretSharing { threshold: t, share_count: n },
+			commitments: Vec::new(),
+		};
+
+		let new_vss = VerifiableSS::<Secp256k1> {
+			parameters: ShamirSecretSharing { threshold: t, share_count: n+1 },
+			commitments: Vec::new(),
+		};
+
+		assert_eq!(
+			vss.reconstruct(&old_indices[..], &old_linear_secret_key[0..(t + 1) as usize]),
+			new_vss.reconstruct(&new_indices[..], &new_linear_secret_key[2..(t + 3) as usize])
+		);
+		assert_ne!(old_linear_secret_key, new_linear_secret_key);
+	}
 }

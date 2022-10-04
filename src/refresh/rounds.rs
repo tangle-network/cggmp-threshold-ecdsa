@@ -47,6 +47,7 @@ impl Round0 {
 				match self.new_party_index_option {
 					Some(new_party_index) => {
 						join_message.set_party_index(new_party_index);
+						println!("set party index {:?}", join_message.get_party_index()?);
 						output.push(Msg {
 							sender: join_message.clone().get_party_index()?.try_into().unwrap(),
 							receiver: None,
@@ -183,7 +184,6 @@ impl Round2 {
 					refresh_message_slice,
 					&mut local_key,
 					self.new_paillier_decryption_key,
-					self.n,
 					join_message_slice,
 				);
 				Ok(local_key)
