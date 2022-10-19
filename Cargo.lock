@@ -1312,7 +1312,7 @@ dependencies = [
 [[package]]
 name = "fs-dkr"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/fs-dkr#f335c5c018d5fea4dd31f5547eb85c45d77a241e"
+source = "git+https://github.com/webb-tools/fs-dkr?branch=akilesh/updates-for-cggmp#de541802d14a8270ab34b6f03fd9218d1c62e5c0"
 dependencies = [
  "curv-kzen",
  "kzen-paillier",
