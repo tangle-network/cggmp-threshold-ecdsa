@@ -47,7 +47,6 @@ impl Round0 {
 				match self.new_party_index_option {
 					Some(new_party_index) => {
 						join_message.set_party_index(new_party_index);
-						println!("set party index {:?}", join_message.get_party_index()?);
 						output.push(Msg {
 							sender: join_message.clone().get_party_index()?.try_into().unwrap(),
 							receiver: None,

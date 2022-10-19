@@ -15,7 +15,7 @@ zeroize = "1"
 curv-kzen = { version = "0.9", default-features = false }
 centipede = { version = "0.3", default-features = false }
 zk-paillier = { version = "0.4.3", default-features = false }
-fs-dkr = { git = "https://github.com/webb-tools/fs-dkr", branch = "drew/update-versions", default-features = false }
+fs-dkr = { git = "https://github.com/webb-tools/fs-dkr", branch = "akilesh/updates-for-cggmp", default-features = false }
 round-based = { version = "0.1.4", features = [] }
 thiserror = "1.0.23"
 derivative = "2"

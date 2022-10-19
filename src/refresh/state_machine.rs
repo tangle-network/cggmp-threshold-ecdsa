@@ -415,7 +415,7 @@ pub mod test {
 
 	#[test]
 	pub fn test_dkr_with_no_new_parties() {
-		let t = 3;
+		let t = 2;
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
 
@@ -467,7 +467,7 @@ pub mod test {
 
 	#[test]
 	pub fn test_dkr_with_new_parties() {
-		let t = 3;
+		let t = 2;
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
 
@@ -546,7 +546,7 @@ pub mod test {
 
 		let mut old_local_keys = local_keys.clone();
 		let mut new_local_keys =
-			simulate_dkr_with_remove_parties(local_keys, vec![1, 2, 3], vec![], t, n - 2);
+			simulate_dkr_with_remove_parties(local_keys, vec![1, 2, 3, 4], vec![], t, n - 1);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
@@ -596,17 +596,12 @@ pub mod test {
 
 	#[test]
 	pub fn test_dkr_with_replace_parties() {
-		let t = 3;
+		let t = 2;
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
 
-		let mut old_local_keys = local_keys.clone();
-		let mut new_local_keys =
-			simulate_dkr_with_replace_parties(local_keys, vec![2, 6], t, n + 1);
-
-		for key in new_local_keys.clone() {
-			println!("key i {:?}", key.i);
-		}
+		let old_local_keys = local_keys.clone();
+		let new_local_keys = simulate_dkr_with_replace_parties(local_keys, vec![2, 6], t, n + 1);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
@@ -616,8 +611,8 @@ pub mod test {
 			.map(|i| new_local_keys[i].keys_linear.x_i.clone())
 			.collect();
 
-		let old_indices = vec![0, 1, 2, 3];
-		let new_indices = vec![3, 4, 1, 5];
+		let old_indices = vec![0, 1, 2];
+		let new_indices = vec![3, 4, 1];
 		let vss = VerifiableSS::<Secp256k1> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n },
 			commitments: Vec::new(),
