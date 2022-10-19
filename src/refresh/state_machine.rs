@@ -415,7 +415,7 @@ pub mod test {
 
 	#[test]
 	pub fn test_dkr_with_no_new_parties() {
-		let t = 3;
+		let t = 2;
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
 
@@ -467,7 +467,7 @@ pub mod test {
 
 	#[test]
 	pub fn test_dkr_with_new_parties() {
-		let t = 3;
+		let t = 2;
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
 
@@ -596,7 +596,7 @@ pub mod test {
 
 	#[test]
 	pub fn test_dkr_with_replace_parties() {
-		let t = 3;
+		let t = 2;
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
 
