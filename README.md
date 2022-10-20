@@ -28,11 +28,8 @@
     </ul>
     <li><a href="#usage">Usage</a></li>
     <ul>
-        <li><a href="#quick-start">Quick Start</a></li>
-        <ul>
-            <li><a href="#standalone">Integration into Substrate</a></li>
-            <li><a href="#launch">External Networking</a></li>
-        </ul>
+        <li><a href="#substrate-integration">Integration into Substrate</a></li>
+        <li><a href="#external-networking">External Networking</a></li>
     </ul>
     <li><a href="#test">Testing</a></li>
     <li><a href="#contribute">Contributing</a></li>
@@ -81,15 +78,15 @@ cargo build --release
 
 <h2 style="border-bottom:none"> Quick Start ⚡ </h2>
 
-TBD
+Check out the tests for examples on how to utilise the library!
 
-<h3 id="standalone"> Integration into Substrate </h3>
+<h3 id="substrate-integration"> Integration into Substrate </h3>
 
 A main motivation for Webb is integrating this protocol into a blockchain environment such as Substrate. Our intention is to leverage both a blockchain's proof of stake / proof of authority selection mechanism as well as the underlying system's gossip network to bootstrap and execute this multi-party computation offchain. Throughout the lifecycle of the protocol, the participating MPC authorities will post data on-chain to keep the system in sync, such as to select the participating authorities, to govern the thresholds `t` and `n` and more.
 
 An example of how this is possible using the same primitives provided in this repo can be found in our [dkg-substrate](https://github.com/webb-tools/dkg-substrate) repo. Currently the GG20 protocol is being executed. There are wrappers in place for executing any protocol using the [round-based-protocol](https://github.com/ZenGo-X/round-based-protocol) architecture. Slight modifications might be necessary and we aim to have this repo integrated into Substrate once it is working and tested here.
 
-<h3 id="standalone"> External Networking </h3>
+<h3 id="external-networking"> External Networking </h3>
 
 Not included in this library is a server-oriented execution protocol. There are examples of how this can be done using GG20 in [multi-party-ecdas](https://github.com/ZenGo-X/multi-party-ecdsa/tree/master/examples). We welcome contributions to add a similar example here, but at the moment it will not be prioritized.
 
