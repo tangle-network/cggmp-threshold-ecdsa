@@ -115,4 +115,4 @@ If you have a contribution in mind, please check out our [Contribution Guide](./
 
 Licensed under <a href="LICENSE">GNU General Public License v3.0</a>.
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this crate by you, as defined in the Apache 2.0 license, shall be licensed as above, without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this crate by you, as defined in the GNU General Public License v3.0 license, shall be licensed as above, without any additional terms or conditions.
