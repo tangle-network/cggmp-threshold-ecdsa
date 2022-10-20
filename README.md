@@ -20,11 +20,7 @@
     <li><a href="#start"> Getting Started</a></li>
     <ul>
         <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#install">Installation</a></li>
-        <ul>
-          <li><a href="#trouble">Troubleshooting Apple Silicon</a>
-          </li>
-        </ul>
+        <li><a href="#installation">Installation</a></li>
     </ul>
     <li><a href="#usage">Usage</a></li>
     <ul>
