@@ -1,9 +1,10 @@
 [package]
-name = "mpc-cggmp"
+name = "cggmp-threshold-ecdsa"
 version = "0.1.0"
 edition = "2021"
 authors = [
     "Drew Stone <drew@webb.tools>",
+    "Akilesh Tangella <akilesh@webb.tools>",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
