@@ -181,7 +181,7 @@ impl Round2 {
 					&mut local_key,
 					self.new_paillier_decryption_key,
 					join_message_slice,
-				);
+				)?;
 				Ok(local_key)
 			},
 			ExistingOrNewParty::New((join_message, paillier_keys, _new_party_index)) => {
