@@ -5,9 +5,9 @@
 ![Webb Logo](./assets/webb_banner_dark.png#gh-dark-mode-only)
   </a>
   </div>
-<p align="left">
+<h1 align="left">
     <strong>🚀 CGGMP Threshold ECDSA Distributed Key Generation Protocol 🔑 </strong>
-</p>
+</h1>
 
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/webb-tools/cggmp-threshold-ecdsa/check?style=flat-square)](https://github.com/webb-tools/dkg-substrate/actions) [![Codecov](https://img.shields.io/codecov/c/gh/webb-tools/dkg-substrate?style=flat-square&token=HNT1CEZ01E)](https://codecov.io/gh/webb-tools/dkg-substrate) [![License Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://www.apache.org/licenses/LICENSE-2.0) [![Twitter](https://img.shields.io/twitter/follow/webbprotocol.svg?style=flat-square&label=Twitter&color=1DA1F2)](https://twitter.com/webbprotocol) [![Telegram](https://img.shields.io/badge/Telegram-gray?logo=telegram)](https://t.me/webbprotocol) [![Discord](https://img.shields.io/discord/833784453251596298.svg?style=flat-square&label=Discord&logo=discord)](https://discord.gg/cv8EfJu3Tn)
 
@@ -20,19 +20,12 @@
     <li><a href="#start"> Getting Started</a></li>
     <ul>
         <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#install">Installation</a></li>
-        <ul>
-          <li><a href="#trouble">Troubleshooting Apple Silicon</a>
-          </li>
-        </ul>
+        <li><a href="#installation-">Installation</a></li>
     </ul>
     <li><a href="#usage">Usage</a></li>
     <ul>
-        <li><a href="#quick-start">Quick Start</a></li>
-        <ul>
-            <li><a href="#standalone">Integration into Substrate</a></li>
-            <li><a href="#launch">External Networking</a></li>
-        </ul>
+        <li><a href="#substrate-integration">Integration into Substrate</a></li>
+        <li><a href="#external-networking">External Networking</a></li>
     </ul>
     <li><a href="#test">Testing</a></li>
     <li><a href="#contribute">Contributing</a></li>
@@ -81,15 +74,15 @@ cargo build --release
 
 <h2 style="border-bottom:none"> Quick Start ⚡ </h2>
 
-TBD
+Check out the tests for examples on how to utilise the library!
 
-<h3 id="standalone"> Integration into Substrate </h3>
+<h3 id="substrate-integration"> Integration into Substrate </h3>
 
 A main motivation for Webb is integrating this protocol into a blockchain environment such as Substrate. Our intention is to leverage both a blockchain's proof of stake / proof of authority selection mechanism as well as the underlying system's gossip network to bootstrap and execute this multi-party computation offchain. Throughout the lifecycle of the protocol, the participating MPC authorities will post data on-chain to keep the system in sync, such as to select the participating authorities, to govern the thresholds `t` and `n` and more.
 
 An example of how this is possible using the same primitives provided in this repo can be found in our [dkg-substrate](https://github.com/webb-tools/dkg-substrate) repo. Currently the GG20 protocol is being executed. There are wrappers in place for executing any protocol using the [round-based-protocol](https://github.com/ZenGo-X/round-based-protocol) architecture. Slight modifications might be necessary and we aim to have this repo integrated into Substrate once it is working and tested here.
 
-<h3 id="standalone"> External Networking </h3>
+<h3 id="external-networking"> External Networking </h3>
 
 Not included in this library is a server-oriented execution protocol. There are examples of how this can be done using GG20 in [multi-party-ecdas](https://github.com/ZenGo-X/multi-party-ecdsa/tree/master/examples). We welcome contributions to add a similar example here, but at the moment it will not be prioritized.
 
