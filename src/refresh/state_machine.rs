@@ -368,8 +368,12 @@ mod private {
 
 pub mod test {
 	use crate::refresh::state_machine::KeyRefresh;
-	use curv::elliptic::curves::Secp256k1;
-	use curv::cryptographic_primitives::secret_sharing::feldman_vss::{VerifiableSS, ShamirSecretSharing};
+	use curv::{
+		cryptographic_primitives::secret_sharing::feldman_vss::{
+			ShamirSecretSharing, VerifiableSS,
+		},
+		elliptic::curves::Secp256k1,
+	};
 	use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::*;
 	use round_based::dev::Simulation;
 
