@@ -364,6 +364,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "cggmp-threshold-ecdsa"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm 0.9.4",
+ "anyhow",
+ "centipede",
+ "criterion",
+ "curv-kzen",
+ "fs-dkr",
+ "futures 0.3.25",
+ "hex",
+ "kzen-paillier",
+ "multi-party-ecdsa",
+ "rand 0.8.5",
+ "reqwest",
+ "rocket",
+ "round-based",
+ "secp256k1",
+ "serde",
+ "serde_json",
+ "sha2 0.9.9",
+ "structopt",
+ "thiserror",
+ "tokio 1.21.2",
+ "uuid 0.8.2",
+ "zeroize",
+ "zk-paillier",
+]
+
+[[package]]
 name = "cipher"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1725,36 +1755,6 @@ dependencies = [
  "net2",
  "winapi 0.2.8",
  "ws2_32-sys",
-]
-
-[[package]]
-name = "mpc-cggmp"
-version = "0.1.0"
-dependencies = [
- "aes-gcm 0.9.4",
- "anyhow",
- "centipede",
- "criterion",
- "curv-kzen",
- "fs-dkr",
- "futures 0.3.25",
- "hex",
- "kzen-paillier",
- "multi-party-ecdsa",
- "rand 0.8.5",
- "reqwest",
- "rocket",
- "round-based",
- "secp256k1",
- "serde",
- "serde_json",
- "sha2 0.9.9",
- "structopt",
- "thiserror",
- "tokio 1.21.2",
- "uuid 0.8.2",
- "zeroize",
- "zk-paillier",
 ]
 
 [[package]]

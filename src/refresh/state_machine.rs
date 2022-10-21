@@ -368,6 +368,7 @@ mod private {
 
 pub mod test {
 	use crate::refresh::state_machine::KeyRefresh;
+	#[allow(unused_imports)]
 	use curv::{
 		cryptographic_primitives::secret_sharing::feldman_vss::{
 			ShamirSecretSharing, VerifiableSS,
@@ -377,6 +378,7 @@ pub mod test {
 	use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::*;
 	use round_based::dev::Simulation;
 
+	#[allow(dead_code)]
 	fn simulate_keygen(t: u16, n: u16) -> Vec<LocalKey<Secp256k1>> {
 		//simulate keygen
 		let mut simulation = Simulation::new();
