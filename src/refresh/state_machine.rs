@@ -17,7 +17,7 @@ use round_based::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use std::{fmt, mem::replace, time::Duration};
+use std::{collections::HashMap, fmt, mem::replace, time::Duration};
 use thiserror::Error;
 
 pub struct KeyRefresh {
@@ -41,6 +41,7 @@ impl KeyRefresh {
 	pub fn new(
 		local_key_option: Option<LocalKey<Secp256k1>>,
 		new_party_index_option: Option<u16>,
+		old_to_new_map: &HashMap<u16, u16>,
 		t: u16,
 		n: u16,
 	) -> Result<Self> {
@@ -57,7 +58,13 @@ impl KeyRefresh {
 		};
 
 		let mut state = Self {
-			round: R::Round0(Round0 { local_key_option, new_party_index_option, t, n }),
+			round: R::Round0(Round0 {
+				local_key_option,
+				new_party_index_option,
+				old_to_new_map: old_to_new_map.clone(),
+				t,
+				n,
+			}),
 
 			round0_msgs: Some(Round1::expects_messages(i, n)),
 			round1_msgs: Some(Round2::expects_messages(i, n)),
@@ -368,6 +375,7 @@ mod private {
 
 pub mod test {
 	use core::num;
+	use std::collections::HashMap;
 
 	use crate::refresh::state_machine::KeyRefresh;
 	use curv::{
@@ -394,6 +402,7 @@ pub mod test {
 	// Refresh Keys: Only Existing Parties (No New Parties)
 	pub fn simulate_dkr_with_no_replacements(
 		old_local_keys: Vec<LocalKey<Secp256k1>>,
+		old_to_new_map: &HashMap<u16, u16>,
 	) -> Vec<LocalKey<Secp256k1>> {
 		let mut simulation = Simulation::new();
 		simulation.enable_benchmarks(false);
@@ -403,6 +412,7 @@ pub mod test {
 				KeyRefresh::new(
 					Some(old_local_key.clone()),
 					None,
+					old_to_new_map,
 					old_local_key.clone().t,
 					old_local_key.n,
 				)
@@ -420,7 +430,13 @@ pub mod test {
 		let local_keys = simulate_keygen(t, n);
 
 		let mut old_local_keys = local_keys.clone();
-		let mut new_local_keys = simulate_dkr_with_no_replacements(local_keys);
+		let mut old_to_new_map = HashMap::new();
+		old_to_new_map.insert(1, 1);
+		old_to_new_map.insert(2, 2);
+		old_to_new_map.insert(3, 3);
+		old_to_new_map.insert(4, 4);
+		old_to_new_map.insert(5, 5);
+		let mut new_local_keys = simulate_dkr_with_no_replacements(local_keys, &old_to_new_map);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
@@ -446,6 +462,7 @@ pub mod test {
 	pub fn simulate_dkr_with_new_parties(
 		old_local_keys: Vec<LocalKey<Secp256k1>>,
 		new_party_indices: Vec<u16>,
+		old_to_new_map: HashMap<u16, u16>,
 		t: u16,
 		n: u16,
 	) -> Vec<LocalKey<Secp256k1>> {
@@ -454,13 +471,20 @@ pub mod test {
 
 		for old_local_key in old_local_keys {
 			simulation.add_party(
-				KeyRefresh::new(Some(old_local_key.clone()), None, old_local_key.clone().t, n)
-					.unwrap(),
+				KeyRefresh::new(
+					Some(old_local_key.clone()),
+					None,
+					&old_to_new_map,
+					old_local_key.clone().t,
+					n,
+				)
+				.unwrap(),
 			);
 		}
 
 		for index in new_party_indices {
-			simulation.add_party(KeyRefresh::new(None, Some(index), t, n).unwrap());
+			simulation
+				.add_party(KeyRefresh::new(None, Some(index), &old_to_new_map, t, n).unwrap());
 		}
 		simulation.run().unwrap()
 	}
@@ -470,9 +494,15 @@ pub mod test {
 		let t = 2;
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
-
+		let mut old_to_new_map = HashMap::new();
+		old_to_new_map.insert(1, 1);
+		old_to_new_map.insert(2, 2);
+		old_to_new_map.insert(3, 3);
+		old_to_new_map.insert(4, 4);
+		old_to_new_map.insert(5, 5);
 		let mut old_local_keys = local_keys.clone();
-		let mut new_local_keys = simulate_dkr_with_new_parties(local_keys, vec![6, 7], t, n + 2);
+		let mut new_local_keys =
+			simulate_dkr_with_new_parties(local_keys, vec![6, 7], old_to_new_map, t, n + 2);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
@@ -505,6 +535,7 @@ pub mod test {
 		old_local_keys: Vec<LocalKey<Secp256k1>>,
 		remaining_old_party_indices: Vec<u16>,
 		new_party_indices: Vec<u16>,
+		old_to_new_map: HashMap<u16, u16>,
 		t: u16,
 		n: u16,
 	) -> Vec<LocalKey<Secp256k1>> {
@@ -524,6 +555,7 @@ pub mod test {
 				KeyRefresh::new(
 					Some(non_removed_local_key.clone()),
 					None,
+					&old_to_new_map,
 					non_removed_local_key.clone().t,
 					n,
 				)
@@ -532,7 +564,8 @@ pub mod test {
 		}
 
 		for index in new_party_indices {
-			simulation.add_party(KeyRefresh::new(None, Some(index), t, n).unwrap());
+			simulation
+				.add_party(KeyRefresh::new(None, Some(index), &old_to_new_map, t, n).unwrap());
 		}
 
 		simulation.run().unwrap()
@@ -545,8 +578,19 @@ pub mod test {
 		let local_keys = simulate_keygen(t, n);
 
 		let mut old_local_keys = local_keys.clone();
-		let mut new_local_keys =
-			simulate_dkr_with_remove_parties(local_keys, vec![1, 2, 3, 4], vec![], t, n - 1);
+		let mut old_to_new_map = HashMap::new();
+		old_to_new_map.insert(1, 1);
+		old_to_new_map.insert(2, 2);
+		old_to_new_map.insert(3, 3);
+		old_to_new_map.insert(4, 4);
+		let mut new_local_keys = simulate_dkr_with_remove_parties(
+			local_keys,
+			vec![1, 2, 3, 4],
+			vec![],
+			old_to_new_map,
+			t,
+			n - 1,
+		);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
@@ -572,6 +616,7 @@ pub mod test {
 	pub fn simulate_dkr_with_replace_parties(
 		old_local_keys: Vec<LocalKey<Secp256k1>>,
 		new_party_indices: Vec<u16>,
+		old_to_new_map: HashMap<u16, u16>,
 		t: u16,
 		n: u16,
 	) -> Vec<LocalKey<Secp256k1>> {
@@ -581,15 +626,22 @@ pub mod test {
 		for old_local_key in old_local_keys {
 			if !new_party_indices.contains(&old_local_key.i) {
 				simulation.add_party(
-					KeyRefresh::new(Some(old_local_key.clone()), None, old_local_key.clone().t, n)
-						.unwrap(),
+					KeyRefresh::new(
+						Some(old_local_key.clone()),
+						None,
+						&old_to_new_map,
+						old_local_key.clone().t,
+						n,
+					)
+					.unwrap(),
 				);
 			} else {
 			}
 		}
 
 		for index in new_party_indices {
-			simulation.add_party(KeyRefresh::new(None, Some(index), t, n).unwrap());
+			simulation
+				.add_party(KeyRefresh::new(None, Some(index), &old_to_new_map, t, n).unwrap());
 		}
 		simulation.run().unwrap()
 	}
@@ -599,9 +651,14 @@ pub mod test {
 		let t = 2;
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
-
+		let mut old_to_new_map = HashMap::new();
+		old_to_new_map.insert(1, 3);
+		old_to_new_map.insert(3, 1);
+		old_to_new_map.insert(4, 5);
+		old_to_new_map.insert(5, 4);
 		let old_local_keys = local_keys.clone();
-		let new_local_keys = simulate_dkr_with_replace_parties(local_keys, vec![2, 6], t, n + 1);
+		let new_local_keys =
+			simulate_dkr_with_replace_parties(local_keys, vec![2, 6], old_to_new_map, t, n + 1);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
@@ -612,7 +669,7 @@ pub mod test {
 			.collect();
 
 		let old_indices = vec![0, 1, 2];
-		let new_indices = vec![3, 4, 1];
+		let new_indices = vec![0, 1, 2];
 		let vss = VerifiableSS::<Secp256k1> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n },
 			commitments: Vec::new(),
@@ -625,7 +682,7 @@ pub mod test {
 
 		assert_eq!(
 			vss.reconstruct(&old_indices[..], &old_linear_secret_key[0..(t + 1) as usize]),
-			new_vss.reconstruct(&new_indices[..], &new_linear_secret_key[2..(t + 3) as usize])
+			new_vss.reconstruct(&new_indices[..], &new_linear_secret_key[0..(t + 1) as usize])
 		);
 		assert_ne!(old_linear_secret_key, new_linear_secret_key);
 	}

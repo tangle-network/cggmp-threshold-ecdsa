@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use curv::elliptic::curves::Secp256k1;
 use fs_dkr::{add_party_message::*, error::*, refresh_message::*};
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
@@ -9,9 +11,6 @@ use round_based::{
 	Msg,
 };
 use sha2::Sha256;
-use thiserror::Error;
-
-use crate::refresh;
 
 pub enum ExistingOrNewParty {
 	Existing(LocalKey<Secp256k1>),
@@ -21,6 +20,7 @@ pub enum ExistingOrNewParty {
 pub struct Round0 {
 	pub local_key_option: Option<LocalKey<Secp256k1>>,
 	pub new_party_index_option: Option<u16>,
+	pub old_to_new_map: HashMap<u16, u16>,
 	pub t: u16,
 	pub n: u16,
 }
@@ -36,6 +36,7 @@ impl Round0 {
 				match self.new_party_index_option {
 					None => Ok(Round1 {
 						party_type: ExistingOrNewParty::Existing(local_key),
+						old_to_new_map: self.old_to_new_map,
 						t: self.t,
 						n: self.n,
 					}),
@@ -58,6 +59,7 @@ impl Round0 {
 								paillier_keys,
 								new_party_index,
 							)),
+							old_to_new_map: self.old_to_new_map,
 							t: self.t,
 							n: self.n,
 						})
@@ -74,6 +76,7 @@ impl Round0 {
 
 pub struct Round1 {
 	pub party_type: ExistingOrNewParty,
+	pub old_to_new_map: HashMap<u16, u16>,
 	t: u16,
 	n: u16,
 }
@@ -99,8 +102,12 @@ impl Round1 {
 			ExistingOrNewParty::Existing(mut local_key) => {
 				// Existing parties form a refresh message and broadcast it.
 				let join_message_slice = join_message_vec.as_slice();
-				let refresh_message_result =
-					RefreshMessage::replace(join_message_slice, &mut local_key, self.n);
+				let refresh_message_result = RefreshMessage::replace(
+					join_message_slice,
+					&mut local_key,
+					&self.old_to_new_map,
+					self.n,
+				);
 				let refresh_message = refresh_message_result.unwrap();
 				let new_paillier_dk = refresh_message.clone().1;
 				let new_local_key = local_key.clone();
