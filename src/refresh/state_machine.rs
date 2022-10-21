@@ -1,5 +1,5 @@
 use crate::refresh::rounds::{Round0, Round1, Round2};
-use core::num;
+
 use curv::elliptic::curves::Secp256k1;
 use fs_dkr::{
 	add_party_message::JoinMessage,
@@ -15,7 +15,7 @@ use round_based::{
 	},
 	IsCritical, Msg, StateMachine,
 };
-use serde::{Deserialize, Serialize};
+
 use sha2::Sha256;
 use std::{fmt, mem::replace, time::Duration};
 use thiserror::Error;
@@ -228,11 +228,11 @@ impl StateMachine for KeyRefresh {
 	}
 
 	fn party_ind(&self) -> u16 {
-		self.party_i.into()
+		self.party_i
 	}
 
 	fn parties(&self) -> u16 {
-		self.party_n.into()
+		self.party_n
 	}
 }
 
@@ -367,15 +367,9 @@ mod private {
 }
 
 pub mod test {
-	use core::num;
-
 	use crate::refresh::state_machine::KeyRefresh;
-	use curv::{
-		cryptographic_primitives::secret_sharing::feldman_vss::{
-			ShamirSecretSharing, VerifiableSS,
-		},
-		elliptic::curves::Secp256k1,
-	};
+	use curv::elliptic::curves::Secp256k1;
+
 	use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::*;
 	use round_based::dev::Simulation;
 
@@ -419,8 +413,8 @@ pub mod test {
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
 
-		let mut old_local_keys = local_keys.clone();
-		let mut new_local_keys = simulate_dkr_with_no_replacements(local_keys);
+		let old_local_keys = local_keys.clone();
+		let new_local_keys = simulate_dkr_with_no_replacements(local_keys);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
@@ -471,8 +465,8 @@ pub mod test {
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
 
-		let mut old_local_keys = local_keys.clone();
-		let mut new_local_keys = simulate_dkr_with_new_parties(local_keys, vec![6, 7], t, n + 2);
+		let old_local_keys = local_keys.clone();
+		let new_local_keys = simulate_dkr_with_new_parties(local_keys, vec![6, 7], t, n + 2);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
@@ -544,8 +538,8 @@ pub mod test {
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
 
-		let mut old_local_keys = local_keys.clone();
-		let mut new_local_keys =
+		let old_local_keys = local_keys.clone();
+		let new_local_keys =
 			simulate_dkr_with_remove_parties(local_keys, vec![1, 2, 3, 4], vec![], t, n - 1);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())

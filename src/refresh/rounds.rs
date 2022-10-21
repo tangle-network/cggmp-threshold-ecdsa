@@ -9,9 +9,6 @@ use round_based::{
 	Msg,
 };
 use sha2::Sha256;
-use thiserror::Error;
-
-use crate::refresh;
 
 pub enum ExistingOrNewParty {
 	Existing(LocalKey<Secp256k1>),
@@ -103,7 +100,7 @@ impl Round1 {
 					RefreshMessage::replace(join_message_slice, &mut local_key, self.n);
 				let refresh_message = refresh_message_result.unwrap();
 				let new_paillier_dk = refresh_message.clone().1;
-				let new_local_key = local_key.clone();
+				let _new_local_key = local_key.clone();
 				output.push(Msg {
 					sender: local_key.i,
 					receiver: None,
@@ -187,7 +184,7 @@ impl Round2 {
 				);
 				Ok(local_key)
 			},
-			ExistingOrNewParty::New((join_message, paillier_keys, new_party_index)) => {
+			ExistingOrNewParty::New((join_message, paillier_keys, _new_party_index)) => {
 				let join_message_slice = self.join_messages.as_slice();
 				let refresh_message_slice = refresh_message_vec.as_slice();
 				JoinMessage::collect(
