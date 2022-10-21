@@ -101,6 +101,7 @@ impl Round1 {
 		match self.party_type {
 			ExistingOrNewParty::Existing(mut local_key) => {
 				// Existing parties form a refresh message and broadcast it.
+				let old_i = local_key.i;
 				let join_message_slice = join_message_vec.as_slice();
 				let refresh_message_result = RefreshMessage::replace(
 					join_message_slice,
@@ -112,7 +113,7 @@ impl Round1 {
 				let new_paillier_dk = refresh_message.clone().1;
 				let new_local_key = local_key.clone();
 				output.push(Msg {
-					sender: local_key.i,
+					sender: old_i,
 					receiver: None,
 					body: Some(Ok(refresh_message.clone().0)),
 				});
