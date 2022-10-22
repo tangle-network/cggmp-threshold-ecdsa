@@ -17,6 +17,8 @@ pub enum ExistingOrNewParty {
 	New((JoinMessage, Keys, u16)),
 }
 
+use super::state_machine::{Round0Messages, Round1Messages};
+
 pub struct Round0 {
 	pub local_key_option: Option<LocalKey<Secp256k1>>,
 	pub new_party_index_option: Option<u16>,
