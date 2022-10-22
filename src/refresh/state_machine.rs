@@ -659,13 +659,19 @@ pub mod test {
 		let old_local_keys = local_keys.clone();
 		let new_local_keys =
 			simulate_dkr_with_replace_parties(local_keys, vec![2, 6], old_to_new_map, t, n + 1);
-
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
 			.collect();
 
-		let new_linear_secret_key: Vec<_> = (0..new_local_keys.len())
-			.map(|i| new_local_keys[i].keys_linear.x_i.clone())
+		let mut new_linear_secret_key_with_index: Vec<_> = (0..new_local_keys.len())
+			.map(|i| (new_local_keys[i].i, new_local_keys[i].keys_linear.x_i.clone()))
+			.collect();
+
+		new_linear_secret_key_with_index.sort_by(|a, b| a.0.cmp(&b.0));
+
+		let new_linear_secret_key: Vec<_> = new_linear_secret_key_with_index
+			.iter()
+			.map(|(_, key)| key.clone())
 			.collect();
 
 		let old_indices = vec![0, 1, 2];
