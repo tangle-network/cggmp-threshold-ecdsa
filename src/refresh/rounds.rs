@@ -5,13 +5,12 @@ use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
 };
 use paillier::DecryptionKey;
 use round_based::{
-	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore, Store},
+	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore},
 	Msg,
 };
 use sha2::Sha256;
-use thiserror::Error;
 
-use crate::refresh;
+use super::state_machine::{Round0Messages, Round1Messages};
 
 pub enum ExistingOrNewParty {
 	Existing(LocalKey<Secp256k1>),
@@ -48,7 +47,7 @@ impl Round0 {
 					Some(new_party_index) => {
 						join_message.set_party_index(new_party_index);
 						output.push(Msg {
-							sender: join_message.clone().get_party_index()?.try_into().unwrap(),
+							sender: join_message.clone().get_party_index()?,
 							receiver: None,
 							body: Some(join_message.clone()),
 						});
@@ -89,11 +88,8 @@ impl Round1 {
 	{
 		let join_message_option_vec = input.into_vec();
 		let mut join_message_vec: Vec<JoinMessage> = Vec::new();
-		for join_message_option in join_message_option_vec {
-			match join_message_option {
-				Some(join_message_option) => join_message_vec.push(join_message_option),
-				_ => {},
-			}
+		for join_message_option in join_message_option_vec.into_iter().flatten() {
+			join_message_vec.push(join_message_option)
 		}
 		match self.party_type {
 			ExistingOrNewParty::Existing(mut local_key) => {
@@ -103,7 +99,7 @@ impl Round1 {
 					RefreshMessage::replace(join_message_slice, &mut local_key, self.n);
 				let refresh_message = refresh_message_result.unwrap();
 				let new_paillier_dk = refresh_message.clone().1;
-				let new_local_key = local_key.clone();
+				let _new_local_key = local_key.clone();
 				output.push(Msg {
 					sender: local_key.i,
 					receiver: None,
@@ -122,7 +118,7 @@ impl Round1 {
 			ExistingOrNewParty::New((join_message, paillier_keys, new_party_index)) => {
 				// New parties don't need to form a refresh message.
 				output.push(Msg {
-					sender: join_message.get_party_index()?.try_into().unwrap(),
+					sender: join_message.get_party_index()?,
 					receiver: None,
 					body: None,
 				});
@@ -146,7 +142,7 @@ impl Round1 {
 		false
 	}
 
-	pub fn expects_messages(i: u16, n: u16) -> Store<BroadcastMsgs<Option<JoinMessage>>> {
+	pub fn expects_messages(i: u16, n: u16) -> Round0Messages {
 		BroadcastMsgsStore::new(i, n)
 	}
 }
@@ -167,12 +163,8 @@ impl Round2 {
 	) -> Result<LocalKey<Secp256k1>> {
 		let refresh_message_option_vec = input.into_vec_including_me(self.refresh_message);
 		let mut refresh_message_vec: Vec<RefreshMessage<Secp256k1, Sha256>> = Vec::new();
-		for refresh_message_option in refresh_message_option_vec {
-			match refresh_message_option {
-				Some(refresh_message_option) =>
-					refresh_message_vec.push(refresh_message_option.unwrap()),
-				_ => {},
-			}
+		for refresh_message_option in refresh_message_option_vec.into_iter().flatten() {
+			refresh_message_vec.push(refresh_message_option.unwrap())
 		}
 
 		match self.party_type {
@@ -184,10 +176,10 @@ impl Round2 {
 					&mut local_key,
 					self.new_paillier_decryption_key,
 					join_message_slice,
-				);
+				)?;
 				Ok(local_key)
 			},
-			ExistingOrNewParty::New((join_message, paillier_keys, new_party_index)) => {
+			ExistingOrNewParty::New((join_message, paillier_keys, _new_party_index)) => {
 				let join_message_slice = self.join_messages.as_slice();
 				let refresh_message_slice = refresh_message_vec.as_slice();
 				JoinMessage::collect(
@@ -195,8 +187,8 @@ impl Round2 {
 					refresh_message_slice,
 					paillier_keys,
 					join_message_slice,
-					self.t.try_into().unwrap(),
-					self.n.try_into().unwrap(),
+					self.t,
+					self.n,
 				)
 			},
 		}
@@ -205,10 +197,7 @@ impl Round2 {
 	pub fn is_expensive(&self) -> bool {
 		false
 	}
-	pub fn expects_messages(
-		i: u16,
-		n: u16,
-	) -> Store<BroadcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>> {
+	pub fn expects_messages(i: u16, n: u16) -> Round1Messages {
 		BroadcastMsgsStore::new(i, n)
 	}
 }

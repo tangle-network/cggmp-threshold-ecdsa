@@ -1,0 +1,50 @@
+name: run
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: 
+      - '**'        # matches every branch
+
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout Sources
+        uses: actions/checkout@v2
+
+      - name: Clear up disk space
+        run: |
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get clean
+
+      - name: Install cargo-nextest
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-nextest
+          version: latest
+
+      - name: Install Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2022-05-15
+          components: rustfmt, clippy
+          target: wasm32-unknown-unknown
+          override: true
+          default: true
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v1.3.0
+
+      - name: Run tests
+        run: cargo nextest run
