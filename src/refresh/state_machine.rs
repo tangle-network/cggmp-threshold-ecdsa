@@ -431,13 +431,13 @@ pub mod test {
 
 		let mut old_local_keys = local_keys.clone();
 		let mut old_to_new_map = HashMap::new();
-		old_to_new_map.insert(1, 1);
-		old_to_new_map.insert(2, 2);
-		old_to_new_map.insert(3, 3);
-		old_to_new_map.insert(4, 4);
+		old_to_new_map.insert(1, 2);
+		old_to_new_map.insert(2, 1);
+		old_to_new_map.insert(3, 4);
+		old_to_new_map.insert(4, 3);
 		old_to_new_map.insert(5, 5);
 		let mut new_local_keys = simulate_dkr_with_no_replacements(local_keys, &old_to_new_map);
-
+		new_local_keys.sort_by(|a, b| a.i.cmp(&b.i));
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
 			.collect();
@@ -651,27 +651,21 @@ pub mod test {
 		let t = 2;
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
+		let old_local_keys = local_keys.clone();
 		let mut old_to_new_map = HashMap::new();
 		old_to_new_map.insert(1, 3);
 		old_to_new_map.insert(3, 1);
 		old_to_new_map.insert(4, 5);
 		old_to_new_map.insert(5, 4);
-		let old_local_keys = local_keys.clone();
-		let new_local_keys =
+		let mut new_local_keys =
 			simulate_dkr_with_replace_parties(local_keys, vec![2, 6], old_to_new_map, t, n + 1);
+		new_local_keys.sort_by(|a, b| a.i.cmp(&b.i));
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
 			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
 			.collect();
 
-		let mut new_linear_secret_key_with_index: Vec<_> = (0..new_local_keys.len())
-			.map(|i| (new_local_keys[i].i, new_local_keys[i].keys_linear.x_i.clone()))
-			.collect();
-
-		new_linear_secret_key_with_index.sort_by(|a, b| a.0.cmp(&b.0));
-
-		let new_linear_secret_key: Vec<_> = new_linear_secret_key_with_index
-			.iter()
-			.map(|(_, key)| key.clone())
+		let new_linear_secret_key: Vec<_> = (0..new_local_keys.len())
+			.map(|i| new_local_keys[i].keys_linear.x_i.clone())
 			.collect();
 
 		let old_indices = vec![0, 1, 2];

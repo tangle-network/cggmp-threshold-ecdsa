@@ -111,7 +111,6 @@ impl Round1 {
 				);
 				let refresh_message = refresh_message_result.unwrap();
 				let new_paillier_dk = refresh_message.clone().1;
-				let new_local_key = local_key.clone();
 				output.push(Msg {
 					sender: old_i,
 					receiver: None,
