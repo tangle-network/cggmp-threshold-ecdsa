@@ -20,14 +20,17 @@ use sha2::Sha256;
 use std::{fmt, mem::replace, time::Duration};
 use thiserror::Error;
 
+pub type Round0Messages = Store<BroadcastMsgs<Option<JoinMessage>>>;
+pub type Round1Messages =
+	Store<BroadcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>>;
+
 pub struct KeyRefresh {
 	// Current round
 	round: R,
 
 	// Messages
-	round0_msgs: Option<Store<BroadcastMsgs<Option<JoinMessage>>>>,
-	round1_msgs:
-		Option<Store<BroadcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>>>,
+	round0_msgs: Option<Round0Messages>,
+	round1_msgs: Option<Round1Messages>,
 
 	// Message queue
 	msgs_queue: Vec<Msg<ProtocolMessage>>,
@@ -105,7 +108,7 @@ impl KeyRefresh {
 				let msgs = store.finish().map_err(InternalError::RetrieveRoundMessages)?;
 				next_state = round
 					.proceed(msgs, self.gmap_queue(M::Round2))
-					.map(R::Round2)
+					.map(|msg| R::Round2(Box::new(msg)))
 					.map_err(Error::ProceedRound)?;
 				true
 			},
@@ -283,7 +286,7 @@ impl fmt::Debug for KeyRefresh {
 enum R {
 	Round0(Round0),
 	Round1(Round1),
-	Round2(Round2),
+	Round2(Box<Round2>),
 	Final(LocalKey<Secp256k1>),
 	Gone,
 }
