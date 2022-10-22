@@ -5,7 +5,7 @@ use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
 };
 use paillier::DecryptionKey;
 use round_based::{
-	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore, Store},
+	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore},
 	Msg,
 };
 use sha2::Sha256;
