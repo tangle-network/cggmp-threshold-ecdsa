@@ -1,5 +1,5 @@
 use crate::refresh::rounds::{Round0, Round1, Round2};
-use core::num;
+
 use curv::elliptic::curves::Secp256k1;
 use fs_dkr::{
 	add_party_message::JoinMessage,
@@ -15,19 +15,22 @@ use round_based::{
 	},
 	IsCritical, Msg, StateMachine,
 };
-use serde::{Deserialize, Serialize};
+
 use sha2::Sha256;
 use std::{collections::HashMap, fmt, mem::replace, time::Duration};
 use thiserror::Error;
+
+pub type Round0Messages = Store<BroadcastMsgs<Option<JoinMessage>>>;
+pub type Round1Messages =
+	Store<BroadcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>>;
 
 pub struct KeyRefresh {
 	// Current round
 	round: R,
 
 	// Messages
-	round0_msgs: Option<Store<BroadcastMsgs<Option<JoinMessage>>>>,
-	round1_msgs:
-		Option<Store<BroadcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>>>,
+	round0_msgs: Option<Round0Messages>,
+	round1_msgs: Option<Round1Messages>,
 
 	// Message queue
 	msgs_queue: Vec<Msg<ProtocolMessage>>,
@@ -112,7 +115,7 @@ impl KeyRefresh {
 				let msgs = store.finish().map_err(InternalError::RetrieveRoundMessages)?;
 				next_state = round
 					.proceed(msgs, self.gmap_queue(M::Round2))
-					.map(R::Round2)
+					.map(|msg| R::Round2(Box::new(msg)))
 					.map_err(Error::ProceedRound)?;
 				true
 			},
@@ -235,11 +238,11 @@ impl StateMachine for KeyRefresh {
 	}
 
 	fn party_ind(&self) -> u16 {
-		self.party_i.into()
+		self.party_i
 	}
 
 	fn parties(&self) -> u16 {
-		self.party_n.into()
+		self.party_n
 	}
 }
 
@@ -290,7 +293,7 @@ impl fmt::Debug for KeyRefresh {
 enum R {
 	Round0(Round0),
 	Round1(Round1),
-	Round2(Round2),
+	Round2(Box<Round2>),
 	Final(LocalKey<Secp256k1>),
 	Gone,
 }
@@ -378,6 +381,7 @@ pub mod test {
 	use std::collections::HashMap;
 
 	use crate::refresh::state_machine::KeyRefresh;
+	#[allow(unused_imports)]
 	use curv::{
 		cryptographic_primitives::secret_sharing::feldman_vss::{
 			ShamirSecretSharing, VerifiableSS,
@@ -387,6 +391,7 @@ pub mod test {
 	use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::*;
 	use round_based::dev::Simulation;
 
+	#[allow(dead_code)]
 	fn simulate_keygen(t: u16, n: u16) -> Vec<LocalKey<Secp256k1>> {
 		//simulate keygen
 		let mut simulation = Simulation::new();

@@ -1,0 +1,63 @@
+name: check
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: 
+      - '**'   
+
+  workflow_dispatch:
+
+jobs:
+  # checks markdown links
+  link-check:
+    name: links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Check markdown links
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes'
+          config-file: '.github/workflows/mlc_config.json'
+  # ensures build succeeds without warnings
+  cargo-check:
+    name: build
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -Dwarnings
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          access_token: ${{ github.token }}
+
+      - uses: actions/checkout@v2
+      - uses: hecrj/setup-rust-action@v1
+      - run: cargo check --workspace --verbose --no-default-features
+  # ensures proper formatting and clippy lint
+  lint-check:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          access_token: ${{ github.token }}
+
+      - uses: actions/checkout@v2
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly
+            components: rustfmt, clippy
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v1.3.0
+
+      - name: Run Linters
+        run: |
+          cargo +nightly fmt --all -- --check
+          cargo clippy -Zunstable-options -- -D warnings

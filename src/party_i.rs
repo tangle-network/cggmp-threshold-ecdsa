@@ -221,6 +221,7 @@ impl Keys {
 		(bcm1, decom1)
 	}
 
+	#[allow(clippy::type_complexity)]
 	pub fn phase1_verify_com_phase3_verify_correct_key_verify_dlog_phase2_distribute(
 		&self,
 		params: &Parameters,
@@ -632,6 +633,7 @@ impl LocalSignature {
 		PDLwSlackProof::prove(&pdl_w_slack_witness, &pdl_w_slack_statement)
 	}
 
+	#[allow(clippy::too_many_arguments)]
 	pub fn phase5_verify_pdl(
 		pdl_w_slack_proof_vec: &[PDLwSlackProof],
 		R_dash: &Point<Secp256k1>,
