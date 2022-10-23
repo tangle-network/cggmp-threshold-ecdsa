@@ -377,7 +377,6 @@ mod private {
 }
 
 pub mod test {
-	use core::num;
 	use std::collections::HashMap;
 
 	use crate::refresh::state_machine::KeyRefresh;
