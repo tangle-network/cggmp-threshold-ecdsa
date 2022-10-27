@@ -1017,7 +1017,7 @@ dependencies = [
 [[package]]
 name = "fs-dkr"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/fs-dkr#e9bd272356e942f8097013cd5f46239e7e863d0a"
+source = "git+https://github.com/webb-tools/fs-dkr#6504d4db64ee4b546dab127f78768c1a1d28b225"
 dependencies = [
  "bitvec",
  "curv-kzen",

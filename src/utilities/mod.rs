@@ -8,10 +8,10 @@ pub mod mta;
 pub mod zk_pdl;
 pub mod zk_pdl_with_slack;
 
-pub fn sample_relatively_prime_integer(N: BigInt) -> BigInt {
-	let mut sample = BigInt::sample_below(&N);
-	while BigInt::gcd(&sample, &N) != BigInt::from(1) {
-		sample = BigInt::sample_below(&N);
+pub fn sample_relatively_prime_integer(N: &BigInt) -> BigInt {
+	let mut sample = BigInt::sample_below(N);
+	while BigInt::gcd(&sample, N) != BigInt::from(1) {
+		sample = BigInt::sample_below(N);
 	}
 	sample
 }
