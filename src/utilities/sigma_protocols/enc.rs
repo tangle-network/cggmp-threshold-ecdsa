@@ -30,5 +30,10 @@ pub struct EncSecretInput<E: Curve, H: Digest + Clone> {
     phantom: PhantomData<(E, H)>,
 }
 
+pub struct EncWitness<E: Curve, H: Digest + Clone> {
+    phantom: PhantomData<(E, H)>,
+}
 
-
+pub struct EncProof<E: Curve, H: Digest + Clone> {
+    phantom: PhantomData<(E, H)>,
+}
