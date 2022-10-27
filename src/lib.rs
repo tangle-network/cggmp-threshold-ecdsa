@@ -31,6 +31,7 @@ pub enum Error {
 	InvalidSig,
 	Phase5BadSum,
 	Phase6Error,
+	AffineWithGroupComRangeProofError,
 }
 
 #[derive(Clone, Debug)]
