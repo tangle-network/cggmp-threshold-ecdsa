@@ -27,15 +27,17 @@
 use curv::{
 	arithmetic::{traits::*, Modulo, NumberTests},
 	cryptographic_primitives::hashing::{Digest, DigestExt},
-	elliptic::curves::{Curve, Point, Scalar},
+	elliptic::curves::{Curve, ECScalar, Point, Scalar},
 	BigInt,
 };
-use curv::elliptic::curves::ECScalar;
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
-use crate::Error;
+use crate::{
+	utilities::{L_PLUS_EPSILON, L_PRIME_PLUS_EPSILON},
+	Error,
+};
 
 use super::sample_relatively_prime_integer;
 
@@ -86,22 +88,20 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeStatement<E, H> {
 		verifier: EncryptionKey,
 		C: BigInt,
 	) -> (Self, AffineWithGroupComRangeWitness<E, H>) {
+		// Set up exponents
+		let l_exp = BigInt::pow(&BigInt::from(2), crate::utilities::L as u32);
+		let lprime_exp = BigInt::pow(&BigInt::from(2), crate::utilities::L_PRIME as u32);
+		// Set up moduli
 		let N0 = verifier.clone().n;
 		let NN0 = verifier.clone().nn;
 		let N1 = prover.clone().n;
 		let NN1 = prover.clone().nn;
 		let ek_verifier = verifier.clone();
 		let ek_prover = prover.clone();
-		let x = BigInt::sample_range(
-			&(BigInt::from(-1)
-				.mul(&BigInt::pow(&BigInt::from(2), &2 * crate::utilities::L as u32))),
-			&BigInt::pow(&BigInt::from(2), &2 * crate::utilities::L as u32),
-		);
-		let y = BigInt::sample_range(
-			&(BigInt::from(-1)
-				.mul(&BigInt::pow(&BigInt::from(2), &2 * crate::utilities::L_PRIME as u32))),
-			&BigInt::pow(&BigInt::from(2), &2 * crate::utilities::L_PRIME as u32),
-		);
+		let x = BigInt::sample_range(&BigInt::from(-1).mul(&l_exp), &l_exp);
+		println!("x: {}", x.bit_length());
+		let y = BigInt::sample_range(&BigInt::from(-1).mul(&lprime_exp), &lprime_exp);
+		println!("y: {}", y.bit_length());
 
 		let X = Point::<E>::generator().as_point() * Scalar::from(&x);
 		// // Compute Y
@@ -130,11 +130,7 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeStatement<E, H> {
 			RawPlaintext::from(&y),
 			&Randomness::from(&rho),
 		);
-		let D = BigInt::mod_mul(
-			&mod_pow_with_negative(&C, &x, &NN0),
-			&D_temp.into(),
-			&NN0,
-		);
+		let D = BigInt::mod_mul(&mod_pow_with_negative(&C, &x, &NN0), &D_temp.into(), &NN0);
 
 		(
 			Self {
@@ -189,17 +185,24 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 	) -> AffineWithGroupComRangeProof<E, H> {
 		// Set up exponents
 		let l_exp = BigInt::pow(&BigInt::from(2), crate::utilities::L as u32);
+		println!("l_exp: {}", l_exp.bit_length());
 		let lplus_exp = BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32);
+		println!("lplus_exp: {}", lplus_exp.bit_length());
 		let lprimeplus_exp =
 			BigInt::pow(&BigInt::from(2), crate::utilities::L_PRIME_PLUS_EPSILON as u32);
+		println!("lprimeplus_exp: {}", lprimeplus_exp.bit_length());
 
 		// α ← ± 2^{l+ε}
 		let alpha = BigInt::sample_range(&BigInt::from(-1).mul(&lplus_exp), &lplus_exp);
+		println!("alpha: {}", alpha.bit_length());
 		// β ← ± 2^{l'+ε}
 		let beta = BigInt::sample_range(&BigInt::from(-1).mul(&lprimeplus_exp), &lprimeplus_exp);
+		println!("beta: {}", beta.bit_length());
 		// Sample r, ry as unit values from Z_N0, Z_N1
 		let r = sample_relatively_prime_integer(&statement.N0);
+		println!("r: {}", r.bit_length());
 		let ry = sample_relatively_prime_integer(&statement.N1);
+		println!("ry: {}", ry.bit_length());
 		// γ ← ± 2^{l+ε} · Nˆ
 		let gamma = BigInt::sample_range(
 			&BigInt::from(-1).mul(&lplus_exp).mul(&statement.N_hat),
@@ -295,7 +298,10 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 			.chain_bigint(&E)
 			.chain_bigint(&F)
 			.result_bigint();
-			e = BigInt::sample_below(&BigInt::from(2)).mul(&BigInt::from(-2)).add(&BigInt::one()).mul(&e);
+		e = BigInt::sample_below(&BigInt::from(2))
+			.mul(&BigInt::from(-2))
+			.add(&BigInt::one())
+			.mul(&e);
 
 		let commitment =
 			AffineWithGroupComRangeCommitment::<E> { A, B_x, B_y: B_y.into(), E, F, big_S, big_T };
@@ -310,14 +316,14 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 		// w = r · rho^e mod N0
 		let w = BigInt::mod_mul(
 			&r,
-			&mod_pow_with_negative(&witness.rho, &e, &statement.N0),
-			&statement.N0
+			&mod_pow_with_negative(&witness.rho, &e, &statement.NN0),
+			&statement.NN0,
 		);
 		// wy = ry · rho_y^e mod N1
 		let wy = BigInt::mod_mul(
 			&ry,
-			&mod_pow_with_negative(&witness.rho_y, &e, &statement.N1),
-			&statement.N1,
+			&mod_pow_with_negative(&witness.rho_y, &e, &statement.NN1),
+			&statement.NN1,
 		);
 
 		Self { z1, z2, z3, z4, w, wy, commitment, phantom: PhantomData }
@@ -327,11 +333,6 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 		proof: &AffineWithGroupComRangeProof<E, H>,
 		statement: &AffineWithGroupComRangeStatement<E, H>,
 	) -> Result<(), Error> {
-		// Set up exponents
-		let lplus_exp = BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32);
-		let lprimeplus_exp =
-			BigInt::pow(&BigInt::from(2), crate::utilities::L_PRIME_PLUS_EPSILON as u32);
-
 		// Hash all prover messages to generate NIZK challenge
 		let mut e: BigInt = H::new()
 			.chain_bigint(&proof.commitment.big_S.clone())
@@ -342,48 +343,57 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 			.chain_bigint(&proof.commitment.E.clone())
 			.chain_bigint(&proof.commitment.F.clone())
 			.result_bigint();
-		e = BigInt::sample_below(&BigInt::from(2)).mul(&BigInt::from(-2)).add(&BigInt::one()).mul(&e);
+		e = BigInt::sample_below(&BigInt::from(2))
+			.mul(&BigInt::from(-2))
+			.add(&BigInt::one())
+			.mul(&e);
+
 		/*
 			RANGE CHECKS
 		*/
 		// z1 ∈ [-2^{l+ε}, 2^{l+ε}]
-		assert!(proof.z1 >= BigInt::from(-1).mul(&lplus_exp));
-		assert!(proof.z1 <= lplus_exp);
+		assert!(
+			proof.z1.bit_length() <= L_PLUS_EPSILON,
+			"z1 is too large {:?}",
+			proof.z1.bit_length()
+		);
 		// z2 ∈ [-2^{l'+ε}, 2^{l'+ε}]
-		assert!(proof.z2 >= BigInt::from(-1).mul(&lprimeplus_exp));
-		assert!(proof.z2 <= lprimeplus_exp);
-
+		assert!(
+			proof.z2.bit_length() <= L_PRIME_PLUS_EPSILON,
+			"z2 is too large {:?}",
+			proof.z2.bit_length()
+		);
 
 		/*
 			FIRST EQUALITY CHECK
 		*/
-		// // C^{z1} · (1 + N)^{z2} · w^{N0} =A · D^e mod N0^2
-		// let left_1 = {
-		// 	// (1 + N)^{z2} mod N0^2
-		// 	let temp_left_1_1 = mod_pow_with_negative(
-		// 		&BigInt::from(1).add(&statement.N0),
-		// 		&proof.z2,
-		// 		&statement.NN0,
-		// 	);
-		// 	// w^{N0} mod N0^2
-		// 	let temp_left_1_2 = mod_pow_with_negative(&proof.w, &statement.N0, &statement.NN0);
-		// 	// C^{z1} · (1 + N)^{z2} · w^{N0} mod N0^2
-		// 	BigInt::mod_mul(
-		// 		&mod_pow_with_negative(&statement.C, &proof.z1, &statement.NN0),
-		// 		&BigInt::mod_mul(&temp_left_1_1, &temp_left_1_2, &statement.NN0),
-		// 		&statement.NN0,
-		// 	)
-		// };
-		let left_1_temp = Paillier::encrypt_with_chosen_randomness(
-			&statement.ek_verifier,
-			RawPlaintext::from(&proof.z2),
-			&Randomness::from(&proof.w)
-		);
-		let left_1 = BigInt::mod_mul(
-			&mod_pow_with_negative(&statement.C, &proof.z1, &statement.NN0),
-			&left_1_temp.into(),
-			&statement.NN0,
-		);
+		// C^{z1} · (1 + N)^{z2} · w^{N0} =A · D^e mod N0^2
+		let left_1 = {
+			// (1 + N)^{z2} mod N0^2
+			let temp_left_1_1 = mod_pow_with_negative(
+				&BigInt::from(1).add(&statement.N0),
+				&proof.z2,
+				&statement.NN0,
+			);
+			// w^{N0} mod N0^2
+			let temp_left_1_2 = mod_pow_with_negative(&proof.w, &statement.N0, &statement.NN0);
+			// C^{z1} · (1 + N)^{z2} · w^{N0} mod N0^2
+			BigInt::mod_mul(
+				&mod_pow_with_negative(&statement.C, &proof.z1, &statement.NN0),
+				&BigInt::mod_mul(&temp_left_1_1, &temp_left_1_2, &statement.NN0),
+				&statement.NN0,
+			)
+		};
+		// let left_1_temp = Paillier::encrypt_with_chosen_randomness(
+		// 	&statement.ek_verifier,
+		// 	RawPlaintext::from(&proof.z2),
+		// 	&Randomness::from(&proof.w)
+		// );
+		// let left_1 = BigInt::mod_mul(
+		// 	&mod_pow_with_negative(&statement.C, &proof.z1, &statement.NN0),
+		// 	&left_1_temp.into(),
+		// 	&statement.NN0,
+		// );
 		// A · D^e mod N0^2
 		let right_1 = BigInt::mod_mul(
 			&proof.commitment.A,
@@ -401,36 +411,6 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 			proof.commitment.B_x.clone() + (statement.X.clone() * Scalar::from_bigint(&e));
 		// Assert left == right
 		assert!(left_2 == right_2);
-		/*
-			THIRD EQUALITY CHECK
-		*/
-		// (1 + N1)^{z2} · wy^{N1} = B_y · Y^e mod N1^2
-		// let left_3 = {
-		// 	// (1 + N1)^{z2} mod N1^2
-		// 	let temp_left_3_1 = mod_pow_with_negative(
-		// 		&BigInt::from(1).add(&statement.N1),
-		// 		&proof.z2,
-		// 		&statement.NN1,
-		// 	);
-		// 	// wy^{N1} mod N1^2
-		// 	let temp_left_3_2 = mod_pow_with_negative(&proof.wy, &statement.N1, &statement.NN1);
-		// 	// (1 + N1)^{z2} · wy^{N1} mod N1^2
-		// 	BigInt::mod_mul(&temp_left_3_1, &temp_left_3_2, &statement.NN1)
-		// };
-		let left_3_ciphertext = Paillier::encrypt_with_chosen_randomness(
-			&statement.ek_prover,
-			RawPlaintext::from(&proof.z2),
-			&Randomness::from(&proof.wy),
-		);
-		let left_3: BigInt = left_3_ciphertext.into();
-		// B_y · Y^e mod N1^2
-		let right_3 = BigInt::mod_add(
-			&proof.commitment.B_y,
-			&mod_pow_with_negative(&statement.Y, &e, &statement.NN1),
-			&statement.NN1,
-		);
-		// Assert left == right
-		assert!(left_3 == right_3);
 		/*
 			FOURTH EQUALITY CHECK
 		*/
@@ -471,6 +451,36 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 		);
 		// Assert left == right
 		assert!(left_5 == right_5);
+		/*
+			THIRD EQUALITY CHECK
+		*/
+		// (1 + N1)^{z2} · wy^{N1} = B_y · Y^e mod N1^2
+		// let left_3 = {
+		// 	// (1 + N1)^{z2} mod N1^2
+		// 	let temp_left_3_1 = mod_pow_with_negative(
+		// 		&BigInt::from(1).add(&statement.N1),
+		// 		&proof.z2,
+		// 		&statement.NN1,
+		// 	);
+		// 	// wy^{N1} mod N1^2
+		// 	let temp_left_3_2 = mod_pow_with_negative(&proof.wy, &statement.N1, &statement.NN1);
+		// 	// (1 + N1)^{z2} · wy^{N1} mod N1^2
+		// 	BigInt::mod_mul(&temp_left_3_1, &temp_left_3_2, &statement.NN1)
+		// };
+		let left_3_ciphertext = Paillier::encrypt_with_chosen_randomness(
+			&statement.ek_prover,
+			RawPlaintext::from(&proof.z2),
+			&Randomness::from(&proof.wy),
+		);
+		let left_3: BigInt = left_3_ciphertext.into();
+		// B_y · Y^e mod N1^2
+		let right_3 = BigInt::mod_add(
+			&proof.commitment.B_y,
+			&mod_pow_with_negative(&statement.Y, &e, &statement.NN1),
+			&statement.NN1,
+		);
+		// Assert left == right
+		assert!(left_3 == right_3);
 		Ok(())
 	}
 }
@@ -493,7 +503,7 @@ mod tests {
 
 		let rho: BigInt = BigInt::from_paillier_key(&ek_prover);
 		let rho_y: BigInt = BigInt::from_paillier_key(&ek_verifier);
-		let c = RawPlaintext::from(BigInt::from(1));
+		let c = RawPlaintext::from(BigInt::from(12));
 		let C =
 			Paillier::encrypt_with_chosen_randomness(&ek_prover, c, &Randomness::from(rho.clone()));
 		let S: BigInt = statement.S;

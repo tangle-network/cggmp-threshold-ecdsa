@@ -21,7 +21,7 @@ const SEC_PARAM: usize = 256;
 const SEC_BYTES: usize = SEC_PARAM / 8;
 const OT_PARAM: usize = 128;
 const OT_BYTES: usize = OT_PARAM / 8;
-const STAT_PARAM: usize = fs_dkr::M_SECURITY;
+const STAT_PARAM: usize = 80;
 
 // ZK_MOD_ITERATIONS is the number of iterations that are performed to prove the validity of
 // a Paillier-Blum modulus N.
