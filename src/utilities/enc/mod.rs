@@ -17,7 +17,7 @@ pub struct EncSetupParameters<E: Curve, H: Digest + Clone> {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EncCommonInput<E: Curve, H: Digest + Clone> {
-    N_0: BigInt,
+    N0: BigInt,
     K: BigInt,
     phantom: PhantomData<(E, H)>,
 }
@@ -58,17 +58,17 @@ impl<E: Curve, H: Digest + Clone> EncProof<E, H> {
         let gamma_lower = BigInt::from(-1).mul(&mu_upper);
         let gamma = BigInt::sample_range(&gamma_lower, &gamma_upper);
 
-        let r = sample_relatively_prime_integer(common_input.N_0.clone());
+        let r = sample_relatively_prime_integer(common_input.N0.clone());
 
         // Step 3: S, A, C
         let S = BigInt::mod_mul(&BigInt::mod_pow(&setup_parameters.s, &witness.k, &setup_parameters.N_hat), &BigInt::mod_pow(&setup_parameters.t, &mu, &setup_parameters.N_hat), &setup_parameters.N_hat);
 
-        let N_0_squared = BigInt::mul(&common_input.N_0, &common_input.N_0);
-        let mut one_plus_N_0 = BigInt::add(&BigInt::from(1), &common_input.N_0);
+        let N0_squared = BigInt::mul(&common_input.N0, &common_input.N0);
+        let mut one_plus_N0 = BigInt::add(&BigInt::from(1), &common_input.N0);
         if alpha < BigInt::zero() {
-            one_plus_N_0 = BigInt::mod_inv(&one_plus_N_0, &N_0_squared).unwrap();
+            one_plus_N0 = BigInt::mod_inv(&one_plus_N0, &N0_squared).unwrap();
         }
-        let A = BigInt::mod_mul(&BigInt::mod_pow(&one_plus_N_0, &BigInt::abs(&alpha), &N_0_squared), &BigInt::mod_pow(&r, &common_input.N_0, &N_0_squared), &N_0_squared);
+        let A = BigInt::mod_mul(&BigInt::mod_pow(&one_plus_N0, &BigInt::abs(&alpha), &N0_squared), &BigInt::mod_pow(&r, &common_input.N0, &N0_squared), &N0_squared);
 
         let C = BigInt::mod_mul(&BigInt::mod_pow(&setup_parameters.s, &alpha, &setup_parameters.N_hat), &BigInt::mod_pow(&setup_parameters.t, &gamma, &setup_parameters.N_hat), &setup_parameters.N_hat);
 
@@ -81,7 +81,7 @@ impl<E: Curve, H: Digest + Clone> EncProof<E, H> {
         
         // Step 5: Compute z_1, z_2, z_3
         let z_1 = BigInt::add(&alpha, &BigInt::mul(&e, &witness.k));
-        let z_2 = BigInt::mod_mul(&r, &BigInt::mod_pow(&witness.rho, &e, &common_input.N_0), &common_input.N_0);
+        let z_2 = BigInt::mod_mul(&r, &BigInt::mod_pow(&witness.rho, &e, &common_input.N0), &common_input.N0);
         let z_3 = BigInt::add(&gamma, &BigInt::mul(&e, &mu));
 
         Self {
@@ -103,9 +103,9 @@ impl<E: Curve, H: Digest + Clone> EncProof<E, H> {
         .result_bigint();
 
         // Equality Checks
-        let N_0_squared = BigInt::mul(&common_input.N_0, &common_input.N_0);
-        let left_1 = BigInt::mod_mul(&BigInt::mod_pow(&BigInt::add(&BigInt::from(1), &common_input.N_0), &proof.z_1, &N_0_squared), &BigInt::mod_pow(&proof.z_2, &common_input.N_0, &N_0_squared), &N_0_squared);
-        let right_1 = BigInt::mod_mul(&proof.A, &BigInt::mod_pow(&common_input.K, &e, &N_0_squared), &N_0_squared);
+        let N0_squared = BigInt::mul(&common_input.N0, &common_input.N0);
+        let left_1 = BigInt::mod_mul(&BigInt::mod_pow(&BigInt::add(&BigInt::from(1), &common_input.N0), &proof.z_1, &N0_squared), &BigInt::mod_pow(&proof.z_2, &common_input.N0, &N0_squared), &N0_squared);
+        let right_1 = BigInt::mod_mul(&proof.A, &BigInt::mod_pow(&common_input.K, &e, &N0_squared), &N0_squared);
 
         let left_2 = BigInt::mod_mul(&BigInt::mod_pow(&setup_parameters.s, &proof.z_1, &setup_parameters.N_hat), &BigInt::mod_pow(&setup_parameters.t, &proof.z_3, &setup_parameters.N_hat), &setup_parameters.N_hat);
         let right_2 = BigInt::mod_mul(&proof.C, &BigInt::mod_pow(&proof.S, &e, &setup_parameters.N_hat), &setup_parameters.N_hat);
@@ -155,11 +155,11 @@ mod tests {
         let t = BigInt::mod_pow(&r, &BigInt::from(2), &ek_tilde.n);
         let s = BigInt::mod_pow(&t, &lambda, &ek_tilde.n);
         let N_hat = ek_tilde.n;
-        let N_0 = N_hat.clone();
+        let N0 = N_hat.clone();
         let k = BigInt::sample_below(Scalar::<Secp256k1>::group_order());
-        let rho = sample_relatively_prime_integer(N_0.clone());
-        let N_0_squared = BigInt::mul(&N_0, &N_0);
-        let K = BigInt::mod_mul(&BigInt::mod_pow(&BigInt::add(&one, &N_0), &k, &N_0_squared), &BigInt::mod_pow(&rho, &N_0, &N_0_squared),&N_0_squared);
+        let rho = sample_relatively_prime_integer(N0.clone());
+        let N0_squared = BigInt::mul(&N0, &N0);
+        let K = BigInt::mod_mul(&BigInt::mod_pow(&BigInt::add(&one, &N0), &k, &N0_squared), &BigInt::mod_pow(&rho, &N0, &N0_squared),&N0_squared);
 
         (
             EncWitness {
@@ -169,7 +169,7 @@ mod tests {
             },
 
             EncCommonInput {
-                N_0: N_0.clone(),
+                N0: N0.clone(),
                 K: K,
                 phantom: PhantomData,
             },

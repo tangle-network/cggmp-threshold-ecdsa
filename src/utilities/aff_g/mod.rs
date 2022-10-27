@@ -126,7 +126,7 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeStatement<E, H> {
 				C,
 				D,
 				Y,
-				X: X.clone(),
+				X,
 				phantom: PhantomData,
 			},
 			AffineWithGroupComRangeWitness { x, y, rho, rho_y, phantom: PhantomData },
@@ -463,11 +463,8 @@ mod tests {
 		let rho: BigInt = BigInt::from_paillier_key(&ek_prover);
 		let rho_y: BigInt = BigInt::from_paillier_key(&ek_verifier);
 		let c = RawPlaintext::from(BigInt::from(1));
-		let C = Paillier::encrypt_with_chosen_randomness(
-			&ek_prover.clone(),
-			c,
-			&Randomness::from(rho.clone()),
-		);
+		let C =
+			Paillier::encrypt_with_chosen_randomness(&ek_prover, c, &Randomness::from(rho.clone()));
 		let S: BigInt = statement.S;
 		let T: BigInt = statement.T;
 		let N_hat: BigInt = ek_prover.n.clone();
