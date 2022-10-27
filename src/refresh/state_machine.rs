@@ -20,9 +20,9 @@ use sha2::Sha256;
 use std::{collections::HashMap, fmt, mem::replace, time::Duration};
 use thiserror::Error;
 
-pub type Round0Messages = Store<BroadcastMsgs<Option<JoinMessage<Secp256k1, Sha256>>>>;
+pub type Round0Messages = Store<BroadcastMsgs<Option<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>>;
 pub type Round1Messages =
-	Store<BroadcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>>;
+	Store<BroadcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>>>;
 
 pub struct KeyRefresh {
 	// Current round
@@ -308,8 +308,8 @@ pub struct ProtocolMessage(M);
 
 #[derive(Debug, Clone)]
 enum M {
-	Round1(Option<JoinMessage<Secp256k1, Sha256>>),
-	Round2(Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>),
+	Round1(Option<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>),
+	Round2(Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>),
 }
 
 // Error
