@@ -45,7 +45,6 @@ pub struct AffineWithGroupComRangeStatement<E: Curve, H: Digest + Clone> {
 	N1: BigInt,
 	NN0: BigInt,
 	NN1: BigInt,
-	g: Point<E>,
 	C: BigInt,
 	D: BigInt,
 	Y: BigInt,
@@ -85,11 +84,7 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeStatement<E, H> {
 			&BigInt::pow(&BigInt::from(2), &2 * crate::utilities::LPrime as u32),
 		);
 
-		let rho = BigInt::sample_below(&prover.n);
-		let rho_y = BigInt::sample_below(&verifier.n);
-
-		let g = Point::<E>::generator().as_point();
-		let X = g * Scalar::from(&x);
+		let X = Point::<E>::generator().as_point() * Scalar::from(&x);
 		let temp_Y_1 = BigInt::mod_pow(&BigInt::from(1).add(&N1), &y, &verifier.nn);
 		let temp_Y_2 = BigInt::mod_pow(&rho_y, &N1, &verifier.nn);
 
@@ -108,11 +103,10 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeStatement<E, H> {
 				S,
 				T,
 				N_hat,
-				N0: prover.n,
-				N1: verifier.n,
+				N0: N0,
+				N1: N1,
 				NN0: prover.nn,
 				NN1: verifier.nn,
-				g: g.clone(),
 				C,
 				D,
 				Y,
@@ -234,7 +228,7 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 			)
 		};
 
-		let B_x: Point<E> = statement.g * Scalar::from_bigint(&alpha);
+		let B_x: Point<E> = Point::<E>::generator().as_point() * Scalar::from_bigint(&alpha);
 		// By = (1 + N1)^β · ry^N1 mod N1^2
 		let B_y = {
 			// (1 + N1)^β mod N1^2
@@ -309,13 +303,13 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 	) -> Result<(), Error> {
 		// Hash all prover messages to generate NIZK challenge
 		let e: BigInt = H::new()
-			.chain_bigint(&proof.commitment.big_S)
-			.chain_bigint(&proof.commitment.big_T)
-			.chain_bigint(&proof.commitment.A)
-			.chain_point(&proof.commitment.B_x)
-			.chain_bigint(&proof.commitment.B_y)
-			.chain_bigint(&proof.commitment.E)
-			.chain_bigint(&proof.commitment.F)
+			.chain_bigint(&proof.commitment.big_S.clone())
+			.chain_bigint(&proof.commitment.big_T.clone())
+			.chain_bigint(&proof.commitment.A.clone())
+			.chain_point(&proof.commitment.B_x.clone())
+			.chain_bigint(&proof.commitment.B_y.clone())
+			.chain_bigint(&proof.commitment.E.clone())
+			.chain_bigint(&proof.commitment.F.clone())
 			.result_bigint();
 		/*
 			FIRST EQUALITY CHECK
@@ -346,7 +340,7 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 			SECOND EQUALITY CHECK
 		*/
 		// g^{z1} = B_x ·X^e  ∈ G
-		let left_2 = statement.g * Scalar::from_bigint(&proof.z1);
+		let left_2 = Point::<E>::generator().as_point() * Scalar::from_bigint(&proof.z1);
 		let right_2 = proof.commitment.B_x + (statement.X * Scalar::from_bigint(&e));
 		// Assert left == right
 		assert!(left_2 == right_2);
@@ -440,7 +434,7 @@ mod tests {
 	#[test]
 	fn test_affine_g_proof() {
 		let (statement, witness) = RingPedersenStatement::<Secp256k1, Sha256>::generate();
-		let (ek_prover, dk_prover) = Keypair { p: witness.p, q: witness.q }.keys();
+        let ek_prover = statement.ek.clone();
 		let (ek_verifier, dk_verifier) =
 			Paillier::keypair_with_modulus_size(fs_dkr::PAILLIER_KEY_SIZE).keys();
 
