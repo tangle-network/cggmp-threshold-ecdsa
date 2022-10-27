@@ -92,8 +92,8 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeStatement<E, H> {
 		);
 		let y = BigInt::sample_range(
 			&(BigInt::from(-1)
-				.mul(&BigInt::pow(&BigInt::from(2), &2 * crate::utilities::LPrime as u32))),
-			&BigInt::pow(&BigInt::from(2), &2 * crate::utilities::LPrime as u32),
+				.mul(&BigInt::pow(&BigInt::from(2), &2 * crate::utilities::L_PRIME as u32))),
+			&BigInt::pow(&BigInt::from(2), &2 * crate::utilities::L_PRIME as u32),
 		);
 
 		let X = Point::<E>::generator().as_point() * Scalar::from(&x);
@@ -163,70 +163,40 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 		witness: &AffineWithGroupComRangeWitness<E, H>,
 		statement: &AffineWithGroupComRangeStatement<E, H>,
 	) -> AffineWithGroupComRangeProof<E, H> {
-		// α ← ± 2^{l+ε}
-		let alpha = BigInt::sample_range(
-			&BigInt::from(-1)
-				.mul(&BigInt::pow(&BigInt::from(2), crate::utilities::LPlusEpsilon as u32)),
-			&BigInt::pow(&BigInt::from(2), crate::utilities::LPlusEpsilon as u32),
-		);
-		// β ← ± 2^{l'+ε}
-		let beta = BigInt::sample_range(
-			&BigInt::from(-1)
-				.mul(&BigInt::pow(&BigInt::from(2), crate::utilities::LPrimePlusEpsilon as u32)),
-			&BigInt::pow(&BigInt::from(2), crate::utilities::LPrimePlusEpsilon as u32),
-		);
+		// Set up exponents
+		let l_exp = BigInt::pow(&BigInt::from(2), crate::utilities::L as u32);
+		let lplus_exp = BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32);
+		let L_PRIMEplus_exp =
+			BigInt::pow(&BigInt::from(2), crate::utilities::L_PRIME_PLUS_EPSILON as u32);
 
+		// α ← ± 2^{l+ε}
+		let alpha = BigInt::sample_range(&BigInt::from(-1).mul(&lplus_exp), &lplus_exp);
+		// β ← ± 2^{l'+ε}
+		let beta = BigInt::sample_range(&BigInt::from(-1).mul(&L_PRIMEplus_exp), &L_PRIMEplus_exp);
+		// Sample r, ry as unit values from Z_N0, Z_N1
 		let r = sample_relatively_prime_integer(&statement.N0);
 		let ry = sample_relatively_prime_integer(&statement.N1);
 		// γ ← ± 2^{l+ε} · Nˆ
 		let gamma = BigInt::sample_range(
-			&BigInt::from(-1).mul(&BigInt::add(
-				&BigInt::from(-1)
-					.mul(&BigInt::pow(&BigInt::from(2), crate::utilities::LPlusEpsilon as u32)),
-				&statement.N_hat,
-			)),
-			&BigInt::add(
-				&BigInt::from(-1)
-					.mul(&BigInt::pow(&BigInt::from(2), crate::utilities::LPlusEpsilon as u32)),
-				&statement.N_hat,
-			),
+			&BigInt::from(-1).mul(&lplus_exp).mul(&statement.N_hat),
+			&lplus_exp.mul(&statement.N_hat),
 		);
 
 		// m ← ± 2l · Nˆ
 		let m = BigInt::sample_range(
-			&BigInt::from(-1).mul(&BigInt::add(
-				&BigInt::from(-1).mul(&BigInt::pow(&BigInt::from(2), crate::utilities::L as u32)),
-				&statement.N_hat,
-			)),
-			&BigInt::add(
-				&BigInt::from(-1).mul(&BigInt::pow(&BigInt::from(2), crate::utilities::L as u32)),
-				&statement.N_hat,
-			),
+			&BigInt::from(-1).mul(&l_exp).mul(&statement.N_hat),
+			&l_exp.mul(&statement.N_hat),
 		);
 		// δ ← ± 2^{l+ε} · Nˆ
 		let delta = BigInt::sample_range(
-			&BigInt::from(-1).mul(&BigInt::add(
-				&BigInt::from(-1)
-					.mul(&BigInt::pow(&BigInt::from(2), crate::utilities::LPlusEpsilon as u32)),
-				&statement.N_hat,
-			)),
-			&BigInt::add(
-				&BigInt::from(-1)
-					.mul(&BigInt::pow(&BigInt::from(2), crate::utilities::LPlusEpsilon as u32)),
-				&statement.N_hat,
-			),
+			&BigInt::from(-1).mul(&lplus_exp).mul(&statement.N_hat),
+			&lplus_exp.mul(&statement.N_hat),
 		);
 
 		// mu ← ± 2l · Nˆ
 		let mu = BigInt::sample_range(
-			&BigInt::from(-1).mul(&BigInt::add(
-				&BigInt::from(-1).mul(&BigInt::pow(&BigInt::from(2), crate::utilities::L as u32)),
-				&statement.N_hat,
-			)),
-			&BigInt::add(
-				&BigInt::from(-1).mul(&BigInt::pow(&BigInt::from(2), crate::utilities::L as u32)),
-				&statement.N_hat,
-			),
+			&BigInt::from(-1).mul(&l_exp).mul(&statement.N_hat),
+			&l_exp.mul(&statement.N_hat),
 		);
 
 		// A = C^α · (1 + N0)^y · r^N0 mod N0^2
@@ -432,11 +402,11 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 			RANGE CHECKS
 		*/
 		// z1 ∈ [-2^{l+ε}, 2^{l+ε}]
-		assert!(proof.z1 >= BigInt::from(-2).pow(crate::utilities::LPlusEpsilon as u32));
-		assert!(proof.z1 <= BigInt::from(2).pow(crate::utilities::LPlusEpsilon as u32));
+		assert!(proof.z1 >= BigInt::from(-2).pow(crate::utilities::L_PLUS_EPSILON as u32));
+		assert!(proof.z1 <= BigInt::from(2).pow(crate::utilities::L_PLUS_EPSILON as u32));
 		// z2 ∈ [-2^{l'+ε}, 2^{l'+ε}]
-		assert!(proof.z2 >= BigInt::from(-2).pow(crate::utilities::LPrimePlusEpsilon as u32));
-		assert!(proof.z2 <= BigInt::from(2).pow(crate::utilities::LPrimePlusEpsilon as u32));
+		assert!(proof.z2 >= BigInt::from(-2).pow(crate::utilities::L_PRIME_PLUS_EPSILON as u32));
+		assert!(proof.z2 <= BigInt::from(2).pow(crate::utilities::L_PRIME_PLUS_EPSILON as u32));
 
 		Ok(())
 	}
