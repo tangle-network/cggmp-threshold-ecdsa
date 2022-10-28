@@ -23,29 +23,28 @@
 use curv::{
 	arithmetic::traits::*,
 	cryptographic_primitives::hashing::{Digest, DigestExt},
-	elliptic::curves::Curve,
+	elliptic::curves::{Curve, Scalar},
 	BigInt,
+};
+use crate::{
+	utilities::{mod_pow_with_negative, L, L_PLUS_EPSILON, L_PRIME, L_PRIME_PLUS_EPSILON},
+	Error,
 };
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use zk_paillier::zkproofs::IncorrectProof;
 
-use super::{mod_pow_with_negative, sample_relatively_prime_integer};
+use super::{sample_relatively_prime_integer};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierEncryptionInRangeSetupParameters<E: Curve, H: Digest + Clone> {
-	s: BigInt,
-	t: BigInt,
-	N_hat: BigInt,
-	phantom: PhantomData<(E, H)>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierEncryptionInRangeCommonInput<E: Curve, H: Digest + Clone> {
+pub struct PaillierEncryptionInRangeStatement<E: Curve, H: Digest + Clone> {
 	N0: BigInt,
 	NN0: BigInt,
 	K: BigInt,
+	s: BigInt,
+	t: BigInt,
+	N_hat: BigInt,
 	phantom: PhantomData<(E, H)>,
 }
 
@@ -54,6 +53,34 @@ pub struct PaillierEncryptionInRangeWitness<E: Curve, H: Digest + Clone> {
 	k: BigInt,
 	rho: BigInt,
 	phantom: PhantomData<(E, H)>,
+}
+
+impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeStatement<E, H> {
+	#[allow(clippy::too_many_arguments)]
+	pub fn generate(
+		rho: BigInt,
+		s: BigInt,
+		t: BigInt,
+		N_hat: BigInt,
+		paillier_key: EncryptionKey,
+	) -> (Self, PaillierEncryptionInRangeWitness<E, H>) {
+		// Set up exponents
+		let l_exp = BigInt::pow(&BigInt::from(2), L as u32);
+		// Set up moduli
+		let N0 = paillier_key.clone().n;
+		let NN0 = paillier_key.clone().nn;
+		let k = BigInt::sample_below(Scalar::<E>::group_order());
+		let K = Paillier::encrypt_with_chosen_randomness(
+			&paillier_key,
+			RawPlaintext::from(&k),
+			&Randomness::from(&rho),
+		);
+
+		(
+			Self { N0, NN0, K, s, t, N_hat, phantom: PhantomData },
+			PaillierEncryptionInRangeWitness {k, rho, phantom: PhantomData },
+		)
+	}
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -71,8 +98,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 	#[allow(dead_code)]
 	pub fn prove(
 		witness: &PaillierEncryptionInRangeWitness<E, H>,
-		common_input: &PaillierEncryptionInRangeCommonInput<E, H>,
-		setup_parameters: &PaillierEncryptionInRangeSetupParameters<E, H>,
+		statement: &PaillierEncryptionInRangeStatement<E, H>,
 	) -> Self {
 		// Step 1: Sample alpha between -2^{L+eps} and 2^{L+eps}
 		let alpha_upper = BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32);
