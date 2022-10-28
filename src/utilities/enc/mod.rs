@@ -15,11 +15,10 @@
 	@license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
 
-//! Knowledge of Exponent vs Paillier Encryption – Π^{log∗}
-//!
-//! Common input is (G, q, N0, C, X, g).
-//! The Prover has secret input (x,ρ) such that
-//!         x ∈ ± 2l, and C = (1 + N0)^x · ρ^N0 mod N0^2 and X = g^x    ∈ G.
+//! Paillier Encryption in Range ZK – Π^enc
+//! 
+//! Common input is (N0, K). The Prover has secret input (k, ρ) such that
+//!             k ∈ ± 2l, and K = (1 + N0)^k · ρ^N0 mod N0^2.
 
 use curv::{
 	arithmetic::traits::*,
@@ -89,7 +88,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 		let mu_lower = BigInt::from(-1).mul(&mu_upper);
 		let mu = BigInt::sample_range(&mu_lower, &mu_upper);
 
-		// Sample gamma between -2^{L+eps} * N_hat and 2^{L+eps} * N_hat
+		// γ ← ± 2^{l+ε} · Nˆ
 		let gamma_upper = BigInt::mul(
 			&setup_parameters.N_hat,
 			&BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32),
