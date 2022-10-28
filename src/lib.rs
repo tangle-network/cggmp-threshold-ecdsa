@@ -17,6 +17,8 @@
 	@license GPL-3.0+ <https://github.com/webb-tools/cggmp/blob/main/LICENSE>
 */
 
+#![feature(box_patterns)]
+
 pub mod party_i;
 pub mod refresh;
 pub mod sign;

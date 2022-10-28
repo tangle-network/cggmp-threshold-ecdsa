@@ -9,10 +9,10 @@ pub mod mta;
 pub mod zk_pdl;
 pub mod zk_pdl_with_slack;
 
-pub fn sample_relatively_prime_integer(N: &BigInt) -> BigInt {
-	let mut sample = BigInt::sample_below(N);
-	while BigInt::gcd(&sample, N) != BigInt::from(1) {
-		sample = BigInt::sample_below(N);
+pub fn sample_relatively_prime_integer(n: &BigInt) -> BigInt {
+	let mut sample = BigInt::sample_below(n);
+	while BigInt::gcd(&sample, n) != BigInt::from(1) {
+		sample = BigInt::sample_below(n);
 	}
 	sample
 }
@@ -20,7 +20,7 @@ pub fn sample_relatively_prime_integer(N: &BigInt) -> BigInt {
 pub fn mod_pow_with_negative(v: &BigInt, pow: &BigInt, modulus: &BigInt) -> BigInt {
 	if BigInt::is_negative(pow) {
 		let temp = BigInt::mod_pow(v, &pow.abs(), modulus);
-		BigInt::mod_inv(&temp, modulus).unwrap_or(BigInt::zero())
+		BigInt::mod_inv(&temp, modulus).unwrap_or_else(BigInt::zero)
 	} else {
 		BigInt::mod_pow(v, pow, modulus)
 	}
@@ -41,6 +41,7 @@ pub const STAT_PARAM: usize = 80;
 // Since sampling primes is expensive, we argue that the security can be reduced.
 pub const ZK_MOD_ITERATIONS: usize = 12;
 
+#[allow(clippy::identity_op)]
 pub const L: usize = 1 * SEC_PARAM; // = 256
 pub const L_PRIME: usize = 5 * SEC_PARAM; // = 1280
 pub const EPSILON: usize = 2 * SEC_PARAM; // = 512

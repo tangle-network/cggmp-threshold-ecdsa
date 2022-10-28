@@ -1,14 +1,21 @@
 #![allow(non_snake_case)]
 /*
-	Paillier Affine Operation with Group Commitment in Range.
-	Copyright 2022 by Webb Technologies.
+	CGGMP Threshold ECDSA
 
-	cggmp-threshold-ecdsa is free software: you can redistribute
+	Copyright 2022 by Webb Technologies
+
+	This file is part of CGGMP Threshold ECDSA library
+	(https://github.com/webb-tools/cggmp-threshold-ecdsa)
+
+	CGGMP Threshold ECDSA is free software: you can redistribute
 	it and/or modify it under the terms of the GNU General Public
 	License as published by the Free Software Foundation, either
 	version 3 of the License, or (at your option) any later version.
-	@license GPL-3.0+ <https://github.com/webb-tools/cggmp-threshold-ecdsa/blob/master/LICENSE>
+
+	@license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
+
+//! Paillier Affine Operation with Paillier Commitment ZK-Proof – Π^{aff-p}
 
 //! For parameters (G, g, N0, N1), consisting of element g and in group G and Paillier
 //! public keys N0, N1, verify the ciphertext C \in Z∗_{N0^2} was obtained as an affine-like
@@ -20,9 +27,9 @@
 //!
 //! Inputs: Common input is (G,g,N0,N1,C,D,Y,X) where q = |G| and g is a generator of G.
 //! The Prover has secret input (x,y,ρ,ρy) such that
-//!             x∈±2l, y∈±2l′, g^{x} = X, (1+N1)^{y}ρ^{N1} = Y mod N2,
+//!         x ∈ ± 2l, y ∈ ± 2l′, g^{x} = X, (1 + N1)^{y} · ρ^{N1} = Y mod N^2,
 //! and
-//!             D=C^{x}(1+N0)^{y}·ρ^{N0} mod N0^{2}.
+//!             D = C^{x} · (1+N0)^{y} · ρ^{N0} mod N0^{2}.
 
 use super::sample_relatively_prime_integer;
 use crate::{
@@ -32,7 +39,7 @@ use crate::{
 use curv::{
 	arithmetic::{traits::*, Modulo},
 	cryptographic_primitives::hashing::{Digest, DigestExt},
-	elliptic::curves::{Curve, ECScalar, Point, Scalar},
+	elliptic::curves::{Curve, Point, Scalar},
 	BigInt,
 };
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
@@ -68,6 +75,7 @@ pub struct PaillierAffineOpWithGroupComInRangeWitness<E: Curve, H: Digest + Clon
 }
 
 impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeStatement<E, H> {
+	#[allow(clippy::too_many_arguments)]
 	pub fn generate(
 		rho: BigInt,
 		rho_y: BigInt,
@@ -86,13 +94,11 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeStatement<E
 		let NN0 = verifier.clone().nn;
 		let N1 = prover.clone().n;
 		let NN1 = prover.clone().nn;
-		let ek_verifier = verifier.clone();
-		let ek_prover = prover.clone();
+		let ek_verifier = verifier;
+		let ek_prover = prover;
 
 		let x = BigInt::sample_range(&BigInt::from(-1).mul(&l_exp), &l_exp);
-		println!("x: {}", x.bit_length());
 		let y = BigInt::sample_range(&BigInt::from(-1).mul(&lprime_exp), &lprime_exp);
-		println!("y: {}", y.bit_length());
 
 		let X = Point::<E>::generator().as_point() * Scalar::from(&x);
 		// // Compute Y
@@ -130,7 +136,7 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeStatement<E
 				NN1,
 				C,
 				D,
-				Y: Y.into(),
+				Y,
 				X,
 				ek_prover,
 				ek_verifier,
@@ -172,25 +178,16 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 	) -> PaillierAffineOpWithGroupComInRangeProof<E, H> {
 		// Set up exponents
 		let l_exp = BigInt::pow(&BigInt::from(2), L as u32);
-		println!("l_exp: {}", l_exp.bit_length());
 		let lplus_exp = BigInt::pow(&BigInt::from(2), L_PLUS_EPSILON as u32);
-		println!("lplus_exp: {}", lplus_exp.bit_length());
 		let lprimeplus_exp = BigInt::pow(&BigInt::from(2), L_PRIME_PLUS_EPSILON as u32);
-		println!("lprimeplus_exp: {}", lprimeplus_exp.bit_length());
 
 		// α ← ± 2^{l+ε}
 		let alpha = BigInt::sample_range(&BigInt::from(-1).mul(&lplus_exp), &lplus_exp);
-		println!("alpha: {}", alpha.bit_length());
-		// β ← ± 2^{l'+ε}
+		// β ← ± 2^{Al'+ε}
 		let beta = BigInt::sample_range(&BigInt::from(-1).mul(&lprimeplus_exp), &lprimeplus_exp);
-		println!("beta: {}", beta.bit_length());
 		// Sample r, ry as unit values from Z_N0, Z_N1
 		let r = sample_relatively_prime_integer(&statement.N0);
-		println!("r: {}", r.bit_length());
-		let rx = sample_relatively_prime_integer(&statement.N1);
 		let ry = sample_relatively_prime_integer(&statement.N1);
-		println!("rx: {}", ry.bit_length());
-		println!("ry: {}", ry.bit_length());
 		// γ ← ± 2^{l+ε} · Nˆ
 		let gamma = BigInt::sample_range(
 			&BigInt::from(-1).mul(&lplus_exp).mul(&statement.N_hat),
@@ -211,20 +208,7 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 			&BigInt::from(-1).mul(&l_exp).mul(&statement.N_hat),
 			&l_exp.mul(&statement.N_hat),
 		);
-		// // A = C^α · (1 + N0)^β · r^N0 mod N0^2
-		// let A = {
-		// 	// (1 + N0)^β mod N0^2
-		// 	let temp_A_1 =
-		// 		mod_pow_with_negative(&BigInt::from(1).add(&statement.N0), &beta, &statement.NN0);
-		// 	// r^N0 mod N0^2
-		// 	let temp_A_2 = BigInt::mod_pow(&r, &statement.N0, &statement.NN0);
-		// 	// A = C^α · (1 + N0)^β · r^N0 mod N0^2
-		// 	BigInt::mod_mul(
-		// 		&mod_pow_with_negative(&statement.C, &alpha, &statement.NN0),
-		// 		&BigInt::mod_mul(&temp_A_1, &temp_A_2, &statement.NN0),
-		// 		&statement.NN0,
-		// 	)
-		// };
+		// A = C^α · (1 + N0)^β · r^N0 mod N0^2
 		let A_temp = Paillier::encrypt_with_chosen_randomness(
 			&statement.ek_verifier,
 			RawPlaintext::from(&beta),
@@ -237,26 +221,12 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 		);
 
 		let B_x: Point<E> = Point::<E>::generator().as_point() * Scalar::from_bigint(&alpha);
-		// let B_x = Paillier::encrypt_with_chosen_randomness(
-		// 	&statement.ek_prover,
-		// 	RawPlaintext(&alpha),
-		// 	&Randomness(&rx),
-		// );
-		// // By = (1 + N1)^β · ry^N1 mod N1^2
-		let B_y = {
-			// (1 + N1)^β mod N1^2
-			let temp_B_1 =
-				mod_pow_with_negative(&BigInt::from(1).add(&statement.N1), &beta, &statement.NN1);
-			// ry^N1 mod N1^2
-			let temp_B_2 = BigInt::mod_pow(&ry, &statement.N1, &statement.NN1);
-			// B = (1 + N1)^β · ry^N1 mod N1^2
-			&BigInt::mod_mul(&temp_B_1, &temp_B_2, &statement.NN1)
-		};
-		// let B_y = Paillier::encrypt_with_chosen_randomness(
-		// 	&statement.ek_prover,
-		// 	RawPlaintext::from(&beta),
-		// 	&Randomness::from(&ry),
-		// );
+		// By = (1 + N1)^β · ry^N1 mod N1^2
+		let B_y = Paillier::encrypt_with_chosen_randomness(
+			&statement.ek_prover,
+			RawPlaintext::from(&beta),
+			&Randomness::from(&ry),
+		);
 		// E = s^α · t^γ mod Nˆ
 		let E = BigInt::mod_mul(
 			&mod_pow_with_negative(&statement.S, &alpha, &statement.N_hat),
@@ -294,10 +264,16 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 		let mut rng: ChaChaRng = ChaChaRng::from_seed(e.to_bytes().try_into().unwrap());
 		let val = rng.gen_range(0..2);
 		e = BigInt::from(val).mul(&BigInt::from(-2)).add(&BigInt::one()).mul(&e);
-
-		let commitment =
-			// PaillierAffineOpWithGroupComInRangeCommitment::<E> { A, B_x, B_y: B_y.into(), E, F, big_S, big_T };
-			PaillierAffineOpWithGroupComInRangeCommitment::<E> { A, B_x, B_y: B_y.clone(), E, F, big_S, big_T };
+		// Compute Fiat-Shamir commitment preimage
+		let commitment = PaillierAffineOpWithGroupComInRangeCommitment::<E> {
+			A,
+			B_x,
+			B_y: B_y.clone().into(),
+			E,
+			F,
+			big_S,
+			big_T,
+		};
 		// z1 = α + ex
 		let z1 = BigInt::add(&alpha, &e.mul(&witness.x));
 		// z2 = β + ey
@@ -360,32 +336,18 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 			FIRST EQUALITY CHECK
 		*/
 		// C^{z1} · (1 + N0)^{z2} · w^{N0} =A · D^e mod N0^2
-		// let left_1 = {
-		// 	// (1 + N0)^{z2} mod N0^2
-		// 	let temp_left_1_1 = mod_pow_with_negative(
-		// 		&BigInt::from(1).add(&statement.N0),
-		// 		&proof.z2,
-		// 		&statement.NN0,
-		// 	);
-		// 	// w^{N0} mod N0^2
-		// 	let temp_left_1_2 = mod_pow_with_negative(&proof.w, &statement.N0, &statement.NN0);
-		// 	// C^{z1} · (1 + N0)^{z2} · w^{N0} mod N0^2
-		// 	BigInt::mod_mul(
-		// 		&mod_pow_with_negative(&statement.C, &proof.z1, &statement.NN0),
-		// 		&BigInt::mod_mul(&temp_left_1_1, &temp_left_1_2, &statement.NN0),
-		// 		&statement.NN0,
-		// 	)
-		// };
-		let left_1_temp = Paillier::encrypt_with_chosen_randomness(
-			&statement.ek_verifier,
-			RawPlaintext::from(&proof.z2),
-			&Randomness::from(&proof.w),
-		);
-		let left_1 = BigInt::mod_mul(
-			&mod_pow_with_negative(&statement.C, &proof.z1, &statement.NN0),
-			&left_1_temp.into(),
-			&statement.NN0,
-		);
+		let left_1 = {
+			let temp_left_1_1 = Paillier::encrypt_with_chosen_randomness(
+				&statement.ek_verifier,
+				RawPlaintext::from(&proof.z2),
+				&Randomness::from(&proof.w),
+			);
+			BigInt::mod_mul(
+				&mod_pow_with_negative(&statement.C, &proof.z1, &statement.NN0),
+				&temp_left_1_1.into(),
+				&statement.NN0,
+			)
+		};
 		// A · D^e mod N0^2
 		let right_1 = BigInt::mod_mul(
 			&proof.commitment.A,
@@ -403,6 +365,24 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 			proof.commitment.B_x.clone() + (statement.X.clone() * Scalar::from_bigint(&e));
 		// Assert left == right
 		assert!(left_2 == right_2);
+		/*
+			THIRD EQUALITY CHECK
+		*/
+		// (1 + N1)^{z2} · wy^{N1} = B_y · Y^e mod N1^2
+		let left_3_ciphertext = Paillier::encrypt_with_chosen_randomness(
+			&statement.ek_prover,
+			RawPlaintext::from(&proof.z2),
+			&Randomness::from(&proof.wy),
+		);
+		let left_3: BigInt = left_3_ciphertext.into();
+		// B_y · Y^e mod N1^2
+		let right_3 = BigInt::mod_mul(
+			&proof.commitment.B_y,
+			&mod_pow_with_negative(&statement.Y, &e, &statement.NN1),
+			&statement.NN1,
+		);
+		// Assert left == right
+		assert!(left_3.mod_floor(&statement.NN1) == right_3);
 		/*
 			FOURTH EQUALITY CHECK
 		*/
@@ -443,36 +423,6 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 		);
 		// Assert left == right
 		assert!(left_5 == right_5);
-		/*
-			THIRD EQUALITY CHECK
-		*/
-		// (1 + N1)^{z2} · wy^{N1} = B_y · Y^e mod N1^2
-		// let left_3 = {
-		// 	// (1 + N1)^{z2} mod N1^2
-		// 	let temp_left_3_1 = mod_pow_with_negative(
-		// 		&BigInt::from(1).add(&statement.N1),
-		// 		&proof.z2,
-		// 		&statement.NN1,
-		// 	);
-		// 	// wy^{N1} mod N1^2
-		// 	let temp_left_3_2 = mod_pow_with_negative(&proof.wy, &statement.N1, &statement.NN1);
-		// 	// (1 + N1)^{z2} · wy^{N1} mod N1^2
-		// 	BigInt::mod_mul(&temp_left_3_1, &temp_left_3_2, &statement.NN1)
-		// };
-		let left_3_ciphertext = Paillier::encrypt_with_chosen_randomness(
-			&statement.ek_prover,
-			RawPlaintext::from(&proof.z2),
-			&Randomness::from(&proof.wy),
-		);
-		let left_3: BigInt = left_3_ciphertext.into();
-		// B_y · Y^e mod N1^2
-		let right_3 = BigInt::mod_mul(
-			&proof.commitment.B_y,
-			&mod_pow_with_negative(&statement.Y, &e, &statement.NN1),
-			&statement.NN1,
-		);
-		// Assert left == right
-		assert!(left_3.mod_floor(&statement.NN1) == right_3);
 		Ok(())
 	}
 }
@@ -488,7 +438,7 @@ mod tests {
 
 	#[test]
 	fn test_affine_g_proof() {
-		let (ring_pedersen_statement, witness) =
+		let (ring_pedersen_statement, _witness) =
 			RingPedersenStatement::<Secp256k1, Sha256>::generate();
 		let (ek_prover, _) = Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
 		let (ek_verifier, _) = Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();

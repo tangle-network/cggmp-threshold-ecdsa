@@ -1,3 +1,26 @@
+#![allow(non_snake_case)]
+/*
+	CGGMP Threshold ECDSA
+
+	Copyright 2022 by Webb Technologies
+
+	This file is part of CGGMP Threshold ECDSA library
+	(https://github.com/webb-tools/cggmp-threshold-ecdsa)
+
+	CGGMP Threshold ECDSA is free software: you can redistribute
+	it and/or modify it under the terms of the GNU General Public
+	License as published by the Free Software Foundation, either
+	version 3 of the License, or (at your option) any later version.
+
+	@license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
+*/
+
+//! Knowledge of Exponent vs Paillier Encryption – Π^{log∗}
+//!
+//! Common input is (G, q, N0, C, X, g).
+//! The Prover has secret input (x,ρ) such that
+//!         x ∈ ± 2l, and C = (1 + N0)^x · ρ^N0 mod N0^2 and X = g^x    ∈ G.
+
 use curv::{
 	arithmetic::traits::*,
 	cryptographic_primitives::hashing::{Digest, DigestExt},
@@ -9,7 +32,7 @@ use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use zk_paillier::zkproofs::IncorrectProof;
 
-use super::mod_pow_with_negative;
+use super::{mod_pow_with_negative, sample_relatively_prime_integer};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierEncryptionInRangeSetupParameters<E: Curve, H: Digest + Clone> {
@@ -46,6 +69,7 @@ pub struct PaillierEncryptionInRangeProof<E: Curve, H: Digest + Clone> {
 }
 
 impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
+	#[allow(dead_code)]
 	fn prove(
 		witness: &PaillierEncryptionInRangeWitness<E, H>,
 		common_input: &PaillierEncryptionInRangeCommonInput<E, H>,
@@ -72,9 +96,8 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 		);
 		let gamma_lower = BigInt::from(-1).mul(&mu_upper);
 		let gamma = BigInt::sample_range(&gamma_lower, &gamma_upper);
-
-		// Sample r form Z*_{N_0}
-		let r = sample_relatively_prime_integer(common_input.N0.clone());
+		// Sample r from Z*_{N_0}
+		let r = sample_relatively_prime_integer(&common_input.N0.clone());
 
 		// Step 3: S, A, C
 		// S = s^k t^mu mod N_hat
@@ -84,15 +107,9 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 			&setup_parameters.N_hat,
 		);
 
-		let NN0 = BigInt::mul(&common_input.N0, &common_input.N0);
-		let mut one_plus_N0 = BigInt::add(&BigInt::from(1), &common_input.N0);
-		if alpha < BigInt::zero() {
-			one_plus_N0 = BigInt::mod_inv(&one_plus_N0, &NN0).unwrap();
-		}
-
 		// A = (1+N_0)^{alpha}r^{N_0} mod N_0^2
 		let A: BigInt = Paillier::encrypt_with_chosen_randomness(
-			&EncryptionKey { n: common_input.N0.clone(), nn: NN0 },
+			&EncryptionKey { n: common_input.N0.clone(), nn: common_input.NN0.clone() },
 			RawPlaintext::from(&alpha),
 			&Randomness::from(&r),
 		)
@@ -123,6 +140,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 		Self { S, A, C, z_1, z_2, z_3, phantom: PhantomData }
 	}
 
+	#[allow(dead_code)]
 	fn verify(
 		proof: &PaillierEncryptionInRangeProof<E, H>,
 		common_input: &PaillierEncryptionInRangeCommonInput<E, H>,
@@ -165,12 +183,12 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 		}
 
 		// Range Check -2^{L + eps} <= z_1 <= 2^{L+eps}
-		let lower_bound_check: bool = &proof.z_1 >=
-			&BigInt::from(-1)
+		let lower_bound_check: bool = proof.z_1 >=
+			BigInt::from(-1)
 				.mul(&BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32));
 
 		let upper_bound_check =
-			&proof.z_1 <= &BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32);
+			proof.z_1 <= BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32);
 
 		if !(lower_bound_check && upper_bound_check) {
 			return Err(IncorrectProof)
@@ -178,14 +196,6 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 
 		Ok(())
 	}
-}
-
-fn sample_relatively_prime_integer(N: BigInt) -> BigInt {
-	let mut sample = BigInt::sample_below(&N);
-	while BigInt::gcd(&sample, &N) != BigInt::from(1) {
-		sample = BigInt::sample_below(&N);
-	}
-	sample
 }
 
 #[cfg(test)]
@@ -210,7 +220,7 @@ mod tests {
 		let t = mod_pow_with_negative(&r, &BigInt::from(2), &ek_tilde.n);
 		let s = mod_pow_with_negative(&t, &lambda, &ek_tilde.n);
 		let k = BigInt::sample_below(Scalar::<Secp256k1>::group_order());
-		let rho = sample_relatively_prime_integer(ek_tilde.n.clone());
+		let rho = sample_relatively_prime_integer(&ek_tilde.n);
 		let K = BigInt::mod_mul(
 			&mod_pow_with_negative(&BigInt::add(&one, &ek_tilde.n), &k, &ek_tilde.nn),
 			&mod_pow_with_negative(&rho, &ek_tilde.n, &ek_tilde.nn),
