@@ -87,14 +87,19 @@ impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupStatement<E, 
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierMultiplicationVersusGroupProof<E: Curve, H: Digest + Clone> {
+pub struct PaillierMultiplicationVersusGroupCommitment<E: Curve> {
 	A: BigInt,
 	B_x: Point<E>,
 	E: BigInt,
 	S: BigInt,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PaillierMultiplicationVersusGroupProof<E: Curve, H: Digest + Clone> {
 	z_1: BigInt,
 	z_2: BigInt,
 	w: BigInt,
+	commitment: PaillierMultiplicationVersusGroupCommitment<E>,
 	phantom: PhantomData<(E, H)>,
 }
 
@@ -170,8 +175,13 @@ impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupProof<E, H> {
 			&mod_pow_with_negative(&witness.rho, &e, &statement.N0),
 			&statement.N0,
 		);
-
-		Self { A, B_x, E, S, z_1, z_2, w, phantom: PhantomData }
+		let commitment = PaillierMultiplicationVersusGroupCommitment {
+			A: A.clone(),
+			B_x: B_x.clone(),
+			E: E.clone(),
+			S: S.clone(),
+		};
+		Self { z_1, z_2, w, commitment, phantom: PhantomData }
 	}
 
 	pub fn verify(
@@ -179,10 +189,10 @@ impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupProof<E, H> {
 		statement: &PaillierMultiplicationVersusGroupStatement<E, H>,
 	) -> Result<(), IncorrectProof> {
 		let e = H::new()
-			.chain_bigint(&proof.A)
-			.chain_point(&proof.B_x)
-			.chain_bigint(&proof.E)
-			.chain_bigint(&proof.S)
+			.chain_bigint(&proof.commitment.A)
+			.chain_point(&proof.commitment.B_x)
+			.chain_bigint(&proof.commitment.E)
+			.chain_bigint(&proof.commitment.S)
 			.result_bigint();
 
 		// left_1 = (C)^{z_1}w^{N_0} mod N_0^2
@@ -194,7 +204,7 @@ impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupProof<E, H> {
 
 		// right_1 = A * D^e
 		let right_1 = BigInt::mod_mul(
-			&proof.A,
+			&proof.commitment.A,
 			&mod_pow_with_negative(&statement.D, &e, &statement.NN0),
 			&statement.NN0,
 		);
@@ -202,7 +212,8 @@ impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupProof<E, H> {
 		// left_2 = g^z_1
 		let left_2 = Point::<E>::generator().as_point() * Scalar::from_bigint(&proof.z_1);
 		// right_2 = B_x * X^e
-		let right_2 = proof.B_x.clone() + (statement.X.clone() * Scalar::from_bigint(&e));
+		let right_2 =
+			proof.commitment.B_x.clone() + (statement.X.clone() * Scalar::from_bigint(&e));
 
 		// left_3 = s^z_1 t^z_2 mod N_hat
 		let left_3 = BigInt::mod_mul(
@@ -213,8 +224,8 @@ impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupProof<E, H> {
 
 		// right_3 = E * S^e mod N_hat
 		let right_3 = BigInt::mod_mul(
-			&proof.E,
-			&mod_pow_with_negative(&proof.S, &e, &statement.N_hat),
+			&proof.commitment.E,
+			&mod_pow_with_negative(&proof.commitment.S, &e, &statement.N_hat),
 			&statement.N_hat,
 		);
 

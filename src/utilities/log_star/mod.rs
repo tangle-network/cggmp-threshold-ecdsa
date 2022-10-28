@@ -80,16 +80,20 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionStatement<
 		)
 	}
 }
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct KnowledgeOfExponentPaillierEncyptionProof<E: Curve, H: Digest + Clone> {
+pub struct KnowledgeOfExponentPaillierEncyptionCommitment<E: Curve> {
 	S: BigInt,
 	A: BigInt,
 	Y: Point<E>,
 	D: BigInt,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct KnowledgeOfExponentPaillierEncyptionProof<E: Curve, H: Digest + Clone> {
 	z_1: BigInt,
 	z_2: BigInt,
 	z_3: BigInt,
+	commitment: KnowledgeOfExponentPaillierEncyptionCommitment<E>,
 	phantom: PhantomData<(E, H)>,
 }
 
@@ -147,6 +151,13 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionProof<E, H
 			&statement.N_hat,
 		);
 
+		let commitment = KnowledgeOfExponentPaillierEncyptionCommitment {
+			S: S.clone(),
+			A: A.clone(),
+			Y: Y.clone(),
+			D: D.clone(),
+		};
+
 		let e = H::new()
 			.chain_bigint(&S)
 			.chain_bigint(&A)
@@ -166,7 +177,7 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionProof<E, H
 		// z_3 = gamma + e*mu
 		let z_3 = BigInt::add(&gamma, &BigInt::mul(&e, &mu));
 
-		Self { S, A, Y, D, z_1, z_2, z_3, phantom: PhantomData }
+		Self { z_1, z_2, z_3, commitment, phantom: PhantomData }
 	}
 
 	pub fn verify(
@@ -174,10 +185,10 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionProof<E, H
 		statement: &KnowledgeOfExponentPaillierEncyptionStatement<E, H>,
 	) -> Result<(), IncorrectProof> {
 		let e = H::new()
-			.chain_bigint(&proof.S)
-			.chain_bigint(&proof.A)
-			.chain_point(&proof.Y)
-			.chain_bigint(&proof.D)
+			.chain_bigint(&proof.commitment.S)
+			.chain_bigint(&proof.commitment.A)
+			.chain_point(&proof.commitment.Y)
+			.chain_bigint(&proof.commitment.D)
 			.result_bigint();
 
 		// left_1 = (1+N_0)^{z_1}z_2^{N_0} mod N_0^2
@@ -190,7 +201,7 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionProof<E, H
 
 		// right_1 = A * C^e
 		let right_1 = BigInt::mod_mul(
-			&proof.A,
+			&proof.commitment.A,
 			&mod_pow_with_negative(&statement.C, &e, &statement.NN0),
 			&statement.NN0,
 		);
@@ -198,7 +209,7 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionProof<E, H
 		// left_2 = g^z_1
 		let left_2 = Point::<E>::generator().as_point() * Scalar::from_bigint(&proof.z_1);
 		// right_2 = Y * X^e
-		let right_2 = proof.Y.clone() + (statement.X.clone() * Scalar::from_bigint(&e));
+		let right_2 = proof.commitment.Y.clone() + (statement.X.clone() * Scalar::from_bigint(&e));
 
 		// left_3 = s^z_1 t^z_3 mod N_hat
 		let left_3 = BigInt::mod_mul(
@@ -209,8 +220,8 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionProof<E, H
 
 		// right_3 = D * S^e mod N_hat
 		let right_3 = BigInt::mod_mul(
-			&proof.D,
-			&mod_pow_with_negative(&proof.S, &e, &statement.N_hat),
+			&proof.commitment.D,
+			&mod_pow_with_negative(&proof.commitment.S, &e, &statement.N_hat),
 			&statement.N_hat,
 		);
 

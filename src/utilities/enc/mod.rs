@@ -83,13 +83,18 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeStatement<E, H> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierEncryptionInRangeProof<E: Curve, H: Digest + Clone> {
+pub struct PaillierEncryptionInRangeCommitment {
 	S: BigInt,
 	A: BigInt,
 	C: BigInt,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PaillierEncryptionInRangeProof<E: Curve, H: Digest + Clone> {
 	z_1: BigInt,
 	z_2: BigInt,
 	z_3: BigInt,
+	commitment: PaillierEncryptionInRangeCommitment,
 	phantom: PhantomData<(E, H)>,
 }
 
@@ -146,6 +151,9 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 			&statement.N_hat,
 		);
 
+		let commitment =
+			PaillierEncryptionInRangeCommitment { S: S.clone(), A: A.clone(), C: C.clone() };
+
 		// Step 4: Hash S, A, C
 		let e = H::new().chain_bigint(&S).chain_bigint(&A).chain_bigint(&C).result_bigint();
 
@@ -161,7 +169,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 		// z_3 = gamma + e*mu
 		let z_3 = BigInt::add(&gamma, &BigInt::mul(&e, &mu));
 
-		Self { S, A, C, z_1, z_2, z_3, phantom: PhantomData }
+		Self { z_1, z_2, z_3, commitment, phantom: PhantomData }
 	}
 
 	#[allow(dead_code)]
@@ -170,9 +178,9 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 		statement: &PaillierEncryptionInRangeStatement<E, H>,
 	) -> Result<(), IncorrectProof> {
 		let e = H::new()
-			.chain_bigint(&proof.S)
-			.chain_bigint(&proof.A)
-			.chain_bigint(&proof.C)
+			.chain_bigint(&proof.commitment.S)
+			.chain_bigint(&proof.commitment.A)
+			.chain_bigint(&proof.commitment.C)
 			.result_bigint();
 
 		// Equality Checks
@@ -185,8 +193,11 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 		)
 		.into();
 		// right_1 = A * K^e mod N_0^2
-		let right_1 =
-			BigInt::mod_mul(&proof.A, &mod_pow_with_negative(&statement.K, &e, &NN0), &NN0);
+		let right_1 = BigInt::mod_mul(
+			&proof.commitment.A,
+			&mod_pow_with_negative(&statement.K, &e, &NN0),
+			&NN0,
+		);
 
 		// left_2 = s^z_1 t^z_3 mod N_hat
 		let left_2 = BigInt::mod_mul(
@@ -196,8 +207,8 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 		);
 		// right_2 = C * S^e mod N_hat
 		let right_2 = BigInt::mod_mul(
-			&proof.C,
-			&mod_pow_with_negative(&proof.S, &e, &statement.N_hat),
+			&proof.commitment.C,
+			&mod_pow_with_negative(&proof.commitment.S, &e, &statement.N_hat),
 			&statement.N_hat,
 		);
 
