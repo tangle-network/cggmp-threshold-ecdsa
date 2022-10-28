@@ -11,7 +11,7 @@ use zk_paillier::zkproofs::IncorrectProof;
 use super::mod_pow_with_negative;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct EncSetupParameters<E: Curve, H: Digest + Clone> {
+pub struct PaillierEncryptionInRangeSetupParameters<E: Curve, H: Digest + Clone> {
 	s: BigInt,
 	t: BigInt,
 	N_hat: BigInt,
@@ -19,7 +19,7 @@ pub struct EncSetupParameters<E: Curve, H: Digest + Clone> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct EncCommonInput<E: Curve, H: Digest + Clone> {
+pub struct PaillierEncryptionInRangeCommonInput<E: Curve, H: Digest + Clone> {
 	N0: BigInt,
 	NN0: BigInt,
 	K: BigInt,
@@ -27,14 +27,14 @@ pub struct EncCommonInput<E: Curve, H: Digest + Clone> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct EncWitness<E: Curve, H: Digest + Clone> {
+pub struct PaillierEncryptionInRangeWitness<E: Curve, H: Digest + Clone> {
 	k: BigInt,
 	rho: BigInt,
 	phantom: PhantomData<(E, H)>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct EncProof<E: Curve, H: Digest + Clone> {
+pub struct PaillierEncryptionInRangeProof<E: Curve, H: Digest + Clone> {
 	S: BigInt,
 	A: BigInt,
 	C: BigInt,
@@ -44,11 +44,11 @@ pub struct EncProof<E: Curve, H: Digest + Clone> {
 	phantom: PhantomData<(E, H)>,
 }
 
-impl<E: Curve, H: Digest + Clone> EncProof<E, H> {
+impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 	fn prove(
-		witness: &EncWitness<E, H>,
-		common_input: &EncCommonInput<E, H>,
-		setup_parameters: &EncSetupParameters<E, H>,
+		witness: &PaillierEncryptionInRangeWitness<E, H>,
+		common_input: &PaillierEncryptionInRangeCommonInput<E, H>,
+		setup_parameters: &PaillierEncryptionInRangeSetupParameters<E, H>,
 	) -> Self {
 		// Step 1: Sample alpha
 		let alpha_upper = BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32);
@@ -112,9 +112,9 @@ impl<E: Curve, H: Digest + Clone> EncProof<E, H> {
 	}
 
 	fn verify(
-		proof: &EncProof<E, H>,
-		common_input: &EncCommonInput<E, H>,
-		setup_parameters: &EncSetupParameters<E, H>,
+		proof: &PaillierEncryptionInRangeProof<E, H>,
+		common_input: &PaillierEncryptionInRangeCommonInput<E, H>,
+		setup_parameters: &PaillierEncryptionInRangeSetupParameters<E, H>,
 	) -> Result<(), IncorrectProof> {
 		let e = H::new()
 			.chain_bigint(&proof.S)
@@ -125,11 +125,16 @@ impl<E: Curve, H: Digest + Clone> EncProof<E, H> {
 		// Equality Checks
 		let NN0 = common_input.NN0.clone();
 		let left_1 = BigInt::mod_mul(
-			&mod_pow_with_negative(&BigInt::add(&BigInt::from(1), &common_input.N0), &proof.z_1, &NN0),
+			&mod_pow_with_negative(
+				&BigInt::add(&BigInt::from(1), &common_input.N0),
+				&proof.z_1,
+				&NN0,
+			),
 			&mod_pow_with_negative(&proof.z_2, &common_input.N0, &NN0),
 			&NN0,
 		);
-		let right_1 = BigInt::mod_mul(&proof.A, &mod_pow_with_negative(&common_input.K, &e, &NN0), &NN0);
+		let right_1 =
+			BigInt::mod_mul(&proof.A, &mod_pow_with_negative(&common_input.K, &e, &NN0), &NN0);
 
 		let left_2 = BigInt::mod_mul(
 			&mod_pow_with_negative(&setup_parameters.s, &proof.z_1, &setup_parameters.N_hat),
@@ -180,9 +185,9 @@ mod tests {
 	const PAILLIER_KEY_SIZE: usize = 2048;
 
 	fn generate_test_values() -> (
-		EncWitness<Secp256k1, Sha256>,
-		EncCommonInput<Secp256k1, Sha256>,
-		EncSetupParameters<Secp256k1, Sha256>,
+		PaillierEncryptionInRangeWitness<Secp256k1, Sha256>,
+		PaillierEncryptionInRangeCommonInput<Secp256k1, Sha256>,
+		PaillierEncryptionInRangeSetupParameters<Secp256k1, Sha256>,
 	) {
 		let (ek_tilde, dk_tilde) = Paillier::keypair_with_modulus_size(PAILLIER_KEY_SIZE).keys();
 		let one = BigInt::one();
@@ -200,19 +205,35 @@ mod tests {
 		);
 
 		(
-			EncWitness { k, rho, phantom: PhantomData },
-			EncCommonInput { N0: ek_tilde.n.clone(), NN0: ek_tilde.nn, K, phantom: PhantomData },
-			EncSetupParameters { s, t, N_hat: ek_tilde.n, phantom: PhantomData },
+			PaillierEncryptionInRangeWitness { k, rho, phantom: PhantomData },
+			PaillierEncryptionInRangeCommonInput {
+				N0: ek_tilde.n.clone(),
+				NN0: ek_tilde.nn,
+				K,
+				phantom: PhantomData,
+			},
+			PaillierEncryptionInRangeSetupParameters {
+				s,
+				t,
+				N_hat: ek_tilde.n,
+				phantom: PhantomData,
+			},
 		)
 	}
 
 	#[test]
-	fn test_enc() {
+	fn test_paillier_encryption_in_range_proof() {
 		let (witness, common_input, setup_parameters) = generate_test_values();
-		let proof =
-			EncProof::<Secp256k1, Sha256>::prove(&witness, &common_input, &setup_parameters);
-		assert!(
-			EncProof::<Secp256k1, Sha256>::verify(&proof, &common_input, &setup_parameters).is_ok()
+		let proof = PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(
+			&witness,
+			&common_input,
+			&setup_parameters,
 		);
+		assert!(PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(
+			&proof,
+			&common_input,
+			&setup_parameters
+		)
+		.is_ok());
 	}
 }

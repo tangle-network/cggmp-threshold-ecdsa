@@ -24,8 +24,12 @@
 //! and
 //!             D=C^{x}(1+N0)^{y}·ρ^{N0} mod N0^{2}.
 
+use crate::{
+	utilities::{mod_pow_with_negative, L, L_PLUS_EPSILON, L_PRIME, L_PRIME_PLUS_EPSILON},
+	Error,
+};
 use curv::{
-	arithmetic::{traits::*, Modulo, NumberTests},
+	arithmetic::{traits::*, Modulo},
 	cryptographic_primitives::hashing::{Digest, DigestExt},
 	elliptic::curves::{Curve, ECScalar, Point, Scalar},
 	BigInt,
@@ -33,16 +37,11 @@ use curv::{
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use crate::utilities::mod_pow_with_negative;
-use crate::{
-	utilities::{L_PLUS_EPSILON, L_PRIME_PLUS_EPSILON},
-	Error,
-};
 
 use super::sample_relatively_prime_integer;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AffineWithGroupComRangeStatement<E: Curve, H: Digest + Clone> {
+pub struct PaillierAffineOpWithGroupComInRangeStatement<E: Curve, H: Digest + Clone> {
 	S: BigInt,
 	T: BigInt,
 	N_hat: BigInt,
@@ -59,7 +58,7 @@ pub struct AffineWithGroupComRangeStatement<E: Curve, H: Digest + Clone> {
 	phantom: PhantomData<(E, H)>,
 }
 
-pub struct AffineWithGroupComRangeWitness<E: Curve, H: Digest + Clone> {
+pub struct PaillierAffineOpWithGroupComInRangeWitness<E: Curve, H: Digest + Clone> {
 	x: BigInt,
 	y: BigInt,
 	rho: BigInt,
@@ -67,7 +66,7 @@ pub struct AffineWithGroupComRangeWitness<E: Curve, H: Digest + Clone> {
 	phantom: PhantomData<(E, H)>,
 }
 
-impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeStatement<E, H> {
+impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeStatement<E, H> {
 	pub fn generate(
 		rho: BigInt,
 		rho_y: BigInt,
@@ -77,10 +76,10 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeStatement<E, H> {
 		prover: EncryptionKey,
 		verifier: EncryptionKey,
 		C: BigInt,
-	) -> (Self, AffineWithGroupComRangeWitness<E, H>) {
+	) -> (Self, PaillierAffineOpWithGroupComInRangeWitness<E, H>) {
 		// Set up exponents
-		let l_exp = BigInt::pow(&BigInt::from(2), crate::utilities::L as u32);
-		let lprime_exp = BigInt::pow(&BigInt::from(2), crate::utilities::L_PRIME as u32);
+		let l_exp = BigInt::pow(&BigInt::from(2), L as u32);
+		let lprime_exp = BigInt::pow(&BigInt::from(2), L_PRIME as u32);
 		// Set up moduli
 		let N0 = verifier.clone().n;
 		let NN0 = verifier.clone().nn;
@@ -111,11 +110,7 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeStatement<E, H> {
 		// (1 + N0)^y · rho^N0 mod N0^2
 		let temp_D_3 = BigInt::mod_mul(&temp_D_1, &temp_D_2, &NN0);
 		// D = C^x · (1 + N0)^y · rho^N0 mod N0^2
-		let D = BigInt::mod_mul(
-			&mod_pow_with_negative(&C, &x, &NN0),
-			&temp_D_3,
-			&NN0.clone(),
-		);
+		let D = BigInt::mod_mul(&mod_pow_with_negative(&C, &x, &NN0), &temp_D_3, &NN0.clone());
 		// let D_temp = Paillier::encrypt_with_chosen_randomness(
 		// 	&ek_verifier,
 		// 	RawPlaintext::from(&y),
@@ -140,13 +135,13 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeStatement<E, H> {
 				ek_verifier,
 				phantom: PhantomData,
 			},
-			AffineWithGroupComRangeWitness { x, y, rho, rho_y, phantom: PhantomData },
+			PaillierAffineOpWithGroupComInRangeWitness { x, y, rho, rho_y, phantom: PhantomData },
 		)
 	}
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AffineWithGroupComRangeCommitment<E: Curve> {
+pub struct PaillierAffineOpWithGroupComInRangeCommitment<E: Curve> {
 	A: BigInt,
 	B_x: Point<E>,
 	B_y: BigInt,
@@ -157,30 +152,29 @@ pub struct AffineWithGroupComRangeCommitment<E: Curve> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AffineWithGroupComRangeProof<E: Curve, H: Digest + Clone> {
+pub struct PaillierAffineOpWithGroupComInRangeProof<E: Curve, H: Digest + Clone> {
 	z1: BigInt,
 	z2: BigInt,
 	z3: BigInt,
 	z4: BigInt,
 	w: BigInt,
 	wy: BigInt,
-	commitment: AffineWithGroupComRangeCommitment<E>,
+	commitment: PaillierAffineOpWithGroupComInRangeCommitment<E>,
 	phantom: PhantomData<(E, H)>,
 }
 
 // Link to the UC non-interactive threshold ECDSA paper
-impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
+impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H> {
 	pub fn prove(
-		witness: &AffineWithGroupComRangeWitness<E, H>,
-		statement: &AffineWithGroupComRangeStatement<E, H>,
-	) -> AffineWithGroupComRangeProof<E, H> {
+		witness: &PaillierAffineOpWithGroupComInRangeWitness<E, H>,
+		statement: &PaillierAffineOpWithGroupComInRangeStatement<E, H>,
+	) -> PaillierAffineOpWithGroupComInRangeProof<E, H> {
 		// Set up exponents
-		let l_exp = BigInt::pow(&BigInt::from(2), crate::utilities::L as u32);
+		let l_exp = BigInt::pow(&BigInt::from(2), L as u32);
 		println!("l_exp: {}", l_exp.bit_length());
-		let lplus_exp = BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32);
+		let lplus_exp = BigInt::pow(&BigInt::from(2), L_PLUS_EPSILON as u32);
 		println!("lplus_exp: {}", lplus_exp.bit_length());
-		let lprimeplus_exp =
-			BigInt::pow(&BigInt::from(2), crate::utilities::L_PRIME_PLUS_EPSILON as u32);
+		let lprimeplus_exp = BigInt::pow(&BigInt::from(2), L_PRIME_PLUS_EPSILON as u32);
 		println!("lprimeplus_exp: {}", lprimeplus_exp.bit_length());
 
 		// α ← ± 2^{l+ε}
@@ -302,8 +296,8 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 			.mul(&e);
 
 		let commitment =
-			// AffineWithGroupComRangeCommitment::<E> { A, B_x, B_y: B_y.into(), E, F, big_S, big_T };
-			AffineWithGroupComRangeCommitment::<E> { A, B_x, B_y: B_y.clone(), E, F, big_S, big_T };
+			// PaillierAffineOpWithGroupComInRangeCommitment::<E> { A, B_x, B_y: B_y.into(), E, F, big_S, big_T };
+			PaillierAffineOpWithGroupComInRangeCommitment::<E> { A, B_x, B_y: B_y.clone(), E, F, big_S, big_T };
 		// z1 = α + ex
 		let z1 = BigInt::add(&alpha, &e.mul(&witness.x));
 		// z2 = β + ey
@@ -329,8 +323,8 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 	}
 
 	pub fn verify(
-		proof: &AffineWithGroupComRangeProof<E, H>,
-		statement: &AffineWithGroupComRangeStatement<E, H>,
+		proof: &PaillierAffineOpWithGroupComInRangeProof<E, H>,
+		statement: &PaillierAffineOpWithGroupComInRangeStatement<E, H>,
 	) -> Result<(), Error> {
 		// Hash all prover messages to generate NIZK challenge
 		let mut e: BigInt = H::new()
@@ -487,36 +481,39 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::utilities::mta::range_proofs::SampleFromMultiplicativeGroup;
+	use crate::utilities::{mta::range_proofs::SampleFromMultiplicativeGroup, BITS_PAILLIER};
 	use curv::elliptic::curves::secp256_k1::Secp256k1;
 	use fs_dkr::ring_pedersen_proof::RingPedersenStatement;
-	use paillier::{Encrypt, KeyGeneration, Paillier, Randomness, RawPlaintext};
+	use paillier::{Encrypt, KeyGeneration, Paillier, RawPlaintext};
 	use sha2::Sha256;
 
 	#[test]
 	fn test_affine_g_proof() {
 		let (ring_pedersen_statement, witness) =
 			RingPedersenStatement::<Secp256k1, Sha256>::generate();
-		let (ek_prover, _) = Paillier::keypair_with_modulus_size(fs_dkr::PAILLIER_KEY_SIZE).keys();
-		let (ek_verifier, _) =
-			Paillier::keypair_with_modulus_size(fs_dkr::PAILLIER_KEY_SIZE).keys();
+		let (ek_prover, _) = Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
+		let (ek_verifier, _) = Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
 
 		let rho: BigInt = BigInt::from_paillier_key(&ek_verifier);
 		let rho_y: BigInt = BigInt::from_paillier_key(&ek_prover);
 		let C = Paillier::encrypt(&ek_verifier, RawPlaintext::from(BigInt::from(12)));
-		let (statement, witness) = AffineWithGroupComRangeStatement::<Secp256k1, Sha256>::generate(
-			rho,
-			rho_y,
-			ring_pedersen_statement.S,
-			ring_pedersen_statement.T,
-			ring_pedersen_statement.N,
-			ek_prover,
-			ek_verifier,
-			C.0.into_owned(),
+		let (statement, witness) =
+			PaillierAffineOpWithGroupComInRangeStatement::<Secp256k1, Sha256>::generate(
+				rho,
+				rho_y,
+				ring_pedersen_statement.S,
+				ring_pedersen_statement.T,
+				ring_pedersen_statement.N,
+				ek_prover,
+				ek_verifier,
+				C.0.into_owned(),
+			);
+		let proof = PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::prove(
+			&witness, &statement,
 		);
-		let proof = AffineWithGroupComRangeProof::<Secp256k1, Sha256>::prove(&witness, &statement);
-		assert!(
-			AffineWithGroupComRangeProof::<Secp256k1, Sha256>::verify(&proof, &statement).is_ok()
-		);
+		assert!(PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
+			&proof, &statement
+		)
+		.is_ok());
 	}
 }

@@ -1,8 +1,7 @@
 use curv::{
-	arithmetic::{Integer, Samplable},
+	arithmetic::{BasicOps, Integer, Modulo, NumberTests, Samplable, Zero},
 	BigInt,
 };
-use curv::arithmetic::{Modulo, Zero, BasicOps, NumberTests};
 
 pub mod aff_g;
 pub mod enc;
@@ -26,7 +25,6 @@ pub fn mod_pow_with_negative(v: &BigInt, pow: &BigInt, modulus: &BigInt) -> BigI
 		BigInt::mod_pow(v, pow, modulus)
 	}
 }
-
 
 pub const SEC_PARAM: usize = 256;
 pub const SEC_BYTES: usize = SEC_PARAM / 8;
