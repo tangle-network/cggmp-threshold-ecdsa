@@ -93,7 +93,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 			&setup_parameters.N_hat,
 			&BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32),
 		);
-		let gamma_lower = BigInt::from(-1).mul(&mu_upper);
+		let gamma_lower = BigInt::from(-1).mul(&gamma_upper);
 		let gamma = BigInt::sample_range(&gamma_lower, &gamma_upper);
 		// Sample r from Z*_{N_0}
 		let r = sample_relatively_prime_integer(&common_input.N0.clone());

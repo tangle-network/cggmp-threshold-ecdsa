@@ -29,16 +29,19 @@ use curv::{
 	elliptic::curves::{Curve, Point, Scalar},
 	BigInt,
 };
-use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
+use paillier::{
+	Encrypt, EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext,
+};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use zk_paillier::zkproofs::IncorrectProof;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct KnowledgeOfExponentPaillierEncyptionStatement<E: Curve, H: Digest + Clone> {
+pub struct PaillierMultiplicationVersusGroupStatement<E: Curve, H: Digest + Clone> {
 	N0: BigInt,
 	NN0: BigInt,
 	C: BigInt,
+	D: BigInt,
 	X: Point<E>,
 	N_hat: BigInt,
 	s: BigInt,
@@ -46,21 +49,22 @@ pub struct KnowledgeOfExponentPaillierEncyptionStatement<E: Curve, H: Digest + C
 	phantom: PhantomData<(E, H)>,
 }
 
-pub struct KnowledgeOfExponentPaillierEncyptionWitness<E: Curve, H: Digest + Clone> {
+pub struct PaillierMultiplicationVersusGroupWitness<E: Curve, H: Digest + Clone> {
 	x: BigInt,
 	rho: BigInt,
 	phantom: PhantomData<(E, H)>,
 }
 
-impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionStatement<E, H> {
+impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupStatement<E, H> {
 	#[allow(clippy::too_many_arguments)]
 	pub fn generate(
 		rho: BigInt,
+		C: BigInt,
 		s: BigInt,
 		t: BigInt,
 		N_hat: BigInt,
 		paillier_key: EncryptionKey,
-	) -> (Self, KnowledgeOfExponentPaillierEncyptionWitness<E, H>) {
+	) -> (Self, PaillierMultiplicationVersusGroupWitness<E, H>) {
 		// Set up exponents
 		let l_exp = BigInt::pow(&BigInt::from(2), L as u32);
 		// Set up moduli
@@ -68,50 +72,51 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionStatement<
 		let NN0 = paillier_key.clone().nn;
 		let x = BigInt::sample_range(&BigInt::from(-1).mul(&l_exp), &l_exp);
 		let X = Point::<E>::generator().as_point() * Scalar::from(&x);
-		let C: BigInt = Paillier::encrypt_with_chosen_randomness(
-			&EncryptionKey { n: N0.clone(), nn: NN0.clone() },
-			RawPlaintext::from(&x),
-			&Randomness::from(&rho),
-		)
-		.into();
+		let C: BigInt = BigInt::zero();
+		// D  = C^x * rho^(N_0) mod N_0^2
+		let D = BigInt::mod_mul(
+			&mod_pow_with_negative(&C, &x, &NN0),
+			&BigInt::mod_pow(&rho, &N0, &NN0),
+			&NN0,
+		);
 		(
-			Self { N0, NN0, C, X, N_hat, s, t, phantom: PhantomData },
-			KnowledgeOfExponentPaillierEncyptionWitness { x, rho, phantom: PhantomData },
+			Self { N0, NN0, C, D, X, N_hat, s, t, phantom: PhantomData },
+			PaillierMultiplicationVersusGroupWitness { x, rho, phantom: PhantomData },
 		)
 	}
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct KnowledgeOfExponentPaillierEncyptionProof<E: Curve, H: Digest + Clone> {
-	S: BigInt,
+pub struct PaillierMultiplicationVersusGroupProof<E: Curve, H: Digest + Clone> {
 	A: BigInt,
-	Y: Point<E>,
-	D: BigInt,
+	B_x: Point<E>,
+	E: BigInt,
+	S: BigInt,
 	z_1: BigInt,
 	z_2: BigInt,
-	z_3: BigInt,
+	w: BigInt,
 	phantom: PhantomData<(E, H)>,
 }
 
 // Link to the UC non-interactive threshold ECDSA paper
-impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionProof<E, H> {
+impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupProof<E, H> {
 	pub fn prove(
-		witness: &KnowledgeOfExponentPaillierEncyptionWitness<E, H>,
-		statement: &KnowledgeOfExponentPaillierEncyptionStatement<E, H>,
-	) -> KnowledgeOfExponentPaillierEncyptionProof<E, H> {
+		witness: &PaillierMultiplicationVersusGroupWitness<E, H>,
+		statement: &PaillierMultiplicationVersusGroupStatement<E, H>,
+	) -> PaillierMultiplicationVersusGroupProof<E, H> {
 		// Step 1: Sample alpha between -2^{l+ε} and 2^{l+ε}
 		let alpha_upper = BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32);
 		let alpha_lower = BigInt::from(-1).mul(&alpha_upper);
 		let alpha = BigInt::sample_range(&alpha_lower, &alpha_upper);
 
-		// Step 2: mu, r, gamma
+		// Step 2: m, r, r_y gamma
 		// Sample mu between -2^L * N_hat and 2^L * N_hat
-		let mu_upper = BigInt::mul(
+		let m_upper = BigInt::mul(
 			&statement.N_hat,
 			&BigInt::pow(&BigInt::from(2), crate::utilities::L as u32),
 		);
-		let mu_lower = BigInt::from(-1).mul(&mu_upper);
-		let mu = BigInt::sample_range(&mu_lower, &mu_upper);
+		let m_lower = BigInt::from(-1).mul(&m_upper);
+		let m = BigInt::sample_range(&m_lower, &m_upper);
 
 		// γ ← ± 2^{l+ε} · Nˆ
 		let gamma_upper = BigInt::mul(
@@ -123,98 +128,97 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionProof<E, H
 		// Sample r from Z*_{N_0}
 		let r = sample_relatively_prime_integer(&statement.N0.clone());
 
-		// S = s^x t^mu mod N_hat
-		let S = BigInt::mod_mul(
-			&mod_pow_with_negative(&statement.s, &witness.x, &statement.N_hat),
-			&mod_pow_with_negative(&statement.t, &mu, &statement.N_hat),
-			&statement.N_hat,
+		// A = C^alpha * r^N_0
+		let A = BigInt::mod_mul(
+			&mod_pow_with_negative(&statement.C, &alpha, &statement.NN0),
+			&BigInt::mod_pow(&r, &statement.N0, &statement.NN0),
+			&statement.NN0,
 		);
 
-		// A = (1+N_0)^{alpha}r^{N_0} mod N_0^2
-		let A: BigInt = Paillier::encrypt_with_chosen_randomness(
-			&EncryptionKey { n: statement.N0.clone(), nn: statement.NN0.clone() },
-			RawPlaintext::from(&alpha),
-			&Randomness::from(&r),
-		)
-		.into();
+		// B_x = g^alpha
+		let B_x: Point<E> = Point::<E>::generator().as_point() * Scalar::from_bigint(&alpha);
 
-		// Y = g^alpha
-		let Y = Point::<E>::generator().as_point() * Scalar::from_bigint(&alpha);
-		// D = s^alpha t^gamma mod N_hat
-		let D = BigInt::mod_mul(
+		// E = s^alpha t^gamma mod N_hat
+		let E = BigInt::mod_mul(
 			&mod_pow_with_negative(&statement.s, &alpha, &statement.N_hat),
 			&mod_pow_with_negative(&statement.t, &gamma, &statement.N_hat),
 			&statement.N_hat,
 		);
 
+		// S = s^x t^m mod N_hat
+		let S = BigInt::mod_mul(
+			&mod_pow_with_negative(&statement.s, &witness.x, &statement.N_hat),
+			&mod_pow_with_negative(&statement.t, &m, &statement.N_hat),
+			&statement.N_hat,
+		);
+
 		let e = H::new()
-			.chain_bigint(&S)
 			.chain_bigint(&A)
-			.chain_point(&Y)
-			.chain_bigint(&D)
+			.chain_point(&B_x)
+			.chain_bigint(&E)
+			.chain_bigint(&S)
 			.result_bigint();
 
 		// Step 5: Compute z_1, z_2, z_3
 		// z_1 = alpha + ex
 		let z_1 = BigInt::add(&alpha, &BigInt::mul(&e, &witness.x));
-		// z_2 = r * rho^e mod N_0
-		let z_2 = BigInt::mod_mul(
+		// z_2 = gamma + e*m
+		let z_2 = BigInt::add(&gamma, &BigInt::mul(&e, &m));
+		// w = r * rho^e mod N_0
+		let w = BigInt::mod_mul(
 			&r,
 			&mod_pow_with_negative(&witness.rho, &e, &statement.N0),
 			&statement.N0,
 		);
-		// z_3 = gamma + e*mu
-		let z_3 = BigInt::add(&gamma, &BigInt::mul(&e, &mu));
 
-		Self { S, A, Y, D, z_1, z_2, z_3, phantom: PhantomData }
+		Self { A, B_x, E, S, z_1, z_2, w, phantom: PhantomData }
 	}
 
 	pub fn verify(
-		proof: &KnowledgeOfExponentPaillierEncyptionProof<E, H>,
-		statement: &KnowledgeOfExponentPaillierEncyptionStatement<E, H>,
+		proof: &PaillierMultiplicationVersusGroupProof<E, H>,
+		statement: &PaillierMultiplicationVersusGroupStatement<E, H>,
 	) -> Result<(), IncorrectProof> {
 		let e = H::new()
-			.chain_bigint(&proof.S)
 			.chain_bigint(&proof.A)
-			.chain_point(&proof.Y)
-			.chain_bigint(&proof.D)
+			.chain_point(&proof.B_x)
+			.chain_bigint(&proof.E)
+			.chain_bigint(&proof.S)
 			.result_bigint();
 
-		// left_1 = (1+N_0)^{z_1}z_2^{N_0} mod N_0^2
-		let left_1: BigInt = Paillier::encrypt_with_chosen_randomness(
-			&EncryptionKey { n: statement.N0.clone(), nn: statement.NN0.clone() },
-			RawPlaintext::from(&proof.z_1),
-			&Randomness::from(&proof.z_2),
-		)
-		.into();
+		// left_1 = (C)^{z_1}w^{N_0} mod N_0^2
+		let left_1 = BigInt::mod_mul(
+			&mod_pow_with_negative(&statement.C, &proof.z_1, &statement.N0),
+			&BigInt::mod_pow(&proof.w, &statement.N0, &statement.NN0),
+			&statement.NN0,
+		);
 
-		// right_1 = A * C^e
+		// right_1 = A * D^e
 		let right_1 = BigInt::mod_mul(
 			&proof.A,
-			&mod_pow_with_negative(&statement.C, &e, &statement.NN0),
+			&mod_pow_with_negative(&statement.D, &e, &statement.NN0),
 			&statement.NN0,
 		);
 
 		// left_2 = g^z_1
 		let left_2 = Point::<E>::generator().as_point() * Scalar::from_bigint(&proof.z_1);
-		// right_2 = Y * X^e
-		let right_2 = proof.Y.clone() + (statement.X.clone() * Scalar::from_bigint(&e));
+		// right_2 = B_x * X^e
+		let right_2 = proof.B_x.clone() + (statement.X.clone() * Scalar::from_bigint(&e));
 
-		// left_3 = s^z_1 t^z_3 mod N_hat
+		// left_3 = s^z_1 t^z_2 mod N_hat
 		let left_3 = BigInt::mod_mul(
 			&mod_pow_with_negative(&statement.s, &proof.z_1, &statement.N_hat),
-			&mod_pow_with_negative(&statement.t, &proof.z_3, &statement.N_hat),
+			&mod_pow_with_negative(&statement.t, &proof.z_2, &statement.N_hat),
 			&statement.N_hat,
 		);
 
-		// right_3 = D * S^e mod N_hat
+		// right_3 = E * S^e mod N_hat
 		let right_3 = BigInt::mod_mul(
-			&proof.D,
+			&proof.E,
 			&mod_pow_with_negative(&proof.S, &e, &statement.N_hat),
 			&statement.N_hat,
 		);
 
-		if left_1.mod_floor(&statement.NN0) != right_1 || left_2 != right_2 || left_3 != right_3 {
+		if left_1 != right_1 || left_2 != right_2 || left_3 != right_3 {
 			return Err(IncorrectProof)
 		}
 
@@ -243,24 +247,28 @@ mod tests {
 	use sha2::Sha256;
 
 	#[test]
-	fn test_log_star_proof() {
+	fn test_mul_star_proof() {
 		let (ring_pedersen_statement, _witness) =
 			RingPedersenStatement::<Secp256k1, Sha256>::generate();
 		let (paillier_key, _) = Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
 
 		let rho: BigInt = BigInt::from_paillier_key(&paillier_key);
+
+		let C: BigInt =
+			Paillier::encrypt(&paillier_key, RawPlaintext::from(BigInt::from(123))).into();
 		let (statement, witness) =
-			KnowledgeOfExponentPaillierEncyptionStatement::<Secp256k1, Sha256>::generate(
+			PaillierMultiplicationVersusGroupStatement::<Secp256k1, Sha256>::generate(
 				rho,
+				C,
 				ring_pedersen_statement.S,
 				ring_pedersen_statement.T,
 				ring_pedersen_statement.N,
 				paillier_key,
 			);
-		let proof = KnowledgeOfExponentPaillierEncyptionProof::<Secp256k1, Sha256>::prove(
+		let proof = PaillierMultiplicationVersusGroupProof::<Secp256k1, Sha256>::prove(
 			&witness, &statement,
 		);
-		assert!(KnowledgeOfExponentPaillierEncyptionProof::<Secp256k1, Sha256>::verify(
+		assert!(PaillierMultiplicationVersusGroupProof::<Secp256k1, Sha256>::verify(
 			&proof, &statement
 		)
 		.is_ok());
