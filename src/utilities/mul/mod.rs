@@ -207,7 +207,7 @@ mod tests {
 	use sha2::Sha256;
 
 	#[test]
-	fn test_affine_g_proof() {
+	fn test_paillier_mul() {
 		let (ek_prover, _) = Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
 		let rho: BigInt = BigInt::from_paillier_key(&ek_prover);
 		let rho_x: BigInt = BigInt::from_paillier_key(&ek_prover);
