@@ -237,8 +237,8 @@ impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQProof<E, H> {
 		};
 		// Compute the right hand side
 		let right_3 = {
-			let S = mod_pow_with_negative(&statement.S, &e, &statement.N_hat);
-			BigInt::mod_mul(&statement.T, &S, &statement.N_hat)
+			let temp = mod_pow_with_negative(&proof.commitment.big_S, &e, &statement.N_hat);
+			BigInt::mod_mul(&proof.commitment.big_T, &temp, &statement.N_hat)
 		};
 		// Check the equality
 		assert!(left_3 == right_3);
