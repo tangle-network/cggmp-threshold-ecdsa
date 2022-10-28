@@ -16,7 +16,7 @@
 */
 
 //! Paillier Encryption in Range ZK – Π^enc
-//! 
+//!
 //! Common input is (N0, K). The Prover has secret input (k, ρ) such that
 //!             k ∈ ± 2l, and K = (1 + N0)^k · ρ^N0 mod N0^2.
 

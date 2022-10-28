@@ -101,29 +101,21 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeStatement<E
 		let y = BigInt::sample_range(&BigInt::from(-1).mul(&lprime_exp), &lprime_exp);
 
 		let X = Point::<E>::generator().as_point() * Scalar::from(&x);
-		// // Compute Y
-		let temp_Y_1 = mod_pow_with_negative(&BigInt::from(1).add(&N1), &y, &NN1);
-		let temp_Y_2 = BigInt::mod_pow(&rho_y, &N1, &NN1);
-		let Y = BigInt::mod_mul(&temp_Y_1, &temp_Y_2, &NN1);
-		// let Y = Paillier::encrypt_with_chosen_randomness(
-		// 	&ek_prover,
-		// 	RawPlaintext::from(&y),
-		// 	&Randomness::from(&rho_y),
-		// );
+		// Y = (1 + N1)^{y} · ρ_y^{N1}
+		let Y = Paillier::encrypt_with_chosen_randomness(
+			&ek_prover,
+			RawPlaintext::from(&y),
+			&Randomness::from(&rho_y),
+		);
 		// (1 + N0)^y mod N0^2
-		let temp_D_1 = mod_pow_with_negative(&BigInt::from(1).add(&N0), &y, &NN0);
-		// rho^N0 mod N0^2
-		let temp_D_2 = BigInt::mod_pow(&rho, &N0, &NN0);
-		// (1 + N0)^y · rho^N0 mod N0^2
-		let temp_D_3 = BigInt::mod_mul(&temp_D_1, &temp_D_2, &NN0);
-		// D = C^x · (1 + N0)^y · rho^N0 mod N0^2
-		let D = BigInt::mod_mul(&mod_pow_with_negative(&C, &x, &NN0), &temp_D_3, &NN0.clone());
-		// let D_temp = Paillier::encrypt_with_chosen_randomness(
-		// 	&ek_verifier,
-		// 	RawPlaintext::from(&y),
-		// 	&Randomness::from(&rho),
-		// );
-		// let D = BigInt::mod_mul(&mod_pow_with_negative(&C, &x, &NN0), &D_temp.into(), &NN0);
+		let D = {
+			let D_temp = Paillier::encrypt_with_chosen_randomness(
+				&ek_verifier,
+				RawPlaintext::from(&y),
+				&Randomness::from(&rho),
+			);
+			BigInt::mod_mul(&mod_pow_with_negative(&C, &x, &NN0), &D_temp.into(), &NN0)
+		};
 
 		(
 			Self {
@@ -136,7 +128,7 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeStatement<E
 				NN1,
 				C,
 				D,
-				Y,
+				Y: Y.clone().into(),
 				X,
 				ek_prover,
 				ek_verifier,
@@ -209,16 +201,18 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 			&l_exp.mul(&statement.N_hat),
 		);
 		// A = C^α · (1 + N0)^β · r^N0 mod N0^2
-		let A_temp = Paillier::encrypt_with_chosen_randomness(
-			&statement.ek_verifier,
-			RawPlaintext::from(&beta),
-			&Randomness::from(&r),
-		);
-		let A = BigInt::mod_mul(
-			&mod_pow_with_negative(&statement.C, &alpha, &statement.NN0),
-			&A_temp.into(),
-			&statement.NN0,
-		);
+		let A = {
+			let A_temp = Paillier::encrypt_with_chosen_randomness(
+				&statement.ek_verifier,
+				RawPlaintext::from(&beta),
+				&Randomness::from(&r),
+			);
+			BigInt::mod_mul(
+				&mod_pow_with_negative(&statement.C, &alpha, &statement.NN0),
+				&A_temp.into(),
+				&statement.NN0,
+			)
+		};
 
 		let B_x: Point<E> = Point::<E>::generator().as_point() * Scalar::from_bigint(&alpha);
 		// By = (1 + N1)^β · ry^N1 mod N1^2
