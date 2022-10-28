@@ -12,9 +12,11 @@ use round_based::{
 };
 use sha2::Sha256;
 
-pub enum ExistingOrNewParty {
-	Existing(LocalKey<Secp256k1>),
-	New((JoinMessage, Keys, u16)),
+pub type NewPartyType =
+	(JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>, Keys, u16);
+pub enum PartyType {
+	Existing(Box<LocalKey<Secp256k1>>),
+	New(Box<NewPartyType>),
 }
 
 use super::state_machine::{Round0Messages, Round1Messages};
@@ -30,14 +32,14 @@ pub struct Round0 {
 impl Round0 {
 	pub fn proceed<O>(self, mut output: O) -> Result<Round1>
 	where
-		O: Push<Msg<Option<JoinMessage>>>,
+		O: Push<Msg<Option<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>>,
 	{
 		match self.local_key_option {
 			Some(local_key) => {
 				output.push(Msg { sender: local_key.i, receiver: None, body: None });
 				match self.new_party_index_option {
 					None => Ok(Round1 {
-						party_type: ExistingOrNewParty::Existing(local_key),
+						party_type: PartyType::Existing(Box::new(local_key)),
 						old_to_new_map: self.old_to_new_map,
 						t: self.t,
 						n: self.n,
@@ -56,11 +58,11 @@ impl Round0 {
 							body: Some(join_message.clone()),
 						});
 						Ok(Round1 {
-							party_type: ExistingOrNewParty::New((
+							party_type: PartyType::New(Box::new((
 								join_message.clone(),
 								paillier_keys,
 								new_party_index,
-							)),
+							))),
 							old_to_new_map: self.old_to_new_map,
 							t: self.t,
 							n: self.n,
@@ -77,7 +79,7 @@ impl Round0 {
 }
 
 pub struct Round1 {
-	pub party_type: ExistingOrNewParty,
+	pub party_type: PartyType,
 	pub old_to_new_map: HashMap<u16, u16>,
 	t: u16,
 	n: u16,
@@ -86,19 +88,31 @@ pub struct Round1 {
 impl Round1 {
 	pub fn proceed<O>(
 		self,
-		input: BroadcastMsgs<Option<JoinMessage>>,
+		input: BroadcastMsgs<
+			Option<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
+		>,
 		mut output: O,
 	) -> Result<Round2>
 	where
-		O: Push<Msg<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>>,
+		O: Push<
+			Msg<
+				Option<
+					FsDkrResult<
+						RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
+					>,
+				>,
+			>,
+		>,
 	{
 		let join_message_option_vec = input.into_vec();
-		let mut join_message_vec: Vec<JoinMessage> = Vec::new();
+		let mut join_message_vec: Vec<
+			JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
+		> = Vec::new();
 		for join_message_option in join_message_option_vec.into_iter().flatten() {
 			join_message_vec.push(join_message_option)
 		}
 		match self.party_type {
-			ExistingOrNewParty::Existing(mut local_key) => {
+			PartyType::Existing(mut local_key) => {
 				// Existing parties form a refresh message and broadcast it.
 				let old_i = local_key.i;
 				let join_message_slice = join_message_vec.as_slice();
@@ -116,7 +130,7 @@ impl Round1 {
 					body: Some(Ok(refresh_message.clone().0)),
 				});
 				Ok(Round2 {
-					party_type: ExistingOrNewParty::Existing(local_key),
+					party_type: PartyType::Existing(local_key),
 					join_messages: join_message_vec,
 					refresh_message: Some(Ok(refresh_message.0)),
 					new_paillier_decryption_key: new_paillier_dk,
@@ -125,7 +139,7 @@ impl Round1 {
 				})
 			},
 
-			ExistingOrNewParty::New((join_message, paillier_keys, new_party_index)) => {
+			PartyType::New(box (join_message, paillier_keys, new_party_index)) => {
 				// New parties don't need to form a refresh message.
 				output.push(Msg {
 					sender: join_message.get_party_index()?,
@@ -133,11 +147,11 @@ impl Round1 {
 					body: None,
 				});
 				Ok(Round2 {
-					party_type: ExistingOrNewParty::New((
+					party_type: PartyType::New(Box::new((
 						join_message,
 						paillier_keys.clone(),
 						new_party_index,
-					)),
+					))),
 					join_messages: join_message_vec,
 					new_paillier_decryption_key: paillier_keys.dk,
 					refresh_message: None,
@@ -158,9 +172,10 @@ impl Round1 {
 }
 
 pub struct Round2 {
-	pub party_type: ExistingOrNewParty,
-	pub join_messages: Vec<JoinMessage>,
-	pub refresh_message: Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>,
+	pub party_type: PartyType,
+	pub join_messages: Vec<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
+	pub refresh_message:
+		Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>,
 	pub new_paillier_decryption_key: DecryptionKey,
 	t: u16,
 	n: u16,
@@ -169,16 +184,22 @@ pub struct Round2 {
 impl Round2 {
 	pub fn proceed(
 		self,
-		input: BroadcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>,
+		input: BroadcastMsgs<
+			Option<
+				FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
+			>,
+		>,
 	) -> Result<LocalKey<Secp256k1>> {
 		let refresh_message_option_vec = input.into_vec_including_me(self.refresh_message);
-		let mut refresh_message_vec: Vec<RefreshMessage<Secp256k1, Sha256>> = Vec::new();
+		let mut refresh_message_vec: Vec<
+			RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
+		> = Vec::new();
 		for refresh_message_option in refresh_message_option_vec.into_iter().flatten() {
 			refresh_message_vec.push(refresh_message_option.unwrap())
 		}
 
 		match self.party_type {
-			ExistingOrNewParty::Existing(mut local_key) => {
+			PartyType::Existing(box mut local_key) => {
 				let join_message_slice = self.join_messages.as_slice();
 				let refresh_message_slice = refresh_message_vec.as_slice();
 				RefreshMessage::collect(
@@ -187,9 +208,9 @@ impl Round2 {
 					self.new_paillier_decryption_key,
 					join_message_slice,
 				)?;
-				Ok(local_key)
+				Ok(local_key.to_owned())
 			},
-			ExistingOrNewParty::New((join_message, paillier_keys, _new_party_index)) => {
+			PartyType::New(box (join_message, paillier_keys, _new_party_index)) => {
 				let join_message_slice = self.join_messages.as_slice();
 				let refresh_message_slice = refresh_message_vec.as_slice();
 				JoinMessage::collect(

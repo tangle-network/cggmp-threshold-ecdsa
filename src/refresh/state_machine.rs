@@ -20,9 +20,13 @@ use sha2::Sha256;
 use std::{collections::HashMap, fmt, mem::replace, time::Duration};
 use thiserror::Error;
 
-pub type Round0Messages = Store<BroadcastMsgs<Option<JoinMessage>>>;
-pub type Round1Messages =
-	Store<BroadcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>>>;
+pub type Round0Messages =
+	Store<BroadcastMsgs<Option<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>>;
+pub type Round1Messages = Store<
+	BroadcastMsgs<
+		Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>,
+	>,
+>;
 
 pub struct KeyRefresh {
 	// Current round
@@ -308,8 +312,10 @@ pub struct ProtocolMessage(M);
 
 #[derive(Debug, Clone)]
 enum M {
-	Round1(Option<JoinMessage>),
-	Round2(Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256>>>),
+	Round1(Option<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>),
+	Round2(
+		Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>,
+	),
 }
 
 // Error
@@ -433,7 +439,7 @@ pub mod test {
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
 
-		let mut old_local_keys = local_keys.clone();
+		let old_local_keys = local_keys.clone();
 		let mut old_to_new_map = HashMap::new();
 		old_to_new_map.insert(1, 2);
 		old_to_new_map.insert(2, 1);
@@ -504,8 +510,8 @@ pub mod test {
 		old_to_new_map.insert(3, 3);
 		old_to_new_map.insert(4, 4);
 		old_to_new_map.insert(5, 5);
-		let mut old_local_keys = local_keys.clone();
-		let mut new_local_keys =
+		let old_local_keys = local_keys.clone();
+		let new_local_keys =
 			simulate_dkr_with_new_parties(local_keys, vec![6, 7], old_to_new_map, t, n + 2);
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
@@ -581,13 +587,13 @@ pub mod test {
 		let n = 5;
 		let local_keys = simulate_keygen(t, n);
 
-		let mut old_local_keys = local_keys.clone();
+		let old_local_keys = local_keys.clone();
 		let mut old_to_new_map = HashMap::new();
 		old_to_new_map.insert(1, 1);
 		old_to_new_map.insert(2, 2);
 		old_to_new_map.insert(3, 3);
 		old_to_new_map.insert(4, 4);
-		let mut new_local_keys = simulate_dkr_with_remove_parties(
+		let new_local_keys = simulate_dkr_with_remove_parties(
 			local_keys,
 			vec![1, 2, 3, 4],
 			vec![],
