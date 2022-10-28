@@ -149,7 +149,7 @@ impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQProof<E, H> {
 				&Randomness::from(r.clone()),
 			);
 			let A: BigInt = A_ciphertext.into();
-			A
+			A.mod_floor(&statement.NN0)
 		};
 		// gamma = alpha mod q
 		let gamma = BigInt::mod_floor(&alpha, Scalar::<E>::group_order());
