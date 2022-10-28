@@ -35,6 +35,8 @@ use curv::{
 	BigInt,
 };
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
+use rand::{Rng, SeedableRng};
+use rand_chacha::{ChaCha20Core, ChaChaRng};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
@@ -290,10 +292,9 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 			.chain_bigint(&E)
 			.chain_bigint(&F)
 			.result_bigint();
-		e = BigInt::sample_below(&BigInt::from(2))
-			.mul(&BigInt::from(-2))
-			.add(&BigInt::one())
-			.mul(&e);
+		let mut rng: ChaChaRng = ChaChaRng::from_seed(e.to_bytes().try_into().unwrap());
+		let val = rng.gen_range(0..2);
+		e = BigInt::from(val).mul(&BigInt::from(-2)).add(&BigInt::one()).mul(&e);
 
 		let commitment =
 			// PaillierAffineOpWithGroupComInRangeCommitment::<E> { A, B_x, B_y: B_y.into(), E, F, big_S, big_T };
@@ -336,10 +337,9 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 			.chain_bigint(&proof.commitment.E.clone())
 			.chain_bigint(&proof.commitment.F.clone())
 			.result_bigint();
-		e = BigInt::sample_below(&BigInt::from(2))
-			.mul(&BigInt::from(-2))
-			.add(&BigInt::one())
-			.mul(&e);
+		let mut rng: ChaChaRng = ChaChaRng::from_seed(e.to_bytes().try_into().unwrap());
+		let val = rng.gen_range(0..2);
+		e = BigInt::from(val).mul(&BigInt::from(-2)).add(&BigInt::one()).mul(&e);
 
 		/*
 			RANGE CHECKS
@@ -360,33 +360,33 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 		/*
 			FIRST EQUALITY CHECK
 		*/
-		// C^{z1} · (1 + N)^{z2} · w^{N0} =A · D^e mod N0^2
-		let left_1 = {
-			// (1 + N)^{z2} mod N0^2
-			let temp_left_1_1 = mod_pow_with_negative(
-				&BigInt::from(1).add(&statement.N0),
-				&proof.z2,
-				&statement.NN0,
-			);
-			// w^{N0} mod N0^2
-			let temp_left_1_2 = mod_pow_with_negative(&proof.w, &statement.N0, &statement.NN0);
-			// C^{z1} · (1 + N)^{z2} · w^{N0} mod N0^2
-			BigInt::mod_mul(
-				&mod_pow_with_negative(&statement.C, &proof.z1, &statement.NN0),
-				&BigInt::mod_mul(&temp_left_1_1, &temp_left_1_2, &statement.NN0),
-				&statement.NN0,
-			)
-		};
-		// let left_1_temp = Paillier::encrypt_with_chosen_randomness(
-		// 	&statement.ek_verifier,
-		// 	RawPlaintext::from(&proof.z2),
-		// 	&Randomness::from(&proof.w)
-		// );
-		// let left_1 = BigInt::mod_mul(
-		// 	&mod_pow_with_negative(&statement.C, &proof.z1, &statement.NN0),
-		// 	&left_1_temp.into(),
-		// 	&statement.NN0,
-		// );
+		// C^{z1} · (1 + N0)^{z2} · w^{N0} =A · D^e mod N0^2
+		// let left_1 = {
+		// 	// (1 + N0)^{z2} mod N0^2
+		// 	let temp_left_1_1 = mod_pow_with_negative(
+		// 		&BigInt::from(1).add(&statement.N0),
+		// 		&proof.z2,
+		// 		&statement.NN0,
+		// 	);
+		// 	// w^{N0} mod N0^2
+		// 	let temp_left_1_2 = mod_pow_with_negative(&proof.w, &statement.N0, &statement.NN0);
+		// 	// C^{z1} · (1 + N0)^{z2} · w^{N0} mod N0^2
+		// 	BigInt::mod_mul(
+		// 		&mod_pow_with_negative(&statement.C, &proof.z1, &statement.NN0),
+		// 		&BigInt::mod_mul(&temp_left_1_1, &temp_left_1_2, &statement.NN0),
+		// 		&statement.NN0,
+		// 	)
+		// };
+		let left_1_temp = Paillier::encrypt_with_chosen_randomness(
+			&statement.ek_verifier,
+			RawPlaintext::from(&proof.z2),
+			&Randomness::from(&proof.w),
+		);
+		let left_1 = BigInt::mod_mul(
+			&mod_pow_with_negative(&statement.C, &proof.z1, &statement.NN0),
+			&left_1_temp.into(),
+			&statement.NN0,
+		);
 		// A · D^e mod N0^2
 		let right_1 = BigInt::mod_mul(
 			&proof.commitment.A,

@@ -19,6 +19,7 @@ fs-dkr = { git = "https://github.com/webb-tools/fs-dkr", default-features = fals
 round-based = { version = "0.1.4", features = [] }
 thiserror = "1.0.23"
 sha2 = "0.9"
+rand_chacha = "0.3.1"
 
 [dependencies.paillier]
 version = "0.4.2"
