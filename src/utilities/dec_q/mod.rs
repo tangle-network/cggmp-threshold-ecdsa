@@ -231,8 +231,8 @@ impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQProof<E, H> {
 		*/
 		// Compute the left hand side
 		let left_3 = {
-			let s = BigInt::mod_pow(&statement.S, &proof.z1, &statement.N_hat);
-			let t = BigInt::mod_pow(&statement.T, &proof.z2, &statement.N_hat);
+			let s = mod_pow_with_negative(&statement.S, &proof.z1, &statement.N_hat);
+			let t = mod_pow_with_negative(&statement.T, &proof.z2, &statement.N_hat);
 			BigInt::mod_mul(&s, &t, &statement.N_hat)
 		};
 		// Compute the right hand side
