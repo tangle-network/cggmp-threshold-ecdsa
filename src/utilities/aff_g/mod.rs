@@ -24,6 +24,7 @@
 //! and
 //!             D=C^{x}(1+N0)^{y}·ρ^{N0} mod N0^{2}.
 
+use super::sample_relatively_prime_integer;
 use crate::{
 	utilities::{mod_pow_with_negative, L, L_PLUS_EPSILON, L_PRIME, L_PRIME_PLUS_EPSILON},
 	Error,
@@ -35,12 +36,10 @@ use curv::{
 	BigInt,
 };
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
-use rand::{Rng, SeedableRng};
-use rand_chacha::{ChaCha20Core, ChaChaRng};
+use rand::Rng;
+use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-
-use super::sample_relatively_prime_integer;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierAffineOpWithGroupComInRangeStatement<E: Curve, H: Digest + Clone> {

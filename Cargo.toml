@@ -20,6 +20,7 @@ round-based = { version = "0.1.4", features = [] }
 thiserror = "1.0.23"
 sha2 = "0.9"
 rand_chacha = "0.3.1"
+rand = "0.8.5"
 
 [dependencies.paillier]
 version = "0.4.2"
