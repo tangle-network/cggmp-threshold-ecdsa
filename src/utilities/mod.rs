@@ -2,6 +2,7 @@ use curv::{
 	arithmetic::{Integer, Samplable},
 	BigInt,
 };
+use curv::arithmetic::{Modulo, Zero, BasicOps, NumberTests};
 
 pub mod aff_g;
 pub mod enc;
@@ -16,6 +17,16 @@ pub fn sample_relatively_prime_integer(N: &BigInt) -> BigInt {
 	}
 	sample
 }
+
+pub fn mod_pow_with_negative(v: &BigInt, pow: &BigInt, modulus: &BigInt) -> BigInt {
+	if BigInt::is_negative(pow) {
+		let temp = BigInt::mod_pow(v, &pow.abs(), modulus);
+		BigInt::mod_inv(&temp, modulus).unwrap_or(BigInt::zero())
+	} else {
+		BigInt::mod_pow(v, pow, modulus)
+	}
+}
+
 
 pub const SEC_PARAM: usize = 256;
 pub const SEC_BYTES: usize = SEC_PARAM / 8;

@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use zk_paillier::zkproofs::IncorrectProof;
 
+use super::mod_pow_with_negative;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EncSetupParameters<E: Curve, H: Digest + Clone> {
 	s: BigInt,
@@ -72,8 +74,8 @@ impl<E: Curve, H: Digest + Clone> EncProof<E, H> {
 
 		// Step 3: S, A, C
 		let S = BigInt::mod_mul(
-			&BigInt::mod_pow(&setup_parameters.s, &witness.k, &setup_parameters.N_hat),
-			&BigInt::mod_pow(&setup_parameters.t, &mu, &setup_parameters.N_hat),
+			&mod_pow_with_negative(&setup_parameters.s, &witness.k, &setup_parameters.N_hat),
+			&mod_pow_with_negative(&setup_parameters.t, &mu, &setup_parameters.N_hat),
 			&setup_parameters.N_hat,
 		);
 
@@ -83,14 +85,14 @@ impl<E: Curve, H: Digest + Clone> EncProof<E, H> {
 			one_plus_N0 = BigInt::mod_inv(&one_plus_N0, &NN0).unwrap();
 		}
 		let A = BigInt::mod_mul(
-			&BigInt::mod_pow(&one_plus_N0, &BigInt::abs(&alpha), &NN0),
-			&BigInt::mod_pow(&r, &common_input.N0, &NN0),
+			&mod_pow_with_negative(&one_plus_N0, &BigInt::abs(&alpha), &NN0),
+			&mod_pow_with_negative(&r, &common_input.N0, &NN0),
 			&NN0,
 		);
 
 		let C = BigInt::mod_mul(
-			&BigInt::mod_pow(&setup_parameters.s, &alpha, &setup_parameters.N_hat),
-			&BigInt::mod_pow(&setup_parameters.t, &gamma, &setup_parameters.N_hat),
+			&mod_pow_with_negative(&setup_parameters.s, &alpha, &setup_parameters.N_hat),
+			&mod_pow_with_negative(&setup_parameters.t, &gamma, &setup_parameters.N_hat),
 			&setup_parameters.N_hat,
 		);
 
@@ -101,7 +103,7 @@ impl<E: Curve, H: Digest + Clone> EncProof<E, H> {
 		let z_1 = BigInt::add(&alpha, &BigInt::mul(&e, &witness.k));
 		let z_2 = BigInt::mod_mul(
 			&r,
-			&BigInt::mod_pow(&witness.rho, &e, &common_input.N0),
+			&mod_pow_with_negative(&witness.rho, &e, &common_input.N0),
 			&common_input.N0,
 		);
 		let z_3 = BigInt::add(&gamma, &BigInt::mul(&e, &mu));
@@ -123,20 +125,20 @@ impl<E: Curve, H: Digest + Clone> EncProof<E, H> {
 		// Equality Checks
 		let NN0 = common_input.NN0.clone();
 		let left_1 = BigInt::mod_mul(
-			&BigInt::mod_pow(&BigInt::add(&BigInt::from(1), &common_input.N0), &proof.z_1, &NN0),
-			&BigInt::mod_pow(&proof.z_2, &common_input.N0, &NN0),
+			&mod_pow_with_negative(&BigInt::add(&BigInt::from(1), &common_input.N0), &proof.z_1, &NN0),
+			&mod_pow_with_negative(&proof.z_2, &common_input.N0, &NN0),
 			&NN0,
 		);
-		let right_1 = BigInt::mod_mul(&proof.A, &BigInt::mod_pow(&common_input.K, &e, &NN0), &NN0);
+		let right_1 = BigInt::mod_mul(&proof.A, &mod_pow_with_negative(&common_input.K, &e, &NN0), &NN0);
 
 		let left_2 = BigInt::mod_mul(
-			&BigInt::mod_pow(&setup_parameters.s, &proof.z_1, &setup_parameters.N_hat),
-			&BigInt::mod_pow(&setup_parameters.t, &proof.z_3, &setup_parameters.N_hat),
+			&mod_pow_with_negative(&setup_parameters.s, &proof.z_1, &setup_parameters.N_hat),
+			&mod_pow_with_negative(&setup_parameters.t, &proof.z_3, &setup_parameters.N_hat),
 			&setup_parameters.N_hat,
 		);
 		let right_2 = BigInt::mod_mul(
 			&proof.C,
-			&BigInt::mod_pow(&proof.S, &e, &setup_parameters.N_hat),
+			&mod_pow_with_negative(&proof.S, &e, &setup_parameters.N_hat),
 			&setup_parameters.N_hat,
 		);
 
@@ -172,7 +174,7 @@ fn sample_relatively_prime_integer(N: BigInt) -> BigInt {
 mod tests {
 	use super::*;
 	use curv::elliptic::curves::{secp256_k1::Secp256k1, Scalar};
-	use paillier::{DecryptionKey, EncryptionKey, KeyGeneration, Paillier};
+	use paillier::{KeyGeneration, Paillier};
 	use sha2::Sha256;
 
 	const PAILLIER_KEY_SIZE: usize = 2048;
@@ -187,13 +189,13 @@ mod tests {
 		let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
 		let r = BigInt::sample_below(&ek_tilde.n);
 		let lambda = BigInt::sample_below(&phi);
-		let t = BigInt::mod_pow(&r, &BigInt::from(2), &ek_tilde.n);
-		let s = BigInt::mod_pow(&t, &lambda, &ek_tilde.n);
+		let t = mod_pow_with_negative(&r, &BigInt::from(2), &ek_tilde.n);
+		let s = mod_pow_with_negative(&t, &lambda, &ek_tilde.n);
 		let k = BigInt::sample_below(Scalar::<Secp256k1>::group_order());
 		let rho = sample_relatively_prime_integer(ek_tilde.n.clone());
 		let K = BigInt::mod_mul(
-			&BigInt::mod_pow(&BigInt::add(&one, &ek_tilde.n), &k, &ek_tilde.nn),
-			&BigInt::mod_pow(&rho, &ek_tilde.n, &ek_tilde.nn),
+			&mod_pow_with_negative(&BigInt::add(&one, &ek_tilde.n), &k, &ek_tilde.nn),
+			&mod_pow_with_negative(&rho, &ek_tilde.n, &ek_tilde.nn),
 			&ek_tilde.nn,
 		);
 
