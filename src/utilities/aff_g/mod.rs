@@ -77,11 +77,11 @@ pub struct PaillierAffineOpWithGroupComInRangeWitness<E: Curve, H: Digest + Clon
 impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeStatement<E, H> {
 	#[allow(clippy::too_many_arguments)]
 	pub fn generate(
-		rho: BigInt,
-		rho_y: BigInt,
 		S: BigInt,
 		T: BigInt,
 		N_hat: BigInt,
+		rho: BigInt,
+		rho_y: BigInt,
 		prover: EncryptionKey,
 		verifier: EncryptionKey,
 		C: BigInt,
@@ -442,11 +442,11 @@ mod tests {
 		let C = Paillier::encrypt(&ek_verifier, RawPlaintext::from(BigInt::from(12)));
 		let (statement, witness) =
 			PaillierAffineOpWithGroupComInRangeStatement::<Secp256k1, Sha256>::generate(
-				rho,
-				rho_y,
 				ring_pedersen_statement.S,
 				ring_pedersen_statement.T,
 				ring_pedersen_statement.N,
+				rho,
+				rho_y,
 				ek_prover,
 				ek_verifier,
 				C.0.into_owned(),
