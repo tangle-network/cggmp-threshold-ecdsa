@@ -20,22 +20,20 @@
 //! Common input is (N0, K). The Prover has secret input (k, ρ) such that
 //!             k ∈ ± 2l, and K = (1 + N0)^k · ρ^N0 mod N0^2.
 
-use curv::{
-	arithmetic::traits::*,
-	cryptographic_primitives::hashing::{Digest, DigestExt},
-	elliptic::curves::{Curve, Scalar},
-	BigInt,
+use super::sample_relatively_prime_integer;
+use crate::utilities::{
+	mod_pow_with_negative, mta::range_proofs::SampleFromMultiplicativeGroup, L,
 };
-use crate::{
-	utilities::{mod_pow_with_negative, L, L_PLUS_EPSILON, L_PRIME, L_PRIME_PLUS_EPSILON},
-	Error,
+use curv::{
+	arithmetic::{traits::*, Modulo},
+	cryptographic_primitives::hashing::{Digest, DigestExt},
+	elliptic::curves::{Curve, Point, Scalar},
+	BigInt,
 };
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use zk_paillier::zkproofs::IncorrectProof;
-
-use super::{sample_relatively_prime_integer};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierEncryptionInRangeStatement<E: Curve, H: Digest + Clone> {
@@ -70,15 +68,16 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeStatement<E, H> {
 		let N0 = paillier_key.clone().n;
 		let NN0 = paillier_key.clone().nn;
 		let k = BigInt::sample_below(Scalar::<E>::group_order());
-		let K = Paillier::encrypt_with_chosen_randomness(
+		let K: BigInt = Paillier::encrypt_with_chosen_randomness(
 			&paillier_key,
 			RawPlaintext::from(&k),
 			&Randomness::from(&rho),
-		);
+		)
+		.into();
 
 		(
 			Self { N0, NN0, K, s, t, N_hat, phantom: PhantomData },
-			PaillierEncryptionInRangeWitness {k, rho, phantom: PhantomData },
+			PaillierEncryptionInRangeWitness { k, rho, phantom: PhantomData },
 		)
 	}
 }
@@ -108,7 +107,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 		// Step 2: mu, r, gamma
 		// Sample mu between -2^L * N_hat and 2^L * N_hat
 		let mu_upper = BigInt::mul(
-			&setup_parameters.N_hat,
+			&statement.N_hat,
 			&BigInt::pow(&BigInt::from(2), crate::utilities::L as u32),
 		);
 		let mu_lower = BigInt::from(-1).mul(&mu_upper);
@@ -116,25 +115,25 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 
 		// γ ← ± 2^{l+ε} · Nˆ
 		let gamma_upper = BigInt::mul(
-			&setup_parameters.N_hat,
+			&statement.N_hat,
 			&BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32),
 		);
 		let gamma_lower = BigInt::from(-1).mul(&gamma_upper);
 		let gamma = BigInt::sample_range(&gamma_lower, &gamma_upper);
 		// Sample r from Z*_{N_0}
-		let r = sample_relatively_prime_integer(&common_input.N0.clone());
+		let r = sample_relatively_prime_integer(&statement.N0.clone());
 
 		// Step 3: S, A, C
 		// S = s^k t^mu mod N_hat
 		let S = BigInt::mod_mul(
-			&mod_pow_with_negative(&setup_parameters.s, &witness.k, &setup_parameters.N_hat),
-			&mod_pow_with_negative(&setup_parameters.t, &mu, &setup_parameters.N_hat),
-			&setup_parameters.N_hat,
+			&mod_pow_with_negative(&statement.s, &witness.k, &statement.N_hat),
+			&mod_pow_with_negative(&statement.t, &mu, &statement.N_hat),
+			&statement.N_hat,
 		);
 
 		// A = (1+N_0)^{alpha}r^{N_0} mod N_0^2
 		let A: BigInt = Paillier::encrypt_with_chosen_randomness(
-			&EncryptionKey { n: common_input.N0.clone(), nn: common_input.NN0.clone() },
+			&EncryptionKey { n: statement.N0.clone(), nn: statement.NN0.clone() },
 			RawPlaintext::from(&alpha),
 			&Randomness::from(&r),
 		)
@@ -142,9 +141,9 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 
 		// C = s^alpha * t^gamma mod N_hat
 		let C = BigInt::mod_mul(
-			&mod_pow_with_negative(&setup_parameters.s, &alpha, &setup_parameters.N_hat),
-			&mod_pow_with_negative(&setup_parameters.t, &gamma, &setup_parameters.N_hat),
-			&setup_parameters.N_hat,
+			&mod_pow_with_negative(&statement.s, &alpha, &statement.N_hat),
+			&mod_pow_with_negative(&statement.t, &gamma, &statement.N_hat),
+			&statement.N_hat,
 		);
 
 		// Step 4: Hash S, A, C
@@ -156,8 +155,8 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 		// z_2 = r * rho^e mod N_0
 		let z_2 = BigInt::mod_mul(
 			&r,
-			&mod_pow_with_negative(&witness.rho, &e, &common_input.N0),
-			&common_input.N0,
+			&mod_pow_with_negative(&witness.rho, &e, &statement.N0),
+			&statement.N0,
 		);
 		// z_3 = gamma + e*mu
 		let z_3 = BigInt::add(&gamma, &BigInt::mul(&e, &mu));
@@ -168,8 +167,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 	#[allow(dead_code)]
 	fn verify(
 		proof: &PaillierEncryptionInRangeProof<E, H>,
-		common_input: &PaillierEncryptionInRangeCommonInput<E, H>,
-		setup_parameters: &PaillierEncryptionInRangeSetupParameters<E, H>,
+		statement: &PaillierEncryptionInRangeStatement<E, H>,
 	) -> Result<(), IncorrectProof> {
 		let e = H::new()
 			.chain_bigint(&proof.S)
@@ -178,29 +176,29 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 			.result_bigint();
 
 		// Equality Checks
-		let NN0 = common_input.NN0.clone();
+		let NN0 = statement.NN0.clone();
 		// left_1 = (1+N_0)^{z_1}z_2^{N_0} mod N_0^2
 		let left_1: BigInt = Paillier::encrypt_with_chosen_randomness(
-			&EncryptionKey { n: common_input.N0.clone(), nn: NN0.clone() },
+			&EncryptionKey { n: statement.N0.clone(), nn: NN0.clone() },
 			RawPlaintext::from(&proof.z_1),
 			&Randomness::from(&proof.z_2),
 		)
 		.into();
 		// right_1 = A * K^e mod N_0^2
 		let right_1 =
-			BigInt::mod_mul(&proof.A, &mod_pow_with_negative(&common_input.K, &e, &NN0), &NN0);
+			BigInt::mod_mul(&proof.A, &mod_pow_with_negative(&statement.K, &e, &NN0), &NN0);
 
 		// left_2 = s^z_1 t^z_3 mod N_hat
 		let left_2 = BigInt::mod_mul(
-			&mod_pow_with_negative(&setup_parameters.s, &proof.z_1, &setup_parameters.N_hat),
-			&mod_pow_with_negative(&setup_parameters.t, &proof.z_3, &setup_parameters.N_hat),
-			&setup_parameters.N_hat,
+			&mod_pow_with_negative(&statement.s, &proof.z_1, &statement.N_hat),
+			&mod_pow_with_negative(&statement.t, &proof.z_3, &statement.N_hat),
+			&statement.N_hat,
 		);
 		// right_2 = C * S^e mod N_hat
 		let right_2 = BigInt::mod_mul(
 			&proof.C,
-			&mod_pow_with_negative(&proof.S, &e, &setup_parameters.N_hat),
-			&setup_parameters.N_hat,
+			&mod_pow_with_negative(&proof.S, &e, &statement.N_hat),
+			&statement.N_hat,
 		);
 
 		if left_1.mod_floor(&NN0) != right_1 || left_2 != right_2 {
@@ -225,63 +223,32 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 
 #[cfg(test)]
 mod tests {
+	use crate::utilities::BITS_PAILLIER;
+
 	use super::*;
 	use curv::elliptic::curves::{secp256_k1::Secp256k1, Scalar};
+	use fs_dkr::ring_pedersen_proof::RingPedersenStatement;
 	use paillier::{KeyGeneration, Paillier};
 	use sha2::Sha256;
 
-	const PAILLIER_KEY_SIZE: usize = 2048;
-
-	fn generate_test_values() -> (
-		PaillierEncryptionInRangeWitness<Secp256k1, Sha256>,
-		PaillierEncryptionInRangeCommonInput<Secp256k1, Sha256>,
-		PaillierEncryptionInRangeSetupParameters<Secp256k1, Sha256>,
-	) {
-		let (ek_tilde, dk_tilde) = Paillier::keypair_with_modulus_size(PAILLIER_KEY_SIZE).keys();
-		let one = BigInt::one();
-		let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
-		let r = BigInt::sample_below(&ek_tilde.n);
-		let lambda = BigInt::sample_below(&phi);
-		let t = mod_pow_with_negative(&r, &BigInt::from(2), &ek_tilde.n);
-		let s = mod_pow_with_negative(&t, &lambda, &ek_tilde.n);
-		let k = BigInt::sample_below(Scalar::<Secp256k1>::group_order());
-		let rho = sample_relatively_prime_integer(&ek_tilde.n);
-		let K = BigInt::mod_mul(
-			&mod_pow_with_negative(&BigInt::add(&one, &ek_tilde.n), &k, &ek_tilde.nn),
-			&mod_pow_with_negative(&rho, &ek_tilde.n, &ek_tilde.nn),
-			&ek_tilde.nn,
-		);
-
-		(
-			PaillierEncryptionInRangeWitness { k, rho, phantom: PhantomData },
-			PaillierEncryptionInRangeCommonInput {
-				N0: ek_tilde.n.clone(),
-				NN0: ek_tilde.nn,
-				K,
-				phantom: PhantomData,
-			},
-			PaillierEncryptionInRangeSetupParameters {
-				s,
-				t,
-				N_hat: ek_tilde.n,
-				phantom: PhantomData,
-			},
-		)
-	}
-
 	#[test]
 	fn test_paillier_encryption_in_range_proof() {
-		let (witness, common_input, setup_parameters) = generate_test_values();
-		let proof = PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(
-			&witness,
-			&common_input,
-			&setup_parameters,
-		);
-		assert!(PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(
-			&proof,
-			&common_input,
-			&setup_parameters
-		)
-		.is_ok());
+		let (ring_pedersen_statement, _witness) =
+			RingPedersenStatement::<Secp256k1, Sha256>::generate();
+		let (paillier_key, _) = Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
+
+		let rho: BigInt = BigInt::from_paillier_key(&paillier_key);
+		let (statement, witness) =
+			PaillierEncryptionInRangeStatement::<Secp256k1, Sha256>::generate(
+				rho,
+				ring_pedersen_statement.S,
+				ring_pedersen_statement.T,
+				ring_pedersen_statement.N,
+				paillier_key,
+			);
+		let proof =
+			PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(&witness, &statement);
+		assert!(PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(&proof, &statement,)
+			.is_ok());
 	}
 }
