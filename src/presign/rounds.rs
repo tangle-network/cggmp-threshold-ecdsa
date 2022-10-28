@@ -1,17 +1,17 @@
 use std::{collections::HashMap, io::Error};
 
-use super::{PreSigningP2PMessage1, PreSigningSecrets, SSID};
-use curv::{arithmetic::Samplable, elliptic::curves::Secp256k1, BigInt};
+use curv::{elliptic::curves::Secp256k1, BigInt, arithmetic::Samplable};
 use fs_dkr::{add_party_message::*, error::*, refresh_message::*};
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
 	party_i::Keys, state_machine::keygen::*,
 };
-use paillier::{DecryptionKey, EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext};
+use paillier::{DecryptionKey, Paillier, EncryptWithChosenRandomness, RawPlaintext, Randomness};
 use round_based::{
 	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore, P2PMsgs, P2PMsgsStore},
 	Msg,
 };
 use sha2::Sha256;
+use super::{SSID, PreSigningP2PMessage1, PreSigningSecrets};
 
 use super::state_machine::{Round0Messages, Round1Messages};
 
@@ -40,11 +40,14 @@ impl Round0 {
 			RawPlaintext::from(k_i.clone()),
 			&Randomness(rho_i.clone()),
 		);
-		let psi_j_i =
-			crate::utilities::enc::PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove();
+		let psi_j_i = crate::utilities::enc::PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove();
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
-				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body: None });
+				output.push(Msg {
+					sender: self.ssid.X.i,
+					receiver: Some(j.clone()),
+					body: None
+				});
 			}
 		}
 		Ok(())
@@ -79,6 +82,7 @@ impl Round1 {
 			>,
 		>,
 	{
+
 	}
 
 	pub fn is_expensive(&self) -> bool {
@@ -96,7 +100,10 @@ pub struct Round2 {
 }
 
 impl Round2 {
-	pub fn proceed(self, input: P2PMsgs<()>) -> Result<Round3> {
+	pub fn proceed(
+		self,
+		input: P2PMsgs<()>,
+	) -> Result<Round3> {
 		Err()
 	}
 
@@ -114,7 +121,11 @@ pub struct Round3 {
 }
 
 impl Round3 {
-	pub fn proceed(self, input: P2PMsgs<()>) -> Result<LocalKey<Secp256k1>> {}
+	pub fn proceed(
+		self,
+		input: P2PMsgs<()>,
+	) -> Result<LocalKey<Secp256k1>> {
+	}
 
 	pub fn is_expensive(&self) -> bool {
 		false
