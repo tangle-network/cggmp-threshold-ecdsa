@@ -86,14 +86,26 @@ pub struct Round1 {
 impl Round1 {
 	pub fn proceed<O>(
 		self,
-		input: BroadcastMsgs<Option<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>,
+		input: BroadcastMsgs<
+			Option<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
+		>,
 		mut output: O,
 	) -> Result<Round2>
 	where
-		O: Push<Msg<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>>>,
+		O: Push<
+			Msg<
+				Option<
+					FsDkrResult<
+						RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
+					>,
+				>,
+			>,
+		>,
 	{
 		let join_message_option_vec = input.into_vec();
-		let mut join_message_vec: Vec<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>> = Vec::new();
+		let mut join_message_vec: Vec<
+			JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
+		> = Vec::new();
 		for join_message_option in join_message_option_vec.into_iter().flatten() {
 			join_message_vec.push(join_message_option)
 		}
@@ -160,7 +172,8 @@ impl Round1 {
 pub struct Round2 {
 	pub party_type: PartyType,
 	pub join_messages: Vec<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
-	pub refresh_message: Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>,
+	pub refresh_message:
+		Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>,
 	pub new_paillier_decryption_key: DecryptionKey,
 	t: u16,
 	n: u16,
@@ -169,10 +182,16 @@ pub struct Round2 {
 impl Round2 {
 	pub fn proceed(
 		self,
-		input: BroadcastMsgs<Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>>,
+		input: BroadcastMsgs<
+			Option<
+				FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
+			>,
+		>,
 	) -> Result<LocalKey<Secp256k1>> {
 		let refresh_message_option_vec = input.into_vec_including_me(self.refresh_message);
-		let mut refresh_message_vec: Vec<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>> = Vec::new();
+		let mut refresh_message_vec: Vec<
+			RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
+		> = Vec::new();
 		for refresh_message_option in refresh_message_option_vec.into_iter().flatten() {
 			refresh_message_vec.push(refresh_message_option.unwrap())
 		}

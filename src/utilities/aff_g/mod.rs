@@ -43,9 +43,10 @@ use super::sample_relatively_prime_integer;
 
 pub fn mod_pow_with_negative(v: &BigInt, pow: &BigInt, modulus: &BigInt) -> BigInt {
 	if BigInt::is_negative(pow) {
-		let v_inv = BigInt::mod_inv(v, modulus).unwrap();
-		let pow_abs = BigInt::abs(pow);
-		BigInt::mod_pow(&v_inv, &pow_abs, modulus)
+		// let v_inv = BigInt::mod_inv(v, modulus).unwrap();
+		// let pow_abs = BigInt::abs(pow);
+		let temp = BigInt::mod_pow(v, &pow.abs(), modulus);
+		BigInt::mod_inv(&temp, modulus).unwrap_or(BigInt::zero())
 	} else {
 		BigInt::mod_pow(v, pow, modulus)
 	}
@@ -98,6 +99,7 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeStatement<E, H> {
 		let NN1 = prover.clone().nn;
 		let ek_verifier = verifier.clone();
 		let ek_prover = prover.clone();
+
 		let x = BigInt::sample_range(&BigInt::from(-1).mul(&l_exp), &l_exp);
 		println!("x: {}", x.bit_length());
 		let y = BigInt::sample_range(&BigInt::from(-1).mul(&lprime_exp), &lprime_exp);
@@ -201,7 +203,9 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 		// Sample r, ry as unit values from Z_N0, Z_N1
 		let r = sample_relatively_prime_integer(&statement.N0);
 		println!("r: {}", r.bit_length());
+		let rx = sample_relatively_prime_integer(&statement.N1);
 		let ry = sample_relatively_prime_integer(&statement.N1);
+		println!("rx: {}", ry.bit_length());
 		println!("ry: {}", ry.bit_length());
 		// γ ← ± 2^{l+ε} · Nˆ
 		let gamma = BigInt::sample_range(
@@ -249,6 +253,11 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 		);
 
 		let B_x: Point<E> = Point::<E>::generator().as_point() * Scalar::from_bigint(&alpha);
+		// let B_x = Paillier::encrypt_with_chosen_randomness(
+		// 	&statement.ek_prover,
+		// 	RawPlaintext(&alpha),
+		// 	&Randomness(&rx),
+		// );
 		// // // By = (1 + N1)^β · ry^N1 mod N1^2
 		// let B_y = {
 		// 	// (1 + N1)^β mod N1^2
@@ -316,14 +325,14 @@ impl<E: Curve, H: Digest + Clone> AffineWithGroupComRangeProof<E, H> {
 		// w = r · rho^e mod N0
 		let w = BigInt::mod_mul(
 			&r,
-			&mod_pow_with_negative(&witness.rho, &e, &statement.NN0),
-			&statement.NN0,
+			&mod_pow_with_negative(&witness.rho, &e, &statement.N0),
+			&statement.N0,
 		);
 		// wy = ry · rho_y^e mod N1
 		let wy = BigInt::mod_mul(
 			&ry,
-			&mod_pow_with_negative(&witness.rho_y, &e, &statement.NN1),
-			&statement.NN1,
+			&mod_pow_with_negative(&witness.rho_y, &e, &statement.N1),
+			&statement.N1,
 		);
 
 		Self { z1, z2, z3, z4, w, wy, commitment, phantom: PhantomData }
@@ -491,30 +500,26 @@ mod tests {
 	use crate::utilities::mta::range_proofs::SampleFromMultiplicativeGroup;
 	use curv::elliptic::curves::secp256_k1::Secp256k1;
 	use fs_dkr::ring_pedersen_proof::RingPedersenStatement;
-	use paillier::{KeyGeneration, Paillier, Randomness, RawPlaintext};
+	use paillier::{Encrypt, KeyGeneration, Paillier, Randomness, RawPlaintext};
 	use sha2::Sha256;
 
 	#[test]
 	fn test_affine_g_proof() {
-		let (statement, _) = RingPedersenStatement::<Secp256k1, Sha256>::generate();
-		let ek_prover = statement.ek.clone();
+		let (ring_pedersen_statement, witness) =
+			RingPedersenStatement::<Secp256k1, Sha256>::generate();
+		let (ek_prover, _) = Paillier::keypair_with_modulus_size(fs_dkr::PAILLIER_KEY_SIZE).keys();
 		let (ek_verifier, _) =
 			Paillier::keypair_with_modulus_size(fs_dkr::PAILLIER_KEY_SIZE).keys();
 
-		let rho: BigInt = BigInt::from_paillier_key(&ek_prover);
-		let rho_y: BigInt = BigInt::from_paillier_key(&ek_verifier);
-		let c = RawPlaintext::from(BigInt::from(12));
-		let C =
-			Paillier::encrypt_with_chosen_randomness(&ek_prover, c, &Randomness::from(rho.clone()));
-		let S: BigInt = statement.S;
-		let T: BigInt = statement.T;
-		let N_hat: BigInt = ek_prover.n.clone();
+		let rho: BigInt = BigInt::from_paillier_key(&ek_verifier);
+		let rho_y: BigInt = BigInt::from_paillier_key(&ek_prover);
+		let C = Paillier::encrypt(&ek_verifier, RawPlaintext::from(BigInt::from(12)));
 		let (statement, witness) = AffineWithGroupComRangeStatement::<Secp256k1, Sha256>::generate(
 			rho,
 			rho_y,
-			S,
-			T,
-			N_hat,
+			ring_pedersen_statement.S,
+			ring_pedersen_statement.T,
+			ring_pedersen_statement.N,
 			ek_prover,
 			ek_verifier,
 			C.0.into_owned(),
