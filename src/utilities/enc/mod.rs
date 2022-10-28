@@ -69,7 +69,7 @@ pub struct PaillierEncryptionInRangeProof<E: Curve, H: Digest + Clone> {
 
 impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 	#[allow(dead_code)]
-	fn prove(
+	pub fn prove(
 		witness: &PaillierEncryptionInRangeWitness<E, H>,
 		common_input: &PaillierEncryptionInRangeCommonInput<E, H>,
 		setup_parameters: &PaillierEncryptionInRangeSetupParameters<E, H>,

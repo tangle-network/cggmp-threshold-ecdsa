@@ -12,11 +12,9 @@ use round_based::{
 };
 use sha2::Sha256;
 
-pub type NewPartyType =
-	(JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>, Keys, u16);
 pub enum PartyType {
-	Existing(Box<LocalKey<Secp256k1>>),
-	New(Box<NewPartyType>),
+	Existing(LocalKey<Secp256k1>),
+	New((JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>, Keys, u16)),
 }
 
 use super::state_machine::{Round0Messages, Round1Messages};
@@ -39,7 +37,7 @@ impl Round0 {
 				output.push(Msg { sender: local_key.i, receiver: None, body: None });
 				match self.new_party_index_option {
 					None => Ok(Round1 {
-						party_type: PartyType::Existing(Box::new(local_key)),
+						party_type: PartyType::Existing(local_key),
 						old_to_new_map: self.old_to_new_map,
 						t: self.t,
 						n: self.n,
@@ -58,11 +56,11 @@ impl Round0 {
 							body: Some(join_message.clone()),
 						});
 						Ok(Round1 {
-							party_type: PartyType::New(Box::new((
+							party_type: PartyType::New((
 								join_message.clone(),
 								paillier_keys,
 								new_party_index,
-							))),
+							)),
 							old_to_new_map: self.old_to_new_map,
 							t: self.t,
 							n: self.n,
@@ -139,7 +137,7 @@ impl Round1 {
 				})
 			},
 
-			PartyType::New(box (join_message, paillier_keys, new_party_index)) => {
+			PartyType::New((join_message, paillier_keys, new_party_index)) => {
 				// New parties don't need to form a refresh message.
 				output.push(Msg {
 					sender: join_message.get_party_index()?,
@@ -147,11 +145,11 @@ impl Round1 {
 					body: None,
 				});
 				Ok(Round2 {
-					party_type: PartyType::New(Box::new((
+					party_type: PartyType::New((
 						join_message,
 						paillier_keys.clone(),
 						new_party_index,
-					))),
+					)),
 					join_messages: join_message_vec,
 					new_paillier_decryption_key: paillier_keys.dk,
 					refresh_message: None,
@@ -199,7 +197,7 @@ impl Round2 {
 		}
 
 		match self.party_type {
-			PartyType::Existing(box mut local_key) => {
+			PartyType::Existing(mut local_key) => {
 				let join_message_slice = self.join_messages.as_slice();
 				let refresh_message_slice = refresh_message_vec.as_slice();
 				RefreshMessage::collect(
@@ -208,9 +206,9 @@ impl Round2 {
 					self.new_paillier_decryption_key,
 					join_message_slice,
 				)?;
-				Ok(local_key.to_owned())
+				Ok(local_key)
 			},
-			PartyType::New(box (join_message, paillier_keys, _new_party_index)) => {
+			PartyType::New((join_message, paillier_keys, _new_party_index)) => {
 				let join_message_slice = self.join_messages.as_slice();
 				let refresh_message_slice = refresh_message_vec.as_slice();
 				JoinMessage::collect(
