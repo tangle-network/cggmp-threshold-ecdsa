@@ -23,8 +23,7 @@
 
 use super::sample_relatively_prime_integer;
 use crate::{
-	utilities::{mod_pow_with_negative, L, L_PLUS_EPSILON, L_PRIME, L_PRIME_PLUS_EPSILON},
-	Error,
+	utilities::{mod_pow_with_negative, L},
 };
 use curv::{
 	arithmetic::{traits::*, Modulo},
@@ -66,7 +65,6 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionStatement<
 	) -> (Self, KnowledgeOfExponentPaillierEncyptionWitness<E, H>) {
 		// Set up exponents
 		let l_exp = BigInt::pow(&BigInt::from(2), L as u32);
-		let lprime_exp = BigInt::pow(&BigInt::from(2), L_PRIME as u32);
 		// Set up moduli
 		let N0 = paillier_key.clone().n;
 		let NN0 = paillier_key.clone().nn;
@@ -243,7 +241,7 @@ mod tests {
 	use crate::utilities::{mta::range_proofs::SampleFromMultiplicativeGroup, BITS_PAILLIER};
 	use curv::elliptic::curves::secp256_k1::Secp256k1;
 	use fs_dkr::ring_pedersen_proof::RingPedersenStatement;
-	use paillier::{Encrypt, KeyGeneration, Paillier, RawPlaintext};
+	use paillier::{KeyGeneration, Paillier};
 	use sha2::Sha256;
 
 	#[test]
