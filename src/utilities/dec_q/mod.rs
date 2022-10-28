@@ -257,7 +257,7 @@ mod tests {
 	use sha2::Sha256;
 
 	#[test]
-	fn test_affine_g_proof() {
+	fn test_paillier_decryption_modulo_q() {
 		let (ring_pedersen_statement, _witness) =
 			RingPedersenStatement::<Secp256k1, Sha256>::generate();
 		let (ek_prover, _) = Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
