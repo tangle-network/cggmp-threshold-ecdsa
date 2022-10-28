@@ -71,7 +71,6 @@ impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQStatement<E, H> {
 			C
 		};
 		let x = BigInt::mod_floor(&y, Scalar::<E>::group_order());
-
 		(
 			Self {
 				S,
@@ -218,7 +217,7 @@ impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQProof<E, H> {
 			z1 = γ + e * x mod q
 		*/
 		// Compute the left hand side
-		let left_2 = proof.z1.clone();
+		let left_2 = proof.z1.clone().mod_floor(&Scalar::<E>::group_order());
 		// Compute the right hand side
 		let right_2 = BigInt::add(
 			&proof.commitment.gamma,
