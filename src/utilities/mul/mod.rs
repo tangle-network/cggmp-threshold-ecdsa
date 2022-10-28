@@ -113,7 +113,7 @@ impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
 		let s = sample_relatively_prime_integer(&statement.N);
 		// A = Y^α * r^N mod N^2
 		let A = BigInt::mod_mul(
-			&BigInt::mod_pow(&statement.Y, &alpha, &statement.NN),
+			&mod_pow_with_negative(&statement.Y, &alpha, &statement.NN),
 			&BigInt::mod_pow(&r, &statement.N, &statement.NN),
 			&statement.NN,
 		);
@@ -168,7 +168,7 @@ impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
 			Y^z · u^N = A · C^e mod N^2
 		*/
 		let left_1 = BigInt::mod_mul(
-			&BigInt::mod_pow(&statement.Y, &proof.z, &statement.NN),
+			&mod_pow_with_negative(&statement.Y, &proof.z, &statement.NN),
 			&BigInt::mod_pow(&proof.u, &statement.N, &statement.NN),
 			&statement.NN,
 		);
