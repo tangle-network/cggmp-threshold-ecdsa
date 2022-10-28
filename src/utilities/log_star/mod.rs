@@ -22,9 +22,7 @@
 //!         x ∈ ± 2l, and C = (1 + N0)^x · ρ^N0 mod N0^2 and X = g^x    ∈ G.
 
 use super::sample_relatively_prime_integer;
-use crate::{
-	utilities::{mod_pow_with_negative, L},
-};
+use crate::utilities::{mod_pow_with_negative, L};
 use curv::{
 	arithmetic::{traits::*, Modulo},
 	cryptographic_primitives::hashing::{Digest, DigestExt},
