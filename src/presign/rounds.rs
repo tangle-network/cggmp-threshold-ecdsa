@@ -40,7 +40,24 @@ impl Round0 {
 			RawPlaintext::from(k_i.clone()),
 			&Randomness(rho_i.clone()),
 		);
-		let psi_j_i = crate::utilities::enc::PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove();
+		let witness = crate::utilities::enc::PaillierEncryptionInRangeWitness {
+			k: k_i,
+			rho: rho_i,
+			phantom: std::marker::PhantomData,
+		};
+		let statement = crate::utilities::enc::PaillierEncryptionInRangeStatement {
+			N0: self.secrets.ek.n.clone(),
+			NN0: self.secrets.ek.nn.clone(),
+			K: K_i,
+			s: self.ssid.S.clone(),
+			t: self.ssid.T.clone(),
+			N_hat: self.ssid.N.clone(),
+			phantom: std::marker::PhantomData,
+		};
+		let psi_j_i = crate::utilities::enc::PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(
+			&witness,
+			&statement,
+		);
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
 				output.push(Msg {
