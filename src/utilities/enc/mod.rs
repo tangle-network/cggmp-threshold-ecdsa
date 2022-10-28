@@ -127,7 +127,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 		// Step 5: Compute z_1, z_2, z_3
 		// z_1 = alpha + ek
 		let z_1 = BigInt::add(&alpha, &BigInt::mul(&e, &witness.k));
-		// z_2 = r * rho^2 mod N_0
+		// z_2 = r * rho^e mod N_0
 		let z_2 = BigInt::mod_mul(
 			&r,
 			&mod_pow_with_negative(&witness.rho, &e, &common_input.N0),
@@ -160,7 +160,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 			&Randomness::from(&proof.z_2),
 		)
 		.into();
-		// right_1 = A * K^2 mod N_0^2
+		// right_1 = A * K^e mod N_0^2
 		let right_1 =
 			BigInt::mod_mul(&proof.A, &mod_pow_with_negative(&common_input.K, &e, &NN0), &NN0);
 
