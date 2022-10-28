@@ -8,6 +8,9 @@ pub mod enc;
 pub mod mta;
 pub mod zk_pdl;
 pub mod zk_pdl_with_slack;
+pub mod log_star;
+pub mod mul;
+
 
 pub fn sample_relatively_prime_integer(n: &BigInt) -> BigInt {
 	let mut sample = BigInt::sample_below(n);
