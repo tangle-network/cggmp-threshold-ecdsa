@@ -467,13 +467,13 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 		);
 		let left_3: BigInt = left_3_ciphertext.into();
 		// B_y · Y^e mod N1^2
-		let right_3 = BigInt::mod_add(
+		let right_3 = BigInt::mod_mul(
 			&proof.commitment.B_y,
 			&mod_pow_with_negative(&statement.Y, &e, &statement.NN1),
 			&statement.NN1,
 		);
 		// Assert left == right
-		assert!(left_3 == right_3);
+		assert!(left_3.mod_floor(&statement.NN1) == right_3);
 		Ok(())
 	}
 }
