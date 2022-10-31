@@ -1,6 +1,10 @@
-use std::{char::REPLACEMENT_CHARACTER, collections::HashMap, io::Error, marker::PhantomData};
+use std::{
+	char::REPLACEMENT_CHARACTER, collections::HashMap, hash::Hash, io::Error, marker::PhantomData,
+};
 
-use super::{PreSigningP2PMessage1, PreSigningP2PMessage2, PreSigningSecrets, SSID};
+use super::{
+	PreSigningP2PMessage1, PreSigningP2PMessage2, PreSigningP2PMessage3, PreSigningSecrets, SSID,
+};
 use curv::{
 	arithmetic::Samplable,
 	elliptic::curves::{Point, Scalar, Secp256k1},
@@ -11,8 +15,8 @@ use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
 	party_i::Keys, state_machine::keygen::*,
 };
 use paillier::{
-	Add, DecryptionKey, Encrypt, EncryptWithChosenRandomness, EncryptionKey, Mul, Paillier,
-	Randomness, RawPlaintext,
+	Add, Decrypt, DecryptionKey, Encrypt, EncryptWithChosenRandomness, EncryptionKey, Mul,
+	Paillier, Randomness, RawCiphertext, RawPlaintext,
 };
 use round_based::{
 	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore, P2PMsgs, P2PMsgsStore},
@@ -37,16 +41,18 @@ impl Round0 {
 		let gamma_i = BigInt::sample_below(&self.ssid.q);
 		let rho_i = crate::utilities::sample_relatively_prime_integer(&self.secrets.ek.n);
 		let nu_i = crate::utilities::sample_relatively_prime_integer(&self.secrets.ek.n);
-		let G_i = Paillier::encrypt_with_chosen_randomness(
+		let G_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 			&self.secrets.ek,
 			RawPlaintext::from(gamma_i.clone()),
 			&Randomness::from(nu_i.clone()),
-		);
-		let K_i = Paillier::encrypt_with_chosen_randomness(
+		)
+		.into();
+		let K_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 			&self.secrets.ek,
 			RawPlaintext::from(k_i.clone()),
 			&Randomness(rho_i.clone()),
-		);
+		)
+		.into();
 		let witness = crate::utilities::enc::PaillierEncryptionInRangeWitness {
 			k: k_i,
 			rho: rho_i,
@@ -80,7 +86,7 @@ impl Round0 {
 				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
 			}
 		}
-		Ok(Round1 { ssid: self.ssid, secrets: self.secrets, gamma_i, nu_i, G_i })
+		Ok(Round1 { ssid: self.ssid, secrets: self.secrets, gamma_i, nu_i, k_i, rho_i, G_i, K_i })
 	}
 	pub fn is_expensive(&self) -> bool {
 		false
@@ -92,7 +98,10 @@ pub struct Round1 {
 	secrets: PreSigningSecrets,
 	gamma_i: BigInt,
 	nu_i: BigInt,
+	k_i: BigInt,
+	rho_i: BigInt,
 	G_i: BigInt,
+	K_i: BigInt,
 }
 
 impl Round1 {
@@ -120,7 +129,7 @@ impl Round1 {
 			T.insert(j, msg.enc_j_statement.t);
 			N_hats.insert(j, msg.enc_j_statement.N_hat);
 			let psi_i_j = msg.psi_j_i;
-			let enc_i_statement = msg.enc_j_statement.N0;
+			let enc_i_statement = msg.enc_j_statement;
 
 			crate::utilities::enc::PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(
 				&psi_i_j,
@@ -132,6 +141,8 @@ impl Round1 {
 		// Compute Gamma_i
 		let Gamma_i =
 			Point::<Secp256k1>::generator().as_point() * Scalar::from_bigint(&self.gamma_i);
+		let beta_i: HashMap<u32, BigInt> = HashMap::new();
+		let beta_hat_i: HashMap<u32, BigInt> = HashMap::new();
 
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
@@ -145,7 +156,9 @@ impl Round1 {
 				let lower = BigInt::from(-1).mul(&upper);
 
 				let beta_i_j = BigInt::sample_range(lower, upper);
+				beta_i.insert(j, beta_i_j);
 				let beta_hat_i_j = BigInt::sample_range(lower, upper);
+				beta_hat_i.insert(j, beta_hat_i_j);
 
 				// Compute D_j_i
 				let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(
@@ -259,7 +272,7 @@ impl Round1 {
 					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement {
 						N0: self.secrets.ek.n,
 						NN0: self.secrets.ek.nn,
-						C: self.G_i,
+						C: self.K_i,
 						X: Gamma_i,
 						s: S.get(j),
 						t: T.get(j),
@@ -270,7 +283,7 @@ impl Round1 {
 					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof::<
 						Secp256k1,
 						Sha256,
-					>::prove(&witness_psi_j_i, &statement_psi_j_i);
+					>::prove(&witness_psi_prime_j_i, &statement_psi_prime_j_i);
 
 				// Send Message
 				let body = PreSigningP2PMessage2 {
@@ -283,10 +296,22 @@ impl Round1 {
 					psi_j_i,
 					psi_hat_j_i,
 					psi_prime_j_i,
+					statement_psi_j_i,
+					statement_psi_prime_j_i,
+					statement_psi_hat_j_i,
 				};
 				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
 			}
-			Ok(Round2 {})
+			Ok(Round2 {
+				ssid: self.ssid,
+				secrets: self.secrets,
+				gamma_i: self.gamma_i,
+				k_i: self.k_i,
+				K_i: self.K_i,
+				rho_i: self.rho_i,
+				beta_i,
+				beta_hat_i,
+			})
 		}
 	}
 
@@ -299,10 +324,137 @@ impl Round1 {
 	}
 }
 
-pub struct Round2 {}
+pub struct Round2 {
+	ssid: SSID<Secp256k1>,
+	secrets: PreSigningSecrets,
+	gamma_i: BigInt,
+	k_i: BigInt,
+	K_i: BigInt,
+	rho_i: BigInt,
+	beta_i: HashMap<u16, BigInt>,
+	beta_hat_i: HashMap<u16, BigInt>,
+}
 
 impl Round2 {
-	pub fn proceed(self, input: P2PMsgs<()>) -> Result<Round3> {
+	pub fn proceed<O>(
+		self,
+		input: P2PMsgs<PreSigningP2PMessage2<Secp256k1>>,
+		mut output: O,
+	) -> Result<Round3>
+	where
+		O: Push<Msg<PreSigningP2PMessage1<Secp256k1>>>,
+	{
+		let S: HashMap<u16, BigInt> = HashMap::new();
+		let T: HashMap<u16, BigInt> = HashMap::new();
+		let N_hats: HashMap<u16, BigInt> = HashMap::new();
+		let D_i: HashMap<u16, BigInt> = HashMap::new();
+		let D_hat_i: HashMap<u16, BigInt> = HashMap::new();
+		for msg in input.into_vec() {
+			let j = msg.i;
+			S.insert(j, msg.statement_psi_j_i.s);
+			T.insert(j, msg.psi_j_i.t);
+			N_hats.insert(j, msg.psi_j_i.N_hat);
+			D_i.insert(j, msg.D_j_i);
+			D_hat_i.insert(j, msg.D_hat_j_i);
+			// Verify first aff-g
+			let psi_i_j = msg.psi_j_i;
+			let statement_psi_i_j = msg.statement_psi_j_i;
+			crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>:: verify(
+				&psi_i_j,
+				&statement_psi_i_j,
+			)
+			.map_err(|e| Err(format!("Party {} verification of aff_j psi failed", j)));
+
+			// Verify second aff-g
+			let psi_prime_i_j = msg.psi_prime_j_i;
+			let statement_psi_prime_i_j = msg.statement_psi_prime_j_i;
+			crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>:: verify(
+				&psi_prime_i_j,
+				&statement_psi_prime_i_j,
+			)
+			.map_err(|e| Err(format!("Party {} verification of aff_j psi prime failed", j)));
+
+			// Verify log*
+			let psi_hat_i_j = msg.psi_hat_j_i;
+			let statement_psi_hat_i_j = msg.statement_psi_hat_j_i;
+			crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof::<
+				Secp256k1,
+				Sha256,
+			>::verify(&psi_hat_i_j, &statement_psi_hat_i_j)
+			.map_err(|e| Err(format!("Party {} verification of aff_j psi hatfailed", j)));
+		}
+
+		// Compute Gamma
+		let Gamma = self
+			.Gamma_map
+			.values()
+			.into_iter()
+			.fold(Point::<Secp256k1>::zero(), |acc, x| acc.add(x));
+
+		// Compute Delta_i
+		let Delta_i = Gamma * Scalar::from_bigint(&self.k_i);
+
+		let alpha_i: HashMap<u16, BigInt> = HashMap::new();
+		let alpha_hat_i: HashMap<u16, BigInt> = HashMap::new();
+		for j in self.ssid.P.iter() {
+			if j != &self.ssid.X.i {
+				alpha_i.insert(j, Paillier::decrypt(&self.secrets.ek, D_i.get(j))).into();
+				alpha_hat_i
+					.insert(j, Paillier::decrypt(&self.secrets.ek, D_hat_i.get(j)))
+					.into();
+
+				let sum_of_alphas =
+					alpha_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
+
+				let sum_of_alpha_hats =
+					alpha_hat_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
+
+				let sum_of_betas =
+					self.beta_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
+
+				let sum_of_beta_hats =
+					self.beta_hat_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
+
+				let delta_i = BigInt::mod_mul(&self.gamma_i, &self.k_i, self.ssid.q)
+					.mod_add(sum_of_alphas, self.ssid.q)
+					.add(sum_of_betas, self.ssid.q);
+
+				let chi_i = BigInt::mod_mul(&self.secrets.x_i, &self.k_i, self.ssid.q)
+					.mod_add(sum_of_alpha_hats, self.ssid.q)
+					.add(sum_of_beta_hats, self.ssid.q);
+
+				// log* proof
+				// Compute psi_prime_j_i
+				let witness_psi_prime_prime_j_i =
+					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionWitness {
+						x: self.k_i,
+						rho: self.rho_i,
+						phantom: PhantomData,
+					};
+				let statement_psi_prime_prime_j_i =
+					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement {
+						N0: self.secrets.ek.n,
+						NN0: self.secrets.ek.nn,
+						C: self.K_i,
+						X: Delta_i,
+						s: S.get(j),
+						t: T.get(j),
+						N_hat: N_hats.get(j),
+						phantom: PhantomData,
+					};
+				let psi_prime_prime_j_i =
+					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof::<
+						Secp256k1,
+						Sha256,
+					>::prove(&witness_psi_prime_prime_j_i, &statement_psi_prime_prime_j_i);
+
+				// Send Message
+				let body =
+					PreSigningP2PMessage3 { ssid: todo!(), delta_i, Delta_i, psi_prime_prime_j_i };
+				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
+			}
+		}
+
 		Ok(Round3 {})
 	}
 

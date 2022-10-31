@@ -52,4 +52,18 @@ pub struct PreSigningP2PMessage2<E: Curve> {
 	psi_hat_j_i: crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
 	psi_prime_j_i:
 		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
+	statement_psi_j_i:
+		crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
+	statement_psi_prime_j_i:
+		crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
+	statement_psi_hat_j_i:
+		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
+}
+
+pub struct PreSigningP2PMessage3<E: Curve> {
+	pub ssid: SSID<E>,
+	pub delta_i: BigInt,
+	pub Delta_i: Point<E>,
+	psi_prime_prime_j_i:
+		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
 }
