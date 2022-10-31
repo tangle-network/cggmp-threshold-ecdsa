@@ -1,4 +1,7 @@
-use super::{rounds::{Round0, Round1, Round2, Round3}, PreSigningP2PMessage1};
+use super::{
+	rounds::{Round0, Round1, Round2, Round3},
+	PreSigningP2PMessage1,
+};
 
 use curv::elliptic::curves::Secp256k1;
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;

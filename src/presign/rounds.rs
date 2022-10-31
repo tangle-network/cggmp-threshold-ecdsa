@@ -1,12 +1,19 @@
-use std::{collections::HashMap, io::Error, char::REPLACEMENT_CHARACTER, marker::PhantomData};
+use std::{char::REPLACEMENT_CHARACTER, collections::HashMap, io::Error, marker::PhantomData};
 
 use super::{PreSigningP2PMessage1, PreSigningP2PMessage2, PreSigningSecrets, SSID};
-use curv::{arithmetic::Samplable, elliptic::curves::{Secp256k1, Point, Scalar}, BigInt};
+use curv::{
+	arithmetic::Samplable,
+	elliptic::curves::{Point, Scalar, Secp256k1},
+	BigInt,
+};
 use fs_dkr::{add_party_message::*, error::*, refresh_message::*};
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
 	party_i::Keys, state_machine::keygen::*,
 };
-use paillier::{DecryptionKey, EncryptWithChosenRandomness, Paillier, Randomness, RawPlaintext, Mul, Add, EncryptionKey, Encrypt};
+use paillier::{
+	Add, DecryptionKey, Encrypt, EncryptWithChosenRandomness, EncryptionKey, Mul, Paillier,
+	Randomness, RawPlaintext,
+};
 use round_based::{
 	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore, P2PMsgs, P2PMsgsStore},
 	Msg,
@@ -58,7 +65,7 @@ impl Round0 {
 			crate::utilities::enc::PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(
 				&witness, &statement,
 			);
-	
+
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
 				let body = PreSigningP2PMessage1 {
@@ -68,17 +75,12 @@ impl Round0 {
 					G_i,
 					psi_j_i,
 					enc_j_statement: statement,
-					ek: self.secrets.ek
+					ek: self.secrets.ek,
 				};
-				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body: body});
+				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
 			}
 		}
-		Ok(Round1 {
-			ssid: self.ssid,
-			secrets: self.secrets,
-			gamma_i: gamma_i,
-			nu_i: nu_i,
-		})
+		Ok(Round1 { ssid: self.ssid, secrets: self.secrets, gamma_i, nu_i })
 	}
 	pub fn is_expensive(&self) -> bool {
 		false
@@ -95,8 +97,7 @@ pub struct Round1 {
 impl Round1 {
 	pub fn proceed<O>(
 		self,
-		input: P2PMsgs<
-			PreSigningP2PMessage1<Secp256k1>>,
+		input: P2PMsgs<PreSigningP2PMessage1<Secp256k1>>,
 		mut output: O,
 	) -> Result<Round2>
 	where
@@ -106,7 +107,7 @@ impl Round1 {
 		let G: HashMap<u16, BigInt> = HashMap::new();
 		let eks: HashMap<u16, EncryptionKey> = HashMap::new();
 		// Verify P2P Messages
-		for msg in input.into_vec(){
+		for msg in input.into_vec() {
 			let j = msg.i;
 			K.insert(j, msg.K_i);
 			G.insert(j, msg.G_i);
@@ -121,7 +122,8 @@ impl Round1 {
 		}
 
 		// Compute Gamma_i
-		let Gamma_i = Point::<Secp256k1>::generator().as_point() * Scalar::from_bigint(&self.gamma_i);
+		let Gamma_i =
+			Point::<Secp256k1>::generator().as_point() * Scalar::from_bigint(&self.gamma_i);
 
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
@@ -135,57 +137,92 @@ impl Round1 {
 				let lower = BigInt::from(-1).mul(&upper);
 
 				let beta_i_j = BigInt::sample_range(lower, upper);
-				let beta_hat_i_j = BigInt::sample_range(lower, upper,);
+				let beta_hat_i_j = BigInt::sample_range(lower, upper);
 
 				// Compute D_j_i
-				let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(&eks.get(j), RawPlaintext::from(BigInt::from(-1).mul(beta_i_j)), Randomness::from(s_i_j));
-				let D_j_i = Paillier::add(&eks.get(j), Paillier::mul(&eks.get(j), K.get(j), self.gamma_i), encrypt_minus_beta_i_j);
+				let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(
+					&eks.get(j),
+					RawPlaintext::from(BigInt::from(-1).mul(beta_i_j)),
+					Randomness::from(s_i_j),
+				);
+				let D_j_i = Paillier::add(
+					&eks.get(j),
+					Paillier::mul(&eks.get(j), K.get(j), self.gamma_i),
+					encrypt_minus_beta_i_j,
+				);
 
 				// Compute F_j_i
-				let F_j_i = Paillier::encrypt_with_chosen_randomness(&self.secrets.ek, RawPlaintext::from(beta_i_j), Randomness::from(r_i_j));
+				let F_j_i = Paillier::encrypt_with_chosen_randomness(
+					&self.secrets.ek,
+					RawPlaintext::from(beta_i_j),
+					Randomness::from(r_i_j),
+				);
 
 				// Compute D_hat_j_i
-				let encrypt_minus_beta_hat_i_j = Paillier::encrypt_with_chosen_randomness(&eks.get(j), RawPlaintext::from(BigInt::from(-1).mul(beta_hat_i_j)), Randomness::from(s_hat_i_j));
-				let D_hat_j_i = Paillier::add(&eks.get(j), Paillier::mul(&eks.get(j), K.get(j), self.secrets.x_i), encrypt_minus_beta_hat_i_j);
+				let encrypt_minus_beta_hat_i_j = Paillier::encrypt_with_chosen_randomness(
+					&eks.get(j),
+					RawPlaintext::from(BigInt::from(-1).mul(beta_hat_i_j)),
+					Randomness::from(s_hat_i_j),
+				);
+				let D_hat_j_i = Paillier::add(
+					&eks.get(j),
+					Paillier::mul(&eks.get(j), K.get(j), self.secrets.x_i),
+					encrypt_minus_beta_hat_i_j,
+				);
 
 				// Compute F_hat_j_i
-				let F_hat_j_i = Paillier::encrypt_with_chosen_randomness(&self.secrets.ek, RawPlaintext::from(beta_hat_i_j), Randomness::from(r_hat_i_j));
+				let F_hat_j_i = Paillier::encrypt_with_chosen_randomness(
+					&self.secrets.ek,
+					RawPlaintext::from(beta_hat_i_j),
+					Randomness::from(r_hat_i_j),
+				);
 
 				// Compute psi_j_i
-				let witness_psi_j_i = crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
-					x: self.gamma_i,
-					y: beta_i_j,
-					rho: s_i_j,
-					rho_y: r_i_j,
-					phantom: PhantomData,
-				};
-				let statement_psi_j_i = crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-				};
-				let psi_j_i = crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::prove(&witness_psi_j_i, &statement_psi_j_i);
+				let witness_psi_j_i =
+					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
+						x: self.gamma_i,
+						y: beta_i_j,
+						rho: s_i_j,
+						rho_y: r_i_j,
+						phantom: PhantomData,
+					};
+				let statement_psi_j_i =
+					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {};
+				let psi_j_i = crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
+					Secp256k1,
+					Sha256,
+				>::prove(&witness_psi_j_i, &statement_psi_j_i);
 
 				// Compute psi_hat_j_i
-				let witness_psi_hat_j_i = crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
-					x: self.secrets.x_i,
-					y: beta_hat_i_j,
-					rho: s_hat_i_j,
-					rho_y: r_hat_i_j,
-					phantom: PhantomData,
-				};
-				let statement_psi_hat_j_i = crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-					
-				};
-				let psi_hat_j_i = crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::prove(&witness_psi_hat_j_i, &statement_psi_hat_j_i);
+				let witness_psi_hat_j_i =
+					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
+						x: self.secrets.x_i,
+						y: beta_hat_i_j,
+						rho: s_hat_i_j,
+						rho_y: r_hat_i_j,
+						phantom: PhantomData,
+					};
+				let statement_psi_hat_j_i =
+					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {};
+				let psi_hat_j_i = crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
+					Secp256k1,
+					Sha256,
+				>::prove(&witness_psi_hat_j_i, &statement_psi_hat_j_i);
 
 				// Compute psi_prime_j_i
-				let witness_psi_prime_j_i = crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionWitness {
-					x: self.gamma_i,
-					rho: self.nu_i,
-					phantom: PhantomData,
-				};
-				let statement_psi_prime_j_i = crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement {
-
-				};
-				let psi_prime_j_i = crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::prove(&witness_psi_j_i, &statement_psi_j_i);
+				let witness_psi_prime_j_i =
+					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionWitness {
+						x: self.gamma_i,
+						rho: self.nu_i,
+						phantom: PhantomData,
+					};
+				let statement_psi_prime_j_i =
+					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement {};
+				let psi_prime_j_i =
+					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof::<
+						Secp256k1,
+						Sha256,
+					>::prove(&witness_psi_j_i, &statement_psi_j_i);
 
 				// Send Message
 				let body = PreSigningP2PMessage2 {
@@ -198,12 +235,11 @@ impl Round1 {
 					psi_j_i,
 					psi_hat_j_i,
 					psi_prime_j_i,
-    			};
-				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body: body});
+				};
+				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
 			}
-			Ok(Round2{})
+			Ok(Round2 {})
 		}
-
 	}
 
 	pub fn is_expensive(&self) -> bool {
@@ -215,8 +251,7 @@ impl Round1 {
 	}
 }
 
-pub struct Round2 {
-}
+pub struct Round2 {}
 
 impl Round2 {
 	pub fn proceed(self, input: P2PMsgs<()>) -> Result<Round3> {
