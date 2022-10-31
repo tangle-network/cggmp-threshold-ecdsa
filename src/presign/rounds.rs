@@ -80,7 +80,7 @@ impl Round0 {
 				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
 			}
 		}
-		Ok(Round1 { ssid: self.ssid, secrets: self.secrets, gamma_i, nu_i })
+		Ok(Round1 { ssid: self.ssid, secrets: self.secrets, gamma_i, nu_i, G_i })
 	}
 	pub fn is_expensive(&self) -> bool {
 		false
@@ -92,6 +92,7 @@ pub struct Round1 {
 	secrets: PreSigningSecrets,
 	gamma_i: BigInt,
 	nu_i: BigInt,
+	G_i: BigInt,
 }
 
 impl Round1 {
@@ -106,19 +107,26 @@ impl Round1 {
 		let K: HashMap<u16, BigInt> = HashMap::new();
 		let G: HashMap<u16, BigInt> = HashMap::new();
 		let eks: HashMap<u16, EncryptionKey> = HashMap::new();
+		let S: HashMap<u16, BigInt> = HashMap::new();
+		let T: HashMap<u16, BigInt> = HashMap::new();
+		let N_hats: HashMap<u16, BigInt> = HashMap::new();
 		// Verify P2P Messages
 		for msg in input.into_vec() {
 			let j = msg.i;
 			K.insert(j, msg.K_i);
 			G.insert(j, msg.G_i);
 			eks.insert(j, msg.ek);
+			S.insert(j, msg.enc_j_statement.s);
+			T.insert(j, msg.enc_j_statement.t);
+			N_hats.insert(j, msg.enc_j_statement.N_hat);
 			let psi_i_j = msg.psi_j_i;
 			let enc_i_statement = msg.enc_j_statement.N0;
 
 			crate::utilities::enc::PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(
 				&psi_i_j,
 				&enc_i_statement,
-			);
+			)
+			.map_err(|e| Err(format!("Party {} verification of enc failed", j)));
 		}
 
 		// Compute Gamma_i
@@ -187,7 +195,22 @@ impl Round1 {
 						phantom: PhantomData,
 					};
 				let statement_psi_j_i =
-					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {};
+					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
+						S: S.get(j),
+						T: T.get(j),
+						N_hat: N_hats.get(j),
+						N0: self.secrets.ek.n,
+						N1: eks.get(j).n,
+						NN0: self.secrets.ek.nn,
+						NN1: eks.get(j).nn,
+						C: D_j_i,
+						D: K.get(j),
+						Y: F_j_i,
+						X: Gamma_i,
+						ek_prover: self.secrets.ek,
+						ek_verifier: eks.get(j),
+						phantom: PhantomData,
+					};
 				let psi_j_i = crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
 					Secp256k1,
 					Sha256,
@@ -203,7 +226,23 @@ impl Round1 {
 						phantom: PhantomData,
 					};
 				let statement_psi_hat_j_i =
-					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {};
+					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
+						S: S.get(j),
+						T: T.get(j),
+						N_hat: N_hats.get(j),
+						N0: self.secrets.ek.n,
+						N1: eks.get(j).n,
+						NN0: self.secrets.ek.nn,
+						NN1: eks.get(j).nn,
+						C: D_hat_j_i,
+						D: K.get(j),
+						Y: F_hat_j_i,
+						X: Point::<Secp256k1>::generator().as_point() *
+							Scalar::from_bigint(&self.secrets.x_i),
+						ek_prover: self.secrets.ek,
+						ek_verifier: eks.get(j),
+						phantom: PhantomData,
+					};
 				let psi_hat_j_i = crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
 					Secp256k1,
 					Sha256,
@@ -217,7 +256,16 @@ impl Round1 {
 						phantom: PhantomData,
 					};
 				let statement_psi_prime_j_i =
-					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement {};
+					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement {
+						N0: self.secrets.ek.n,
+						NN0: self.secrets.ek.nn,
+						C: self.G_i,
+						X: Gamma_i,
+						s: S.get(j),
+						t: T.get(j),
+						N_hat: N_hats.get(j),
+						phantom: PhantomData,
+					};
 				let psi_prime_j_i =
 					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof::<
 						Secp256k1,
@@ -255,7 +303,7 @@ pub struct Round2 {}
 
 impl Round2 {
 	pub fn proceed(self, input: P2PMsgs<()>) -> Result<Round3> {
-		Err()
+		Ok(Round3 {})
 	}
 
 	pub fn is_expensive(&self) -> bool {
@@ -266,10 +314,7 @@ impl Round2 {
 	}
 }
 
-pub struct Round3 {
-	t: u16,
-	n: u16,
-}
+pub struct Round3 {}
 
 impl Round3 {
 	pub fn proceed(self, input: P2PMsgs<()>) -> Result<LocalKey<Secp256k1>> {}

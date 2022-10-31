@@ -50,5 +50,6 @@ pub struct PreSigningP2PMessage2<E: Curve> {
 	F_hat_j_i: BigInt,
 	psi_j_i: crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
 	psi_hat_j_i: crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
-	psi_prime_j_i: crate::utilities::log_star::KnowledgeOfExponentPaillierEncyptionProof<E, Sha256>,
+	psi_prime_j_i:
+		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
 }
