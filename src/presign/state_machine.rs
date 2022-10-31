@@ -1,4 +1,4 @@
-use super::rounds::{Round0, Round1, Round2, Round3};
+use super::{rounds::{Round0, Round1, Round2, Round3}, PreSigningP2PMessage1};
 
 use curv::elliptic::curves::Secp256k1;
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
@@ -19,7 +19,7 @@ use thiserror::Error;
 // `P2PMsgs` to send all the data we need peers to receive.
 // FIXME: If we re-design `round-based-traits` to support sending 2 types of messages
 // in the same round, we can remove this hack.
-pub type Round0Messages = Store<P2PMsgs<()>>;
+pub type Round0Messages = Store<P2PMsgs<PreSigningP2PMessage1<Secp256k1>>>;
 pub type Round1Messages = Store<P2PMsgs<()>>;
 pub type Round2Messages = Store<P2PMsgs<()>>;
 

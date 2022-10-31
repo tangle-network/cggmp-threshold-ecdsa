@@ -33,8 +33,22 @@ pub struct PreSigningSecrets {
 
 pub struct PreSigningP2PMessage1<E: Curve> {
 	pub ssid: SSID<E>,
+	pub i: u16,
 	pub K_i: BigInt,
 	pub G_i: BigInt,
-	pub i: u16,
+	pub ek: EncryptionKey,
 	pub psi_j_i: crate::utilities::enc::PaillierEncryptionInRangeProof<E, Sha256>,
+	pub enc_j_statement: crate::utilities::enc::PaillierEncryptionInRangeStatement<E, Sha256>,
+}
+
+pub struct PreSigningP2PMessage2<E: Curve> {
+	pub ssid: SSID<E>,
+	pub Gamma_i: Point<E>,
+	D_j_i: BigInt,
+	F_j_i: BigInt,
+	D_hat_j_i: BigInt,
+	F_hat_j_i: BigInt,
+	psi_j_i: crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
+	psi_hat_j_i: crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
+	psi_prime_j_i: crate::utilities::log_star::KnowledgeOfExponentPaillierEncyptionProof<E, Sha256>, 
 }

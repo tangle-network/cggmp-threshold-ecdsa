@@ -35,7 +35,7 @@ use std::marker::PhantomData;
 use zk_paillier::zkproofs::IncorrectProof;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct KnowledgeOfExponentPaillierEncyptionStatement<E: Curve, H: Digest + Clone> {
+pub struct KnowledgeOfExponentPaillierEncryptionStatement<E: Curve, H: Digest + Clone> {
 	N0: BigInt,
 	NN0: BigInt,
 	C: BigInt,
@@ -46,13 +46,13 @@ pub struct KnowledgeOfExponentPaillierEncyptionStatement<E: Curve, H: Digest + C
 	phantom: PhantomData<(E, H)>,
 }
 
-pub struct KnowledgeOfExponentPaillierEncyptionWitness<E: Curve, H: Digest + Clone> {
+pub struct KnowledgeOfExponentPaillierEncryptionWitness<E: Curve, H: Digest + Clone> {
 	x: BigInt,
 	rho: BigInt,
 	phantom: PhantomData<(E, H)>,
 }
 
-impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionStatement<E, H> {
+impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncryptionStatement<E, H> {
 	#[allow(clippy::too_many_arguments)]
 	pub fn generate(
 		rho: BigInt,
@@ -60,7 +60,7 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionStatement<
 		t: BigInt,
 		N_hat: BigInt,
 		paillier_key: EncryptionKey,
-	) -> (Self, KnowledgeOfExponentPaillierEncyptionWitness<E, H>) {
+	) -> (Self, KnowledgeOfExponentPaillierEncryptionWitness<E, H>) {
 		// Set up exponents
 		let l_exp = BigInt::pow(&BigInt::from(2), L as u32);
 		// Set up moduli
@@ -76,12 +76,12 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionStatement<
 		.into();
 		(
 			Self { N0, NN0, C, X, N_hat, s, t, phantom: PhantomData },
-			KnowledgeOfExponentPaillierEncyptionWitness { x, rho, phantom: PhantomData },
+			KnowledgeOfExponentPaillierEncryptionWitness { x, rho, phantom: PhantomData },
 		)
 	}
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct KnowledgeOfExponentPaillierEncyptionCommitment<E: Curve> {
+pub struct KnowledgeOfExponentPaillierEncryptionCommitment<E: Curve> {
 	S: BigInt,
 	A: BigInt,
 	Y: Point<E>,
@@ -89,20 +89,20 @@ pub struct KnowledgeOfExponentPaillierEncyptionCommitment<E: Curve> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct KnowledgeOfExponentPaillierEncyptionProof<E: Curve, H: Digest + Clone> {
+pub struct KnowledgeOfExponentPaillierEncryptionProof<E: Curve, H: Digest + Clone> {
 	z_1: BigInt,
 	z_2: BigInt,
 	z_3: BigInt,
-	commitment: KnowledgeOfExponentPaillierEncyptionCommitment<E>,
+	commitment: KnowledgeOfExponentPaillierEncryptionCommitment<E>,
 	phantom: PhantomData<(E, H)>,
 }
 
 // Link to the UC non-interactive threshold ECDSA paper
-impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionProof<E, H> {
+impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncryptionProof<E, H> {
 	pub fn prove(
-		witness: &KnowledgeOfExponentPaillierEncyptionWitness<E, H>,
-		statement: &KnowledgeOfExponentPaillierEncyptionStatement<E, H>,
-	) -> KnowledgeOfExponentPaillierEncyptionProof<E, H> {
+		witness: &KnowledgeOfExponentPaillierEncryptionWitness<E, H>,
+		statement: &KnowledgeOfExponentPaillierEncryptionStatement<E, H>,
+	) -> KnowledgeOfExponentPaillierEncryptionProof<E, H> {
 		// Step 1: Sample alpha between -2^{l+ε} and 2^{l+ε}
 		let alpha_upper = BigInt::pow(&BigInt::from(2), crate::utilities::L_PLUS_EPSILON as u32);
 		let alpha_lower = BigInt::from(-1).mul(&alpha_upper);
@@ -151,7 +151,7 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionProof<E, H
 			&statement.N_hat,
 		);
 
-		let commitment = KnowledgeOfExponentPaillierEncyptionCommitment {
+		let commitment = KnowledgeOfExponentPaillierEncryptionCommitment {
 			S: S.clone(),
 			A: A.clone(),
 			Y: Y.clone(),
@@ -181,8 +181,8 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncyptionProof<E, H
 	}
 
 	pub fn verify(
-		proof: &KnowledgeOfExponentPaillierEncyptionProof<E, H>,
-		statement: &KnowledgeOfExponentPaillierEncyptionStatement<E, H>,
+		proof: &KnowledgeOfExponentPaillierEncryptionProof<E, H>,
+		statement: &KnowledgeOfExponentPaillierEncryptionStatement<E, H>,
 	) -> Result<(), IncorrectProof> {
 		let e = H::new()
 			.chain_bigint(&proof.commitment.S)
@@ -261,17 +261,17 @@ mod tests {
 
 		let rho: BigInt = BigInt::from_paillier_key(&paillier_key);
 		let (statement, witness) =
-			KnowledgeOfExponentPaillierEncyptionStatement::<Secp256k1, Sha256>::generate(
+			KnowledgeOfExponentPaillierEncryptionStatement::<Secp256k1, Sha256>::generate(
 				rho,
 				ring_pedersen_statement.S,
 				ring_pedersen_statement.T,
 				ring_pedersen_statement.N,
 				paillier_key,
 			);
-		let proof = KnowledgeOfExponentPaillierEncyptionProof::<Secp256k1, Sha256>::prove(
+		let proof = KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::prove(
 			&witness, &statement,
 		);
-		assert!(KnowledgeOfExponentPaillierEncyptionProof::<Secp256k1, Sha256>::verify(
+		assert!(KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::verify(
 			&proof, &statement
 		)
 		.is_ok());
