@@ -43,6 +43,7 @@ pub struct PreSigningP2PMessage1<E: Curve> {
 
 pub struct PreSigningP2PMessage2<E: Curve> {
 	pub ssid: SSID<E>,
+	pub i: u16,
 	pub Gamma_i: Point<E>,
 	D_j_i: BigInt,
 	F_j_i: BigInt,
@@ -62,8 +63,11 @@ pub struct PreSigningP2PMessage2<E: Curve> {
 
 pub struct PreSigningP2PMessage3<E: Curve> {
 	pub ssid: SSID<E>,
+	pub i: u16,
 	pub delta_i: BigInt,
 	pub Delta_i: Point<E>,
 	psi_prime_prime_j_i:
 		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
+	statement_psi_prime_prime_j_i:
+		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
 }

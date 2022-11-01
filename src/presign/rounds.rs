@@ -288,6 +288,7 @@ impl Round1 {
 				// Send Message
 				let body = PreSigningP2PMessage2 {
 					ssid: self.ssid,
+					i: self.ssid.X.i,
 					Gamma_i,
 					D_j_i,
 					F_j_i,
@@ -342,7 +343,7 @@ impl Round2 {
 		mut output: O,
 	) -> Result<Round3>
 	where
-		O: Push<Msg<PreSigningP2PMessage1<Secp256k1>>>,
+		O: Push<Msg<PreSigningP2PMessage2<Secp256k1>>>,
 	{
 		let S: HashMap<u16, BigInt> = HashMap::new();
 		let T: HashMap<u16, BigInt> = HashMap::new();
@@ -381,7 +382,7 @@ impl Round2 {
 				Secp256k1,
 				Sha256,
 			>::verify(&psi_hat_i_j, &statement_psi_hat_i_j)
-			.map_err(|e| Err(format!("Party {} verification of aff_j psi hatfailed", j)));
+			.map_err(|e| Err(format!("Party {} verification of log star psi hatfailed", j)));
 		}
 
 		// Compute Gamma
@@ -449,8 +450,14 @@ impl Round2 {
 					>::prove(&witness_psi_prime_prime_j_i, &statement_psi_prime_prime_j_i);
 
 				// Send Message
-				let body =
-					PreSigningP2PMessage3 { ssid: todo!(), delta_i, Delta_i, psi_prime_prime_j_i };
+				let body = PreSigningP2PMessage3 {
+					ssid: todo!(),
+					i: self.ssid.X.i,
+					delta_i,
+					Delta_i,
+					psi_prime_prime_j_i,
+					statement_psi_prime_prime_j_i,
+				};
 				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
 			}
 		}
@@ -469,6 +476,63 @@ impl Round2 {
 pub struct Round3 {}
 
 impl Round3 {
+	pub fn proceed<O>(
+		self,
+		input: P2PMsgs<PreSigningP2PMessage3<Secp256k1>>,
+		mut output: O,
+	) -> Result<Round4>
+	where
+		O: Push<Msg<PreSigningP2PMessage3<Secp256k1>>>,
+	{
+		let deltas: HashMap<u16, BigInt> = HashMap::new();
+		let Deltas: HashMap<u16, Point<Secp256k1>> = HashMap::new();
+		for msg in input.into_vec() {
+			let j = msg.i;
+			// Verify log star proof
+			let psi_prime_prime_i_j = msg.psi_prime_prime_j_i;
+
+			let statement_psi_prime_prime_i_j = msg.statement_psi_prime_prime_j_i;
+
+			crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof::<
+				Secp256k1,
+				Sha256,
+			>::verify(&psi_prime_prime_i_j, &statement_psi_prime_prime_i_j)
+			.map_err(|e| {
+				Err(format!("Party {} verification of log star psi prime prime failed", j))
+			});
+
+			// Add to Deltas and deltas
+			deltas.insert(j, msg.delta_i);
+			Deltas.insert(j, msg.Delta_i);
+		}
+
+		// Compute delta
+		let delta = deltas.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
+
+		// Compute product of Deltas
+		let product_of_deltas = Deltas
+			.values()
+			.into_iter()
+			.fold(Point::<Secp256k1>::zero(), |acc, x| acc.add(x));
+
+		if product_of_deltas ==
+			Point::<Secp256k1>::generator().as_point() * Scalar::from_bigint(&delta)
+		{
+		} else {
+		}
+	}
+
+	pub fn is_expensive(&self) -> bool {
+		false
+	}
+	pub fn expects_messages(i: u16, n: u16) -> Round1Messages {
+		P2PMsgsStore::new(i, n)
+	}
+}
+
+pub struct Round4 {}
+
+impl Round4 {
 	pub fn proceed(self, input: P2PMsgs<()>) -> Result<LocalKey<Secp256k1>> {}
 
 	pub fn is_expensive(&self) -> bool {
