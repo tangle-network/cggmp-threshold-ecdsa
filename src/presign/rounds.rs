@@ -558,46 +558,44 @@ impl Round3 {
 		} else {
 			// D_j_i proofs
 			let D_j_i_proofs: HashMap<
-				(u16, u16),
+				u16,
 				PaillierAffineOpWithGroupComInRangeProof<Secp256k1>,
 			> = HashMap::new();
 
 			for j in self.ssid.P.iter() {
-				for i in self.ssid.P.iter() {
-					if j != i {
-						// Compute psi_j_i
-						let witness_D_j_i =
-							crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
-								x: todo!(),
-								y: todo!(),
-								rho: todo!(),
-								rho_y: todo!(),
-								phantom: PhantomData,
-							};
-						let statement_D_j_i =
-							crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-								S: todo!(),
-								T: todo!(),
-								N_hat: todo!(),
-								N0: todo!(),
-								N1: todo!(),
-								NN0: todo!(),
-								NN1: todo!(),
-								C: todo!(),
-								D: todo!(),
-								Y: todo!(),
-								X: todo!(),
-								ek_prover: todo!(),
-								ek_verifier: todo!(),
-								phantom: PhantomData,
-							};
-						let D_j_i_proof =
-							crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
-								Secp256k1,
-								Sha256,
-							>::prove(&witness_D_j_i, &statement_D_j_i);
-						D_j_i_proofs.insert((j, i), D_j_i_proof);
-					}
+				if j != self.ssid.X.i {
+					// Compute psi_j_i
+					let witness_D_j_i =
+						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
+							x: todo!(),
+							y: todo!(),
+							rho: todo!(),
+							rho_y: todo!(),
+							phantom: PhantomData,
+						};
+					let statement_D_j_i =
+						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
+							S: todo!(),
+							T: todo!(),
+							N_hat: todo!(),
+							N0: todo!(),
+							N1: todo!(),
+							NN0: todo!(),
+							NN1: todo!(),
+							C: todo!(),
+							D: todo!(),
+							Y: todo!(),
+							X: todo!(),
+							ek_prover: todo!(),
+							ek_verifier: todo!(),
+							phantom: PhantomData,
+						};
+					let D_j_i_proof =
+						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
+							Secp256k1,
+							Sha256,
+						>::prove(&witness_D_j_i, &statement_D_j_i);
+					D_j_i_proofs.insert(j, D_j_i_proof);
 				}
 			}
 
