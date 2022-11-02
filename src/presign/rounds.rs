@@ -2,8 +2,17 @@ use std::{
 	char::REPLACEMENT_CHARACTER, collections::HashMap, hash::Hash, io::Error, marker::PhantomData,
 };
 
+use crate::utilities::{
+	aff_g::PaillierAffineOpWithGroupComInRangeProof,
+	dec_q::{
+		PaillierDecryptionModQProof, PaillierDecryptionModQStatement, PaillierDecryptionModQWitness,
+	},
+	mul::{PaillierMulProof, PaillierMulStatement, PaillierMulWitness},
+};
+
 use super::{
-	PreSigningP2PMessage1, PreSigningP2PMessage2, PreSigningP2PMessage3, PreSigningSecrets, SSID,
+	IdentifiableAbortBroadcastMessage, PreSigningP2PMessage1, PreSigningP2PMessage2,
+	PreSigningP2PMessage3, PreSigningSecrets, PresigningOutput, PresigningTranscript, SSID,
 };
 use curv::{
 	arithmetic::Samplable,
@@ -403,27 +412,30 @@ impl Round2 {
 				alpha_hat_i
 					.insert(j, Paillier::decrypt(&self.secrets.ek, D_hat_i.get(j)))
 					.into();
+			}
+		}
 
-				let sum_of_alphas =
-					alpha_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
+		let sum_of_alphas = alpha_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
 
-				let sum_of_alpha_hats =
-					alpha_hat_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
+		let sum_of_alpha_hats =
+			alpha_hat_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
 
-				let sum_of_betas =
-					self.beta_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
+		let sum_of_betas =
+			self.beta_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
 
-				let sum_of_beta_hats =
-					self.beta_hat_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
+		let sum_of_beta_hats =
+			self.beta_hat_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
 
-				let delta_i = BigInt::mod_mul(&self.gamma_i, &self.k_i, self.ssid.q)
-					.mod_add(sum_of_alphas, self.ssid.q)
-					.add(sum_of_betas, self.ssid.q);
+		let delta_i = BigInt::mod_mul(&self.gamma_i, &self.k_i, self.ssid.q)
+			.mod_add(sum_of_alphas, self.ssid.q)
+			.add(sum_of_betas, self.ssid.q);
 
-				let chi_i = BigInt::mod_mul(&self.secrets.x_i, &self.k_i, self.ssid.q)
-					.mod_add(sum_of_alpha_hats, self.ssid.q)
-					.add(sum_of_beta_hats, self.ssid.q);
+		let chi_i = BigInt::mod_mul(&self.secrets.x_i, &self.k_i, self.ssid.q)
+			.mod_add(sum_of_alpha_hats, self.ssid.q)
+			.add(sum_of_beta_hats, self.ssid.q);
 
+		for j in self.ssid.P.iter() {
+			if j != &self.ssid.X.i {
 				// log* proof
 				// Compute psi_prime_j_i
 				let witness_psi_prime_prime_j_i =
@@ -462,7 +474,7 @@ impl Round2 {
 			}
 		}
 
-		Ok(Round3 {})
+		Ok(Round3 { ssid: self.ssid, Gamma, k_i: self.k_i, chi_i })
 	}
 
 	pub fn is_expensive(&self) -> bool {
@@ -473,7 +485,12 @@ impl Round2 {
 	}
 }
 
-pub struct Round3 {}
+pub struct Round3 {
+	ssid: SSID<Secp256k1>,
+	Gamma: Point<Secp256k1>,
+	k_i: BigInt,
+	chi_i: BigInt,
+}
 
 impl Round3 {
 	pub fn proceed<O>(
@@ -482,7 +499,7 @@ impl Round3 {
 		mut output: O,
 	) -> Result<Round4>
 	where
-		O: Push<Msg<PreSigningP2PMessage3<Secp256k1>>>,
+		O: Push<Msg<IdentifiableAbortBroadcastMessage<Secp256k1>>>,
 	{
 		let deltas: HashMap<u16, BigInt> = HashMap::new();
 		let Deltas: HashMap<u16, Point<Secp256k1>> = HashMap::new();
@@ -518,7 +535,122 @@ impl Round3 {
 		if product_of_deltas ==
 			Point::<Secp256k1>::generator().as_point() * Scalar::from_bigint(&delta)
 		{
+			let R = self.Gamma * Scalar::from_bigint(BigInt::from(-1).mul(delta));
+			let output = PresigningOutput {
+				ssid: self.ssid,
+				i: self.ssid.X.i,
+				k_i: self.k_i,
+				chi_i: self.chi_i,
+			};
+			let transcript = PresigningTranscript {
+				// TODO: fill this in
+			};
+
+			let body = IdentifiableAbortBroadcastMessage {
+				D_j_i_proofs: None,
+				H_i_proof: None,
+				delta_i_proof: None,
+			};
+
+			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
+
+			Ok(Round4 { output: Some(output), transcript: Some(transcript) })
 		} else {
+			// D_j_i proofs
+			let D_j_i_proofs: HashMap<
+				(u16, u16),
+				PaillierAffineOpWithGroupComInRangeProof<Secp256k1>,
+			> = HashMap::new();
+
+			for j in self.ssid.P.iter() {
+				for i in self.ssid.P.iter() {
+					if j != i {
+						// Compute psi_j_i
+						let witness_D_j_i =
+							crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
+								x: todo!(),
+								y: todo!(),
+								rho: todo!(),
+								rho_y: todo!(),
+								phantom: PhantomData,
+							};
+						let statement_D_j_i =
+							crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
+								S: todo!(),
+								T: todo!(),
+								N_hat: todo!(),
+								N0: todo!(),
+								N1: todo!(),
+								NN0: todo!(),
+								NN1: todo!(),
+								C: todo!(),
+								D: todo!(),
+								Y: todo!(),
+								X: todo!(),
+								ek_prover: todo!(),
+								ek_verifier: todo!(),
+								phantom: PhantomData,
+							};
+						let D_j_i_proof =
+							crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
+								Secp256k1,
+								Sha256,
+							>::prove(&witness_D_j_i, &statement_D_j_i);
+						D_j_i_proofs.insert((j, i), D_j_i_proof);
+					}
+				}
+			}
+
+			// H_i proof
+			let witness_H_i = PaillierMulWitness {
+				x: todo!(),
+				rho: todo!(),
+				rho_x: todo!(),
+				phantom: PhantomData,
+			};
+
+			let statement_H_i = PaillierMulStatement {
+				N: todo!(),
+				NN: todo!(),
+				C: todo!(),
+				Y: todo!(),
+				X: todo!(),
+				ek_prover: todo!(),
+				phantom: PhantomData,
+			};
+
+			let H_i_proof =
+				PaillierMulProof::<Secp256k1, Sha256>::prove(&witness_H_i, &statement_H_i);
+
+			// delta_i proofs
+			let witness_delta_i =
+				PaillierDecryptionModQWitness { y: todo!(), rho: todo!(), phantom: PhantomData };
+
+			let statement_delta_i = PaillierDecryptionModQStatement {
+				S: todo!(),
+				T: todo!(),
+				N_hat: todo!(),
+				N0: todo!(),
+				NN0: todo!(),
+				C: todo!(),
+				x: todo!(),
+				ek_prover: todo!(),
+				phantom: PhantomData,
+			};
+
+			let delta_i_proof = PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
+				&witness_delta_i,
+				&statement_delta_i,
+			);
+
+			let body = IdentifiableAbortBroadcastMessage {
+				D_j_i_proofs: Some(D_j_i_proofs),
+				H_i_proof: Some(H_i_proof),
+				delta_i_proof: Some(delta_i_proof),
+			};
+
+			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
+			Ok(Round4 { output: None, transcript: None })
 		}
 	}
 
@@ -530,10 +662,27 @@ impl Round3 {
 	}
 }
 
-pub struct Round4 {}
+pub struct Round4 {
+	output: Option<PresigningOutput<Secp256k1>>,
+	transcript: Option<PresigningTranscript<Secp256k1>>,
+}
 
 impl Round4 {
-	pub fn proceed(self, input: P2PMsgs<()>) -> Result<LocalKey<Secp256k1>> {}
+	pub fn proceed(
+		self,
+		input: P2PMsgs<()>,
+	) -> (Option<PresigningOutput<Secp256k1>>, Option<PresigningTranscript<Secp256k1>>) {
+		if self.output.is_some() {
+			(self.output, self.transcript)
+		} else {
+			// Check D_j_i proofs
+
+			// Check H_i_proof
+
+			// Check delta_i_proof
+			(None, None)
+		}
+	}
 
 	pub fn is_expensive(&self) -> bool {
 		false

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use curv::{
 	elliptic::curves::{Curve, Point},
 	BigInt,
@@ -5,6 +7,11 @@ use curv::{
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
 use paillier::{DecryptionKey, EncryptionKey, RawCiphertext};
 use sha2::Sha256;
+
+use crate::utilities::{
+	aff_g::PaillierAffineOpWithGroupComInRangeProof, dec_q::PaillierDecryptionModQProof,
+	mul::PaillierMulProof,
+};
 
 pub mod rounds;
 pub mod state_machine;
@@ -70,4 +77,19 @@ pub struct PreSigningP2PMessage3<E: Curve> {
 		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
 	statement_psi_prime_prime_j_i:
 		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
+}
+
+pub struct PresigningOutput<E: Curve> {
+	pub ssid: SSID<E>,
+	pub i: u16,
+	pub k_i: BigInt,
+	pub chi_i: BigInt,
+}
+
+pub struct PresigningTranscript<E: Curve> {}
+
+pub struct IdentifiableAbortBroadcastMessage<E: Curve> {
+	D_j_i_proofs: Option<HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>>,
+	H_i_proof: Option<PaillierMulProof<E, Sha256>>,
+	delta_i_proof: Option<PaillierDecryptionModQProof<E, Sha256>>,
 }
