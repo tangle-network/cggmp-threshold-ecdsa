@@ -547,8 +547,11 @@ impl Round3 {
 			};
 
 			let body = IdentifiableAbortBroadcastMessage {
+				statements_D_j_i: None,
 				D_j_i_proofs: None,
+				statement_H_i: None,
 				H_i_proof: None,
+				statement_delta_i: None,
 				delta_i_proof: None,
 			};
 
@@ -557,7 +560,10 @@ impl Round3 {
 			Ok(Round4 { output: Some(output), transcript: Some(transcript) })
 		} else {
 			// D_j_i proofs
-			let D_j_i_proofs: HashMap<
+			let D_j_i_proofs: HashMap<u16, PaillierAffineOpWithGroupComInRangeProof<Secp256k1>> =
+				HashMap::new();
+
+			let statements_D_j_i: HashMap<
 				u16,
 				PaillierAffineOpWithGroupComInRangeProof<Secp256k1>,
 			> = HashMap::new();
@@ -596,6 +602,7 @@ impl Round3 {
 							Sha256,
 						>::prove(&witness_D_j_i, &statement_D_j_i);
 					D_j_i_proofs.insert(j, D_j_i_proof);
+					statements_D_j_i.insert(j, statement_D_j_i);
 				}
 			}
 
@@ -642,8 +649,11 @@ impl Round3 {
 			);
 
 			let body = IdentifiableAbortBroadcastMessage {
+				statements_D_j_i: Some(statements_D_j_i),
 				D_j_i_proofs: Some(D_j_i_proofs),
+				statement_H_i: Some(statement_H_i),
 				H_i_proof: Some(H_i_proof),
+				statement_delta_i: Some(statement_delta_i),
 				delta_i_proof: Some(delta_i_proof),
 			};
 
@@ -668,16 +678,39 @@ pub struct Round4 {
 impl Round4 {
 	pub fn proceed(
 		self,
-		input: P2PMsgs<()>,
+		input: BroadcastMsgs<IdentifiableAbortBroadcastMessage<Secp256k1>>,
 	) -> (Option<PresigningOutput<Secp256k1>>, Option<PresigningTranscript<Secp256k1>>) {
 		if self.output.is_some() {
 			(self.output, self.transcript)
 		} else {
-			// Check D_j_i proofs
+			for msg in input.into_vec() {
+				// Check D_i_j proofs
+				for i in msg.D_j_i_proofs.keys() {
+					let D_i_j_proof = msg.D_j_i_proofs.unwrap().get(i);
 
-			// Check H_i_proof
+					let statement_D_i_j = msg.statements_D_j_i.unwrap().get(i);
 
-			// Check delta_i_proof
+					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
+						Secp256k1,
+						Sha256,
+					>::verify(&D_i_j_proof, &statement_D_i_j)
+					.map_err(|e| Err(format!("D_i_j proof failed")));
+				}
+
+				// Check H_j proofs
+				let H_i_proof = msg.H_i_proof.unwrap();
+				let statement_H_i = msg.statement_H_i.unwrap();
+
+				PaillierMulProof::verify(&H_i_proof, &statement_H_i)
+					.map_err(|e| Err(format!("H_j proof failed")));
+
+				// Check delta_j_proof
+				let delta_i_proof = msg.delta_i_proof.unwrap();
+				let statement_delta_i = msg.statement_delta_i.unwrap();
+
+				PaillierDecryptionModQProof::verify(&delta_i_proof, &statement_delta_i)
+					.map_err(|e| Err(format!("delta_j proof failed")));
+			}
 			(None, None)
 		}
 	}

@@ -9,8 +9,11 @@ use paillier::{DecryptionKey, EncryptionKey, RawCiphertext};
 use sha2::Sha256;
 
 use crate::utilities::{
-	aff_g::PaillierAffineOpWithGroupComInRangeProof, dec_q::PaillierDecryptionModQProof,
-	mul::PaillierMulProof,
+	aff_g::{
+		PaillierAffineOpWithGroupComInRangeProof, PaillierAffineOpWithGroupComInRangeStatement,
+	},
+	dec_q::PaillierDecryptionModQProof,
+	mul::{PaillierMulProof, PaillierMulStatement},
 };
 
 pub mod rounds;
@@ -89,7 +92,11 @@ pub struct PresigningOutput<E: Curve> {
 pub struct PresigningTranscript<E: Curve> {}
 
 pub struct IdentifiableAbortBroadcastMessage<E: Curve> {
+	statements_D_j_i:
+		Option<HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>>>,
 	D_j_i_proofs: Option<HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>>,
+	statement_H_i: Option<PaillierMulStatement<E, Sha256>>,
 	H_i_proof: Option<PaillierMulProof<E, Sha256>>,
+	statement_delta_i: Option<PaillierDecryptionModQProof<E, Sha256>>,
 	delta_i_proof: Option<PaillierDecryptionModQProof<E, Sha256>>,
 }
