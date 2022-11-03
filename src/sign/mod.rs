@@ -12,8 +12,11 @@ use crate::utilities::{
 	aff_g::{
 		PaillierAffineOpWithGroupComInRangeProof, PaillierAffineOpWithGroupComInRangeStatement,
 	},
-	dec_q::PaillierDecryptionModQProof,
+	dec_q::{PaillierDecryptionModQProof, PaillierDecryptionModQStatement},
 	mul::{PaillierMulProof, PaillierMulStatement},
+	mul_star::{
+		PaillierMultiplicationVersusGroupProof, PaillierMultiplicationVersusGroupStatement,
+	},
 };
 
 pub mod rounds;
@@ -47,4 +50,11 @@ pub struct SigningOutput<E: Curve> {
 	sigma: BigInt,
 }
 
-pub struct SigningIdentifiableAbortMessage<E: Curve> {}
+pub struct SigningIdentifiableAbortMessage<E: Curve> {
+	D_hat_j_i_proofs: HashMap<u16, PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>,
+	statements_D_hat_j_i: HashMap<u16, PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>>,
+	H_hat_i_proof: PaillierMultiplicationVersusGroupProof<E, Sha256>,
+	statement_H_hat_i: PaillierMultiplicationVersusGroupStatement<E, Sha256>,
+	sigma_i_proof: PaillierDecryptionModQProof<E, Sha256>,
+	statement_sigma_i: PaillierDecryptionModQStatement<E, Sha256>,
+}

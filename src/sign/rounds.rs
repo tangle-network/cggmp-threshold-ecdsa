@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Add};
+use std::{collections::HashMap, marker::PhantomData, ops::Add};
 
 use curv::{
 	elliptic::curves::{Point, Scalar, Secp256k1},
@@ -8,8 +8,21 @@ use round_based::{
 	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore},
 	Msg,
 };
+use sha2::Sha256;
 
-use crate::presign::{PresigningOutput, PresigningTranscript};
+use crate::{
+	presign::{PresigningOutput, PresigningTranscript},
+	utilities::{
+		aff_g::{
+			PaillierAffineOpWithGroupComInRangeProof, PaillierAffineOpWithGroupComInRangeStatement,
+		},
+		dec_q::{
+			PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
+			PaillierDecryptionModQWitness,
+		},
+		mul_star::PaillierMultiplicationVersusGroupProof,
+	},
+};
 
 use super::{SigningBroadcastMessage1, SigningIdentifiableAbortMessage, SigningOutput, SSID};
 
@@ -90,6 +103,105 @@ impl Round1 {
 			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: None });
 			Ok(Round2 { output: Some(signing_output) })
 		} else {
+			// aff-g proofs
+			let D_hat_j_i_proofs: HashMap<
+				u16,
+				PaillierAffineOpWithGroupComInRangeProof<Secp256k1>,
+			> = HashMap::new();
+			let statements_D_hat_j_i: HashMap<
+				u16,
+				PaillierAffineOpWithGroupComInRangeStatement<Secp256k1>,
+			> = HashMap::new();
+
+			for j in self.ssid.P.iter() {
+				if j != self.ssid.X.i {
+					let witness_D_hat_j_i =
+						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
+							x: todo!(),
+							y: todo!(),
+							rho: todo!(),
+							rho_y: todo!(),
+							phantom: PhantomData,
+						};
+					let statement_D_hat_j_i =
+						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
+							S: todo!(),
+							T: todo!(),
+							N_hat: todo!(),
+							N0: todo!(),
+							N1: todo!(),
+							NN0: todo!(),
+							NN1: todo!(),
+							C: todo!(),
+							D: todo!(),
+							Y: todo!(),
+							X: todo!(),
+							ek_prover: todo!(),
+							ek_verifier: todo!(),
+							phantom: PhantomData,
+						};
+					let D_hat_j_i_proof =
+						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
+							Secp256k1,
+							Sha256,
+						>::prove(&witness_D_hat_j_i, &statement_D_hat_j_i);
+					D_hat_j_i_proofs.insert(j, D_hat_j_i_proof);
+					statements_D_hat_j_i.insert(j, statement_D_hat_j_i);
+				}
+			}
+
+			// mul* proof
+			let witness_H_hat_i = PaillierMultiplicationVersusGroupProof {
+				z_1: todo!(),
+				z_2: todo!(),
+				w: todo!(),
+				commitment: todo!(),
+				phantom: PhantomData,
+			};
+
+			let statement_H_hat_i = PaillierMultiplicationVersusGroupProof {
+				z_1: todo!(),
+				z_2: todo!(),
+				w: todo!(),
+				commitment: todo!(),
+				phantom: PhantomData,
+			};
+
+			let H_hat_i_proof = PaillierMultiplicationVersusGroupProof::<Secp256k1, Sha256>::prove(
+				&witness_H_hat_i,
+				&statement_H_hat_i,
+			);
+
+			// dec proof
+			let witness_sigma_i =
+				PaillierDecryptionModQWitness { y: todo!(), rho: todo!(), phantom: PhantomData };
+
+			let statement_sigma_i = PaillierDecryptionModQStatement {
+				S: todo!(),
+				T: todo!(),
+				N_hat: todo!(),
+				N0: todo!(),
+				NN0: todo!(),
+				C: todo!(),
+				x: todo!(),
+				ek_prover: todo!(),
+				phantom: PhantomData,
+			};
+
+			let sigma_i_proof = PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
+				&witness_sigma_i,
+				&statement_sigma_i,
+			);
+
+			let body = SigningIdentifiableAbortMessage {
+				D_hat_j_i_proofs,
+				statements_D_hat_j_i,
+				H_hat_i_proof,
+				statement_H_hat_i,
+				sigma_i_proof,
+				statement_sigma_i,
+			};
+			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
 			Ok(Round2 { output: None })
 		}
 	}
@@ -105,6 +217,54 @@ impl Round1 {
 
 pub struct Round2 {
 	output: Option<SigningOutput<Secp256k1>>,
+}
+
+impl Round2 {
+	pub fn proceed(
+		self,
+		input: BroadcastMsgs<SigningIdentifiableAbortMessage<Secp256k1>>,
+	) -> Option<SigningOutput<Secp256k1>> {
+		if self.output.is_some() {
+			(self.output, self.transcript)
+		} else {
+			for msg in input.into_vec() {
+				// Check D_i_j proofs
+				for i in msg.D_hat_j_i_proofs.keys() {
+					let D_hat_i_j_proof = msg.D_hat_j_i_proofs.unwrap().get(i);
+
+					let statement_D_i_j = msg.statements_D_hat_j_i.unwrap().get(i);
+
+					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
+						Secp256k1,
+						Sha256,
+					>::verify(&D_hat_i_j_proof, &statement_D_i_j)
+					.map_err(|e| Err(format!("D_hat_i_j proof failed")));
+				}
+
+				// Check H_j proofs
+				let H_hat_i_proof = msg.H_hat_i_proof.unwrap();
+				let statement_H_hat_i = msg.statement_H_hat_i.unwrap();
+
+				PaillierMultiplicationVersusGroupProof::verify(&H_hat_i_proof, &statement_H_hat_i)
+					.map_err(|e| Err(format!("H_hat_j proof failed")));
+
+				// Check delta_j_proof
+				let sigma_i_proof = msg.sigma_i_proof.unwrap();
+				let statement_sigma_i = msg.statement_sigma_i.unwrap();
+
+				PaillierDecryptionModQProof::verify(&sigma_i_proof, &statement_sigma_i)
+					.map_err(|e| Err(format!("sigma_j proof failed")));
+			}
+			None
+		}
+	}
+
+	pub fn is_expensive(&self) -> bool {
+		false
+	}
+	pub fn expects_messages(i: u16, n: u16) -> Round1Messages {
+		BroadcastMsgsStore::new(i, n)
+	}
 }
 
 type Result<T> = std::result::Result<T, Error>;
