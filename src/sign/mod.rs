@@ -39,3 +39,14 @@ pub struct SigningBroadcastMessage1<E: Curve> {
 	pub i: u16,
 	pub sigma_i: BigInt,
 }
+
+pub struct SigningOutput<E: Curve> {
+	ssid: SSID<E>,
+	m: BigInt,
+	r: BigInt,
+	sigma: BigInt,
+}
+
+pub struct SigningIdentifiableAbortMessage<E: Curve> {
+	
+}
