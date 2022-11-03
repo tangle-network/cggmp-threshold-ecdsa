@@ -538,6 +538,7 @@ impl Round3 {
 			let R = self.Gamma * Scalar::from_bigint(BigInt::from(-1).mul(delta));
 			let output = PresigningOutput {
 				ssid: self.ssid,
+				R: R,
 				i: self.ssid.X.i,
 				k_i: self.k_i,
 				chi_i: self.chi_i,
