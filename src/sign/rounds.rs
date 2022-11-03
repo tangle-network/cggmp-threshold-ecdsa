@@ -1,6 +1,9 @@
 use std::{collections::HashMap, ops::Add};
 
-use curv::{elliptic::curves::{Secp256k1, Point, Scalar}, BigInt};
+use curv::{
+	elliptic::curves::{Point, Scalar, Secp256k1},
+	BigInt,
+};
 use round_based::{
 	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore},
 	Msg,
@@ -8,7 +11,7 @@ use round_based::{
 
 use crate::presign::{PresigningOutput, PresigningTranscript};
 
-use super::{SigningBroadcastMessage1, SSID, SigningOutput, SigningIdentifiableAbortMessage};
+use super::{SigningBroadcastMessage1, SigningIdentifiableAbortMessage, SigningOutput, SSID};
 
 pub struct Round0 {
 	pub ssid: SSID<Secp256k1>,
@@ -71,30 +74,23 @@ impl Round1 {
 			sigmas.insert(msg.i, msg.sigma_i);
 		}
 		let sigma: BigInt = sigmas.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
-		
+
 		// Verify (r, sigma) is a valid signature
 		let sigma_inv = BigInt::mod_inv(sigma);
 		let m_sigma_inv = self.m.mul(sigma_inv);
 		let r_sigma_inv = self.r.mul(sigma_inv);
 		let g = Point::<Secp256k1>::generator();
 		let X = self.ssid.X.public_key();
-		let x_projection = (g * Scalar::from_bigint(m_sigma_inv)).add(X * Scalar::from_bigint(r_sigma_inv)).x_coord();
-		
+		let x_projection = (g * Scalar::from_bigint(m_sigma_inv))
+			.add(X * Scalar::from_bigint(r_sigma_inv))
+			.x_coord();
+
 		if self.r == x_projection {
-			let signing_output = SigningOutput {
-				ssid: self.ssid,
-				m: self.m ,
-				r: self.r,
-				sigma,
-			};
+			let signing_output = SigningOutput { ssid: self.ssid, m: self.m, r: self.r, sigma };
 			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: None });
-			Ok(Round2 {
-				output: Some(signing_output),
-			})
+			Ok(Round2 { output: Some(signing_output) })
 		} else {
-			Ok(Round2 {
-				output: None,
-			})
+			Ok(Round2 { output: None })
 		}
 	}
 

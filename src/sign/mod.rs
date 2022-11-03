@@ -47,6 +47,4 @@ pub struct SigningOutput<E: Curve> {
 	sigma: BigInt,
 }
 
-pub struct SigningIdentifiableAbortMessage<E: Curve> {
-	
-}
+pub struct SigningIdentifiableAbortMessage<E: Curve> {}
