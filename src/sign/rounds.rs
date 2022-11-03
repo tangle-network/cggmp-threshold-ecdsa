@@ -1,48 +1,87 @@
-#![allow(non_snake_case)]
+use std::collections::HashMap;
 
-use thiserror::Error;
+use curv::{elliptic::curves::Secp256k1, BigInt};
+use round_based::{
+	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore},
+	Msg,
+};
 
-use round_based::{containers::push::Push, Msg};
+use crate::presign::{PresigningOutput, PresigningTranscript};
 
-use crate::ErrorType;
+use super::{SigningBroadcastMessage1, SSID};
 
-type Result<T, E = Error> = std::result::Result<T, E>;
+pub struct Round0 {
+	pub ssid: SSID<Secp256k1>,
+	pub l: usize, // This is the number of presignings to run in parallel
+	pub m: BigInt,
+	pub presigning_data:
+		HashMap<u16, (PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)>,
+}
 
-#[derive(Debug, Error)]
-pub enum Error {
-	#[error("round 1: {0:?}")]
-	Round1(ErrorType),
-	#[error("round 2 stage 3: {0:?}")]
-	Round2Stage3(crate::Error),
-	#[error("round 2 stage 4: {0:?}")]
-	Round2Stage4(ErrorType),
-	#[error("round 3: {0:?}")]
-	Round3(ErrorType),
-	#[error("round 5: {0:?}")]
-	Round5(ErrorType),
-	#[error("round 6: verify proof: {0:?}")]
-	Round6VerifyProof(ErrorType),
-	#[error("round 6: check sig: {0:?}")]
-	Round6CheckSig(crate::Error),
-	#[error("round 7: {0:?}")]
-	Round7(crate::Error),
+impl Round0 {
+	pub fn proceed<O>(self, mut output: O) -> Result<Round1>
+	where
+		O: Push<Msg<SigningBroadcastMessage1<Secp256k1>>>,
+	{
+		if self.presigning_data.get(self.l).is_some() {
+			let (output, transcript) = self.presigning_data.get(self.l).unwrap();
+			let r = output.R.x_coord().unwrap();
+			let sigma_i = output.k_i.mul(self.m).add(r.mul(output.chi_i));
+			let body = SigningBroadcastMessage1 { ssid: self.ssid, i: self.ssid.X.i, sigma_i };
+			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
+			// TODO: Erase output from memory
+			Ok(Round1 {
+				i: self.ssid.X.i,
+				r,
+				m: self.m,
+				presigning_transcript: transcript,
+				sigma: sigma_i,
+			})
+		} else {
+			Err(format!("No offline stage for {}", self.l))
+		}
+	}
+	pub fn is_expensive(&self) -> bool {
+		false
+	}
 }
 
 pub struct Round1 {
-	pub party_i: u16,
-	pub t: u16,
-	pub n: u16,
+	i: u16,
+	r: BigInt,
+	m: BigInt,
+	presigning_transcript: PresigningTranscript<Secp256k1>,
+	sigma: BigInt,
 }
 
 impl Round1 {
-	pub fn proceed<O>(self, mut output: O) -> Result<Round1>
+	pub fn proceed<O>(
+		self,
+		input: BroadcastMsgs<SigningBroadcastMessage1<Secp256k1>>,
+		mut output: O,
+	) -> Result<Round2>
 	where
-		O: Push<Msg<Vec<u8>>>,
+		O: Push<Msg<()>>,
 	{
-		output.push(Msg { sender: self.party_i, receiver: None, body: vec![] });
-		Ok(Round1 { party_i: self.party_i, t: self.t, n: self.n })
+		let sigmas: HashMap<u16, BigInt> = HashMap::new();
+		sigmas.insert(self.i, self.sigma);
+		for msg in input.into_vec() {
+			sigmas.insert(msg.i, msg.sigma_i);
+		}
+		let sigma = sigmas.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
+
+		// Verify (r, sigma) is a valid signature
 	}
+
 	pub fn is_expensive(&self) -> bool {
-		true
+		false
+	}
+
+	pub fn expects_messages(i: u16, n: u16) -> Round0Messages {
+		BroadcastMsgsStore::new(i, n)
 	}
 }
+
+pub struct Round2 {}
+
+type Result<T> = std::result::Result<T, Error>;

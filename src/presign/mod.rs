@@ -84,12 +84,15 @@ pub struct PreSigningP2PMessage3<E: Curve> {
 
 pub struct PresigningOutput<E: Curve> {
 	pub ssid: SSID<E>,
+	pub R: Point<E>,
 	pub i: u16,
 	pub k_i: BigInt,
 	pub chi_i: BigInt,
 }
 
-pub struct PresigningTranscript<E: Curve> {}
+pub struct PresigningTranscript<E: Curve> {
+	// TODO: fill in
+}
 
 pub struct IdentifiableAbortBroadcastMessage<E: Curve> {
 	statements_D_j_i:
