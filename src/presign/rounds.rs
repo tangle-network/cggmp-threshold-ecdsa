@@ -1,5 +1,6 @@
 use std::{
-	char::REPLACEMENT_CHARACTER, collections::HashMap, hash::Hash, io::Error, marker::PhantomData,
+	char::REPLACEMENT_CHARACTER, collections::HashMap, f32::consts::E, hash::Hash, io::Error,
+	marker::PhantomData,
 };
 
 use crate::utilities::{
@@ -535,7 +536,7 @@ impl Round3 {
 		if product_of_deltas ==
 			Point::<Secp256k1>::generator().as_point() * Scalar::from_bigint(&delta)
 		{
-			let R = self.Gamma * Scalar::from_bigint(BigInt::from(-1).mul(delta));
+			let R = self.Gamma * Scalar::from_bigint(BigInt::mod_inv(&delta));
 			let output = PresigningOutput {
 				ssid: self.ssid,
 				R,
@@ -608,7 +609,13 @@ impl Round3 {
 			}
 
 			// H_i proof
-			let H_i = Paillier::encrypt(&self.secrets.ek, BigInt::mul(&self.k_i, &self.gamma_i));
+			let H_i_randomness =
+				crate::utilities::sample_relatively_prime_integer(&self.secrets.ek.n);
+			let H_i = Paillier::encrypt_with_chosen_randomness(
+				&self.secrets.ek,
+				RawPlaintext::from(BigInt::mul(&self.k_i, &self.gamma_i)),
+				Randomness::from(H_i_randomness),
+			);
 			let witness_H_i = PaillierMulWitness {
 				x: self.k_i,
 				rho: self.nu_i,
@@ -630,18 +637,32 @@ impl Round3 {
 				PaillierMulProof::<Secp256k1, Sha256>::prove(&witness_H_i, &statement_H_i);
 
 			// delta_i proofs
-			let witness_delta_i =
-				PaillierDecryptionModQWitness { y: todo!(), rho: todo!(), phantom: PhantomData };
+			let delta_i_encrypted_value = BigInt::one();
+			let delta_i_randomness = BigInt::one();
+			for j in self.ssid.P.iter() {
+				if j != self.ssid.X.i {
+					delta_i_encrypted_value.mul(self.D_j_i).mul(self.F_i_j);
+					delta_i_randomness.mul(self.rho_i).mul(self.s_j_i).mul(self.r_i_j);
+				}
+			}
+			delta_i_encrypted_value.mul(&H_i);
+			delta_i_randomness.mul(H_i_randomness);
+
+			let witness_delta_i = PaillierDecryptionModQWitness {
+				y: Paillier::decrypt(&self.secrets.dk, delta_i_encrypted_value),
+				rho: H_i_randomness,
+				phantom: PhantomData,
+			};
 
 			let statement_delta_i = PaillierDecryptionModQStatement {
-				S: todo!(),
-				T: todo!(),
-				N_hat: todo!(),
-				N0: todo!(),
-				NN0: todo!(),
-				C: todo!(),
-				x: todo!(),
-				ek_prover: todo!(),
+				S: self.S.get(j),
+				T: self.T.get(j),
+				N_hat: self.N_hats.get(j),
+				N0: self.secrets.ek.n,
+				NN0: self.secrets.ek.nn,
+				C: delta_i_encrypted_value,
+				x: self.delta_i,
+				ek_prover: self.secrets.ek,
 				phantom: PhantomData,
 			};
 
