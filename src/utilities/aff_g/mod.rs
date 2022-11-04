@@ -175,7 +175,7 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 
 		// α ← ± 2^{l+ε}
 		let alpha = BigInt::sample_range(&BigInt::from(-1).mul(&lplus_exp), &lplus_exp);
-		// β ← ± 2^{Al'+ε}
+		// β ← ± 2^{l'+ε}
 		let beta = BigInt::sample_range(&BigInt::from(-1).mul(&lprimeplus_exp), &lprimeplus_exp);
 		// Sample r, ry as unit values from Z_N0, Z_N1
 		let r = sample_relatively_prime_integer(&statement.N0);
