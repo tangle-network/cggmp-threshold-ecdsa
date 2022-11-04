@@ -608,20 +608,21 @@ impl Round3 {
 			}
 
 			// H_i proof
+			let H_i = Paillier::encrypt(&self.secrets.ek, BigInt::mul(&self.k_i, &self.gamma_i));
 			let witness_H_i = PaillierMulWitness {
-				x: todo!(),
-				rho: todo!(),
-				rho_x: todo!(),
+				x: self.k_i,
+				rho: self.nu_i,
+				rho_x: self.nu_i.mul(self.gamma_i),
 				phantom: PhantomData,
 			};
 
 			let statement_H_i = PaillierMulStatement {
-				N: todo!(),
-				NN: todo!(),
-				C: todo!(),
-				Y: todo!(),
-				X: todo!(),
-				ek_prover: todo!(),
+				N: self.secrets.ek.n,
+				NN: self.secrets.ek.nn,
+				C: self.G_i,
+				Y: self.K_i,
+				X: H_i,
+				ek_prover: self.secrets.ek,
 				phantom: PhantomData,
 			};
 
