@@ -10,6 +10,8 @@ use round_based::{
 };
 use sha2::Sha256;
 
+use paillier::*;
+
 use crate::{
 	presign::{PresigningOutput, PresigningTranscript},
 	utilities::{
@@ -20,7 +22,10 @@ use crate::{
 			PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
 			PaillierDecryptionModQWitness,
 		},
-		mul_star::PaillierMultiplicationVersusGroupProof,
+		mul_star::{
+			PaillierMultiplicationVersusGroupProof, PaillierMultiplicationVersusGroupStatement,
+			PaillierMultiplicationVersusGroupWitness,
+		},
 	},
 };
 
@@ -151,19 +156,31 @@ impl Round1 {
 			}
 
 			// mul* proof
-			let witness_H_hat_i = PaillierMultiplicationVersusGroupProof {
-				z_1: todo!(),
-				z_2: todo!(),
-				w: todo!(),
-				commitment: todo!(),
+			let H_hat_i_randomness = crate::utilities::sample_relatively_prime_integer(
+				&self.presigning_transcript.secrets.ek.n,
+			);
+			let H_hat_i = Paillier::encrypt_with_chosen_randomness(
+				&self.presigning_transcript.ek,
+				RawPlaintext::from(
+					self.presigning_transcript.k_i.mul(self.presigning_transcript.x_i),
+				),
+				Randomness::from(H_hat_i_randomness),
+			);
+			let witness_H_hat_i = PaillierMultiplicationVersusGroupWitness {
+				x: self.presigning_transcript.x_i,
+				rho: self.presigning_transcript.rho_i.mul(&H_hat_i_randomness),
 				phantom: PhantomData,
 			};
 
-			let statement_H_hat_i = PaillierMultiplicationVersusGroupProof {
-				z_1: todo!(),
-				z_2: todo!(),
-				w: todo!(),
-				commitment: todo!(),
+			let statement_H_hat_i = PaillierMultiplicationVersusGroupStatement {
+				N0: self.presigning_transcript.secrets.ek.n,
+				NN0: self.presigning_transcript.secrets.ek.nn,
+				C: self.presigning_transcript.K_i,
+				D: self.presigning_transcript.H_hat_i,
+				X: self.presigning_transcript.X_i,
+				N_hat: self.presigning_transcript.N_hats.get(j),
+				s: self.presigning_transcript.S_hats.get(j),
+				t: self.presigning_transcript.T_hats.get(j),
 				phantom: PhantomData,
 			};
 
