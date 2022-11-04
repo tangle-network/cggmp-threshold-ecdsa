@@ -572,32 +572,31 @@ impl Round3 {
 
 			for j in self.ssid.P.iter() {
 				if j != self.ssid.X.i {
-					// Compute psi_j_i
 					let witness_D_j_i =
-						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
-							x: todo!(),
-							y: todo!(),
-							rho: todo!(),
-							rho_y: todo!(),
-							phantom: PhantomData,
-						};
-					let statement_D_j_i =
-						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-							S: todo!(),
-							T: todo!(),
-							N_hat: todo!(),
-							N0: todo!(),
-							N1: todo!(),
-							NN0: todo!(),
-							NN1: todo!(),
-							C: todo!(),
-							D: todo!(),
-							Y: todo!(),
-							X: todo!(),
-							ek_prover: todo!(),
-							ek_verifier: todo!(),
-							phantom: PhantomData,
-						};
+					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
+						x: self.gamma_i,
+						y: self.beta_i_j,
+						rho: self.s_i_j,
+						rho_y: self.r_i_j,
+						phantom: PhantomData,
+					};
+				let statement_D_j_i =
+					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
+						S: self.S.get(j),
+						T: self.T.get(j),
+						N_hat: self.N_hats.get(j),
+						N0: self.secrets.ek.n,
+						N1: self.eks.get(j).n,
+						NN0: self.secrets.ek.nn,
+						NN1: self.eks.get(j).nn,
+						C: self.D_j_i,
+						D: self.K.get(j),
+						Y: self.F_j_i,
+						X: self.Gamma_i,
+						ek_prover: self.secrets.ek,
+						ek_verifier: self.eks.get(j),
+						phantom: PhantomData,
+					};
 					let D_j_i_proof =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
 							Secp256k1,
