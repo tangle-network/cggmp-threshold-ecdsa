@@ -20,7 +20,7 @@ use crate::utilities::{
 		KnowledgeOfExponentPaillierEncryptionWitness,
 	},
 	mul::{PaillierMulProof, PaillierMulStatement, PaillierMulWitness},
-	sample_relatively_prime_integer, L,
+	sample_relatively_prime_integer, L, L_PRIME,
 };
 
 use super::{
@@ -84,11 +84,12 @@ impl Round0 {
 			&Randomness(rho_i.clone()),
 		)
 		.into();
-		let witness = PaillierEncryptionInRangeWitness { k: k_i, rho: rho_i, phantom: PhantomData };
+		let witness_psi_0_j_i =
+			PaillierEncryptionInRangeWitness { k: k_i, rho: rho_i, phantom: PhantomData };
 
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
-				let statement = PaillierEncryptionInRangeStatement {
+				let statement_psi_0_j_i = PaillierEncryptionInRangeStatement {
 					N0: self.secrets.ek.n.clone(),
 					NN0: self.secrets.ek.nn.clone(),
 					K: K_i,
@@ -98,7 +99,8 @@ impl Round0 {
 					phantom: PhantomData,
 				};
 				let psi_0_j_i = PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(
-					&witness, &statement,
+					&witness_psi_0_j_i,
+					&statement_psi_0_j_i,
 				);
 
 				let body = PreSigningP2PMessage1 {
@@ -107,13 +109,25 @@ impl Round0 {
 					K_i,
 					G_i,
 					psi_0_j_i,
-					enc_j_statement: statement,
+					enc_j_statement: statement_psi_0_j_i,
 					ek: self.secrets.ek,
 				};
 				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
 			}
 		}
-		Ok(Round1 { ssid: self.ssid, secrets: self.secrets, gamma_i, nu_i, k_i, rho_i, G_i, K_i })
+		Ok(Round1 {
+			ssid: self.ssid,
+			secrets: self.secrets,
+			gamma_i,
+			k_i,
+			nu_i,
+			rho_i,
+			G_i,
+			K_i,
+			S: self.S,
+			T: self.T,
+			N_hats: self.N_hats,
+		})
 	}
 	pub fn is_expensive(&self) -> bool {
 		false
@@ -121,14 +135,17 @@ impl Round0 {
 }
 
 pub struct Round1 {
-	ssid: SSID<Secp256k1>,
-	secrets: PreSigningSecrets,
-	gamma_i: BigInt,
-	nu_i: BigInt,
-	k_i: BigInt,
-	rho_i: BigInt,
-	G_i: BigInt,
-	K_i: BigInt,
+	pub ssid: SSID<Secp256k1>,
+	pub secrets: PreSigningSecrets,
+	pub gamma_i: BigInt,
+	pub k_i: BigInt,
+	pub nu_i: BigInt,
+	pub rho_i: BigInt,
+	pub G_i: BigInt,
+	pub K_i: BigInt,
+	pub S: HashMap<u16, BigInt>,
+	pub T: HashMap<u16, BigInt>,
+	pub N_hats: HashMap<u16, BigInt>,
 }
 
 impl Round1 {
@@ -143,60 +160,75 @@ impl Round1 {
 		let K: HashMap<u16, BigInt> = HashMap::new();
 		let G: HashMap<u16, BigInt> = HashMap::new();
 		let eks: HashMap<u16, EncryptionKey> = HashMap::new();
-		let S: HashMap<u16, BigInt> = HashMap::new();
-		let T: HashMap<u16, BigInt> = HashMap::new();
-		let N_hats: HashMap<u16, BigInt> = HashMap::new();
 		// Verify P2P Messages
 		for msg in input.into_vec() {
+			// j
 			let j = msg.i;
+			// Insert K_j
 			K.insert(j, msg.K_i);
+			// Insert G_j
 			G.insert(j, msg.G_i);
+			// Insert j's Paillier encryption key
 			eks.insert(j, msg.ek);
-			S.insert(j, msg.enc_j_statement.s);
-			T.insert(j, msg.enc_j_statement.t);
-			N_hats.insert(j, msg.enc_j_statement.N_hat);
-			let psi_i_j = msg.psi_j_i;
+			let psi_0_i_j = msg.psi_0_j_i;
 			let enc_i_statement = msg.enc_j_statement;
-
-			PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(&psi_i_j, &enc_i_statement)
-				.map_err(|e| Err(format!("Party {} verification of enc failed", j)));
+			// Verify psi_0_i_j proof
+			PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(
+				&psi_0_i_j,
+				&enc_i_statement,
+			)
+			.map_err(|e| Err(format!("Party {} verification of enc failed", j)));
 		}
 
-		// Compute Gamma_i
+		// Gamma_i = g^{gamma_i}
 		let Gamma_i =
 			Point::<Secp256k1>::generator().as_point() * Scalar::from_bigint(&self.gamma_i);
-		let beta_i: HashMap<u32, BigInt> = HashMap::new();
-		let beta_hat_i: HashMap<u32, BigInt> = HashMap::new();
+		// {beta, beta_hat, r, r_hat, s, s_hat}_i will store mapping from j to {beta, beta_hat, r,
+		// r_hat, s, s_hat}_i_j.
+		let beta_i: HashMap<u16, BigInt> = HashMap::new();
+		let beta_hat_i: HashMap<u16, BigInt> = HashMap::new();
+		let r_i: HashMap<u16, BigInt> = HashMap::new();
+		let r_hat_i: HashMap<u16, BigInt> = HashMap::new();
+		let s_i: HashMap<u16, BigInt> = HashMap::new();
+		let s_hat_i: HashMap<u16, BigInt> = HashMap::new();
 
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
-				// Sample randomness
+				// r_i_j <- Z_{N_j}
 				let r_i_j = BigInt::sample_below(eks.get(j).n);
+				r_i.insert(j, r_i_j);
+				// s_i_j <- Z_{N_j}
 				let s_i_j = BigInt::sample_below(eks.get(j).n);
+				s_i.insert(j, s_i_j);
+				// r_hat_i_j <- Z_{N_j}
 				let r_hat_i_j = BigInt::sample_below(eks.get(j).n);
+				r_hat_i.insert(j, r_hat_i_j);
+				// s_hat_i_j <- Z_{N_j}
 				let s_hat_i_j = BigInt::sample_below(eks.get(j).n);
-
-				let upper = BigInt::pow(&BigInt::from(2), L as u32);
+				s_hat_i.insert(j, s_hat_i_j);
+				let upper = BigInt::pow(&BigInt::from(2), L_PRIME as u32);
 				let lower = BigInt::from(-1).mul(&upper);
-
+				// beta_i_j <- [-2^L_PRIME, 2^L_PRIME]
 				let beta_i_j = BigInt::sample_range(lower, upper);
 				beta_i.insert(j, beta_i_j);
+				// beta_hat_i_j <- [-2^L_PRIME, 2^L_PRIME]
 				let beta_hat_i_j = BigInt::sample_range(lower, upper);
 				beta_hat_i.insert(j, beta_hat_i_j);
 
-				// Compute D_j_i
 				let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(
 					&eks.get(j),
 					RawPlaintext::from(BigInt::from(-1).mul(beta_i_j)),
 					Randomness::from(s_i_j),
 				);
+				// D_j_i =  (gamma_i [.] K_j ) ⊕ enc_j(-beta_i_j; s_i_j) where [.] is Paillier
+				// multiplication
 				let D_j_i = Paillier::add(
 					&eks.get(j),
 					Paillier::mul(&eks.get(j), K.get(j), self.gamma_i),
 					encrypt_minus_beta_i_j,
 				);
 
-				// Compute F_j_i
+				// F_j_i = enc_i(beta_i_j, r_i_j)
 				let F_j_i = Paillier::encrypt_with_chosen_randomness(
 					&self.secrets.ek,
 					RawPlaintext::from(beta_i_j),
@@ -209,20 +241,22 @@ impl Round1 {
 					RawPlaintext::from(BigInt::from(-1).mul(beta_hat_i_j)),
 					Randomness::from(s_hat_i_j),
 				);
+				// D_hat_j_i =  (x_i [.] K_j ) ⊕ enc_j(-beta_hat_i_j; s_hat_i_j) where [.] is
+				// Paillier multiplication
 				let D_hat_j_i = Paillier::add(
 					&eks.get(j),
 					Paillier::mul(&eks.get(j), K.get(j), self.secrets.x_i),
 					encrypt_minus_beta_hat_i_j,
 				);
 
-				// Compute F_hat_j_i
+				// F_hat_j_i = enc_i(beta_hat_i_j, r_hat_i_j)
 				let F_hat_j_i = Paillier::encrypt_with_chosen_randomness(
 					&self.secrets.ek,
 					RawPlaintext::from(beta_hat_i_j),
 					Randomness::from(r_hat_i_j),
 				);
 
-				// Compute psi_j_i
+				// psi_j_i
 				let witness_psi_j_i = PaillierAffineOpWithGroupComInRangeWitness {
 					x: self.gamma_i,
 					y: beta_i_j,
@@ -231,9 +265,9 @@ impl Round1 {
 					phantom: PhantomData,
 				};
 				let statement_psi_j_i = PaillierAffineOpWithGroupComInRangeStatement {
-					S: S.get(j),
-					T: T.get(j),
-					N_hat: N_hats.get(j),
+					S: self.S.get(j),
+					T: self.T.get(j),
+					N_hat: self.N_hats.get(j),
 					N0: self.secrets.ek.n,
 					N1: eks.get(j).n,
 					NN0: self.secrets.ek.nn,
@@ -251,7 +285,7 @@ impl Round1 {
 					&statement_psi_j_i,
 				);
 
-				// Compute psi_hat_j_i
+				// psi_hat_j_i
 				let witness_psi_hat_j_i = PaillierAffineOpWithGroupComInRangeWitness {
 					x: self.secrets.x_i,
 					y: beta_hat_i_j,
@@ -260,9 +294,9 @@ impl Round1 {
 					phantom: PhantomData,
 				};
 				let statement_psi_hat_j_i = PaillierAffineOpWithGroupComInRangeStatement {
-					S: S.get(j),
-					T: T.get(j),
-					N_hat: N_hats.get(j),
+					S: self.S.get(j),
+					T: self.T.get(j),
+					N_hat: self.N_hats.get(j),
 					N0: self.secrets.ek.n,
 					N1: eks.get(j).n,
 					NN0: self.secrets.ek.nn,
@@ -282,7 +316,7 @@ impl Round1 {
 						&statement_psi_hat_j_i,
 					);
 
-				// Compute psi_prime_j_i
+				// psi_prime_j_i
 				let witness_psi_prime_j_i = KnowledgeOfExponentPaillierEncryptionWitness {
 					x: self.gamma_i,
 					rho: self.nu_i,
@@ -293,9 +327,9 @@ impl Round1 {
 					NN0: self.secrets.ek.nn,
 					C: self.K_i,
 					X: Gamma_i,
-					s: S.get(j),
-					t: T.get(j),
-					N_hat: N_hats.get(j),
+					s: self.S.get(j),
+					t: self.T.get(j),
+					N_hat: self.N_hats.get(j),
 					phantom: PhantomData,
 				};
 				let psi_prime_j_i =
@@ -314,11 +348,11 @@ impl Round1 {
 					D_hat_j_i,
 					F_hat_j_i,
 					psi_j_i,
-					psi_hat_j_i,
-					psi_prime_j_i,
 					statement_psi_j_i,
-					statement_psi_prime_j_i,
+					psi_hat_j_i,
 					statement_psi_hat_j_i,
+					psi_prime_j_i,
+					statement_psi_prime_j_i,
 				};
 				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
 			}
@@ -327,10 +361,20 @@ impl Round1 {
 				secrets: self.secrets,
 				gamma_i: self.gamma_i,
 				k_i: self.k_i,
-				K_i: self.K_i,
+				gamma_i: self.gamma_i,
+				nu_i: self.nu_i,
 				rho_i: self.rho_i,
+				G_i: self.G_i,
+				K_i: self.K_i,
 				beta_i,
 				beta_hat_i,
+				r_i,
+				r_hat_i,
+				s_i,
+				s_hat_i,
+				S: self.S,
+				T: self.T,
+				N_hats: self.N_hats,
 			})
 		}
 	}
@@ -345,14 +389,23 @@ impl Round1 {
 }
 
 pub struct Round2 {
-	ssid: SSID<Secp256k1>,
-	secrets: PreSigningSecrets,
-	gamma_i: BigInt,
-	k_i: BigInt,
-	K_i: BigInt,
-	rho_i: BigInt,
-	beta_i: HashMap<u16, BigInt>,
-	beta_hat_i: HashMap<u16, BigInt>,
+	pub ssid: SSID<Secp256k1>,
+	pub secrets: PreSigningSecrets,
+	pub gamma_i: BigInt,
+	pub k_i: BigInt,
+	pub nu_i: BigInt,
+	pub rho_i: BigInt,
+	pub G_i: BigInt,
+	pub K_i: BigInt,
+	pub beta_i: HashMap<u16, BigInt>,
+	pub beta_hat_i: HashMap<u16, BigInt>,
+	pub r_i: HashMap<u16, BigInt>,
+	pub r_hat_i: HashMap<u16, BigInt>,
+	pub s_i: HashMap<u16, BigInt>,
+	pub s_hat_i: HashMap<u16, BigInt>,
+	pub S: HashMap<u16, BigInt>,
+	pub T: HashMap<u16, BigInt>,
+	pub N_hats: HashMap<u16, BigInt>,
 }
 
 impl Round2 {

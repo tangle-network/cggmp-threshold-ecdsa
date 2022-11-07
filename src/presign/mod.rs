@@ -66,11 +66,11 @@ pub struct PreSigningP2PMessage2<E: Curve> {
 	D_hat_j_i: BigInt,
 	F_hat_j_i: BigInt,
 	psi_j_i: PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
-	psi_hat_j_i: PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
-	psi_prime_j_i: KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
 	statement_psi_j_i: PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
-	statement_psi_prime_j_i: PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
+	psi_hat_j_i: PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
 	statement_psi_hat_j_i: KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
+	psi_prime_j_i: KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
+	statement_psi_prime_j_i: PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
 }
 
 pub struct PreSigningP2PMessage3<E: Curve> {
