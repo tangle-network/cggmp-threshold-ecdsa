@@ -192,19 +192,29 @@ impl Round1 {
 
 			// dec proof
 			let ciphertext = H_hat_i;
+			let ciphertext_randomness = H_hat_i_randomness;
 			for j in self.ssid.X.P.iter() {
 				if j != self.i {
 					ciphertext
 						.mul(self.presigning_transcript.D_hat_i_j)
 						.mul(self.presigning_transcript.F_hat_j_i);
+					ciphertext_randomness
+						.mul(self.presigning_transcript.s_hat_j_i)
+						.mul(&self.presigning_transcript.r_hat_i_j);
 				}
 			}
 
 			ciphertext.pow(&self.r);
 			ciphertext.mul(self.presigning_transcript.K_i.pow(&self.m));
+			ciphertext_randomness
+				.pow(&self.r)
+				.mul(self.presigning_transcript.k_i.pow(&self.m));
 
-			let witness_sigma_i =
-				PaillierDecryptionModQWitness { y: todo!(), rho: todo!(), phantom: PhantomData };
+			let witness_sigma_i = PaillierDecryptionModQWitness {
+				y: Paillier::decrypt(&self.presigning_transcript.secrets.dk, ciphertext),
+				rho: ciphertext_randomness,
+				phantom: PhantomData,
+			};
 
 			let statement_sigma_i = PaillierDecryptionModQStatement {
 				S: self.presigning_transcript.S.get(j),
