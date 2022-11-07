@@ -39,6 +39,9 @@ use super::state_machine::{Round0Messages, Round1Messages};
 pub struct Round0 {
 	pub ssid: SSID<Secp256k1>,
 	pub secrets: PreSigningSecrets,
+	pub S: HashMap<u16, BigInt>,
+	pub T: HashMap<u16, BigInt>,
+	pub N_hats: HashMap<u16, BigInt>,
 	pub l: usize, // This is the number of presignings to run in parallel
 }
 
@@ -47,16 +50,22 @@ impl Round0 {
 	where
 		O: Push<Msg<PreSigningP2PMessage1<Secp256k1>>>,
 	{
+		// k_i <- F_q
 		let k_i = BigInt::sample_below(&self.ssid.q);
+		// gamma_i <- F_q
 		let gamma_i = BigInt::sample_below(&self.ssid.q);
+		// rho_i <- Z*_{N_i}
 		let rho_i = crate::utilities::sample_relatively_prime_integer(&self.secrets.ek.n);
+		// nu_i <- Z*_{N_i}
 		let nu_i = crate::utilities::sample_relatively_prime_integer(&self.secrets.ek.n);
+		// G_i = enc_i(gamma_i; nu_i)
 		let G_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 			&self.secrets.ek,
 			RawPlaintext::from(gamma_i.clone()),
 			&Randomness::from(nu_i.clone()),
 		)
 		.into();
+		// K_i = enc_i(k_i; rho_i)
 		let K_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 			&self.secrets.ek,
 			RawPlaintext::from(k_i.clone()),
@@ -66,30 +75,31 @@ impl Round0 {
 		let witness = crate::utilities::enc::PaillierEncryptionInRangeWitness {
 			k: k_i,
 			rho: rho_i,
-			phantom: std::marker::PhantomData,
+			phantom: PhantomData,
 		};
-		let statement = crate::utilities::enc::PaillierEncryptionInRangeStatement {
-			N0: self.secrets.ek.n.clone(),
-			NN0: self.secrets.ek.nn.clone(),
-			K: K_i,
-			s: self.ssid.S.clone(),
-			t: self.ssid.T.clone(),
-			N_hat: self.ssid.N.clone(),
-			phantom: std::marker::PhantomData,
-		};
-		let psi_j_i =
-			crate::utilities::enc::PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(
-				&witness, &statement,
-			);
 
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
+				let statement = crate::utilities::enc::PaillierEncryptionInRangeStatement {
+					N0: self.secrets.ek.n.clone(),
+					NN0: self.secrets.ek.nn.clone(),
+					K: K_i,
+					s: self.S.get(j),
+					t: self.T.get(j),
+					N_hat: self.N_hats.get(j),
+					phantom: PhantomData,
+				};
+				let psi_0_j_i = crate::utilities::enc::PaillierEncryptionInRangeProof::<
+					Secp256k1,
+					Sha256,
+				>::prove(&witness, &statement);
+
 				let body = PreSigningP2PMessage1 {
 					ssid: self.ssid,
 					i: self.ssid.X.i,
 					K_i,
 					G_i,
-					psi_j_i,
+					psi_0_j_i,
 					enc_j_statement: statement,
 					ek: self.secrets.ek,
 				};

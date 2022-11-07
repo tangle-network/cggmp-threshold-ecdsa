@@ -16,6 +16,8 @@ use crate::utilities::{
 	mul::{PaillierMulProof, PaillierMulStatement},
 };
 
+use zeroize::Zeroize;
+
 pub mod rounds;
 pub mod state_machine;
 
@@ -47,7 +49,7 @@ pub struct PreSigningP2PMessage1<E: Curve> {
 	pub K_i: BigInt,
 	pub G_i: BigInt,
 	pub ek: EncryptionKey,
-	pub psi_j_i: crate::utilities::enc::PaillierEncryptionInRangeProof<E, Sha256>,
+	pub psi_0_j_i: crate::utilities::enc::PaillierEncryptionInRangeProof<E, Sha256>,
 	pub enc_j_statement: crate::utilities::enc::PaillierEncryptionInRangeStatement<E, Sha256>,
 }
 
@@ -82,6 +84,7 @@ pub struct PreSigningP2PMessage3<E: Curve> {
 		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
 }
 
+#[derive(Zeroize)]
 pub struct PresigningOutput<E: Curve> {
 	pub ssid: SSID<E>,
 	pub R: Point<E>,
