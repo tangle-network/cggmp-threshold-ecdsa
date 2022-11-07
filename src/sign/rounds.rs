@@ -122,27 +122,28 @@ impl Round1 {
 				if j != self.ssid.X.i {
 					let witness_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
-							x: todo!(),
-							y: todo!(),
-							rho: todo!(),
-							rho_y: todo!(),
+							x: self.presigning_transcript.secrets.x_i,
+							y: self.presigning_transcript.beta_hat_i_j,
+							rho: self.presigning_transcript.s_hat_i_j,
+							rho_y: self.presigning_transcript.r_hat_i_j,
 							phantom: PhantomData,
 						};
 					let statement_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-							S: todo!(),
-							T: todo!(),
-							N_hat: todo!(),
-							N0: todo!(),
-							N1: todo!(),
-							NN0: todo!(),
-							NN1: todo!(),
-							C: todo!(),
-							D: todo!(),
-							Y: todo!(),
-							X: todo!(),
-							ek_prover: todo!(),
-							ek_verifier: todo!(),
+							S: self.presigning_transcript.S.get(j),
+							T: self.presigning_transcript.T.get(j),
+							N_hat: self.presigning_transcript.N_hats.get(j),
+							N0: self.presigning_transcript.secrets.ek.n,
+							N1: self.presigning_transcript.eks.get(j).n,
+							NN0: self.presigning_transcript.secrets.ek.nn,
+							NN1: self.presigning_transcript.eks.get(j).nn,
+							C: self.presigning_transcript.D_hat_j_i,
+							D: self.presigning_transcript.K.get(j),
+							Y: self.presigning_transcript.F_hat_j_i,
+							X: Point::<Secp256k1>::generator().as_point() *
+								Scalar::from_bigint(&self.presigning_transcript.secrets.x_i),
+							ek_prover: self.presigning_transcript.secrets.ek,
+							ek_verifier: self.presigning_transcript.eks.get(j),
 							phantom: PhantomData,
 						};
 					let D_hat_j_i_proof =
@@ -193,7 +194,9 @@ impl Round1 {
 			let ciphertext = H_hat_i;
 			for j in self.ssid.X.P.iter() {
 				if j != self.i {
-					ciphertext.mul(self.presigning_transcript.D_hat_i_j).mul(self.presigning_transcript.F_hat_j_i);
+					ciphertext
+						.mul(self.presigning_transcript.D_hat_i_j)
+						.mul(self.presigning_transcript.F_hat_j_i);
 				}
 			}
 
