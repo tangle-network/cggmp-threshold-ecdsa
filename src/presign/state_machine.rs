@@ -1,11 +1,10 @@
 use super::{
 	rounds::{Round0, Round1, Round2, Round3, Round4},
 	IdentifiableAbortBroadcastMessage, PreSigningP2PMessage1, PreSigningP2PMessage2,
-	PreSigningP2PMessage3, PreSigningSecrets, SSID,
+	PreSigningP2PMessage3, PreSigningSecrets, PresigningOutput, PresigningTranscript, SSID,
 };
 
 use curv::{elliptic::curves::Secp256k1, BigInt};
-use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
 use private::InternalError;
 use round_based::{
 	containers::{
@@ -41,6 +40,10 @@ pub struct PreSigning {
 
 	// Message queue
 	msgs_queue: Vec<Msg<ProtocolMessage>>,
+
+	party_i: u16,
+
+	party_n: u16,
 }
 
 impl PreSigning {
@@ -62,12 +65,14 @@ impl PreSigning {
 		let mut state = Self {
 			round: R::Round0(Round0 { ssid, secrets, S, T, N_hats, l }),
 
-			round0_msgs: Some(Round0::expects_messages(i, n)),
-			round1_msgs: Some(Round1::expects_messages(i, n)),
-			round2_msgs: Some(Round2::expects_messages(i, n)),
-			round3_msgs: Some(Round3::expects_messages(i, n)),
+			round0_msgs: Some(Round1::expects_messages(i, n as u16)),
+			round1_msgs: Some(Round2::expects_messages(i, n as u16)),
+			round2_msgs: Some(Round3::expects_messages(i, n as u16)),
+			round3_msgs: Some(Round4::expects_messages(i, n as u16)),
 
 			msgs_queue: vec![],
+			party_i: i,
+			party_n: n as u16,
 		};
 
 		state.proceed_round(false)?;
@@ -171,7 +176,7 @@ impl PreSigning {
 impl StateMachine for PreSigning {
 	type MessageBody = ProtocolMessage;
 	type Err = Error;
-	type Output = LocalKey<Secp256k1>;
+	type Output = Option<(PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)>;
 
 	fn handle_incoming(&mut self, msg: Msg<Self::MessageBody>) -> Result<()> {
 		let current_round = self.current_round();
@@ -207,6 +212,16 @@ impl StateMachine for PreSigning {
 					.map_err(Error::HandleMessage)?;
 				self.proceed_round(false)
 			},
+			ProtocolMessage(M::Round4(m)) => {
+				let store = self
+					.round3_msgs
+					.as_mut()
+					.ok_or(Error::ReceivedOutOfOrderMessage { current_round, msg_round: 2 })?;
+				store
+					.push_msg(Msg { sender: msg.sender, receiver: msg.receiver, body: m })
+					.map_err(Error::HandleMessage)?;
+				self.proceed_round(false)
+			},
 		}
 	}
 
@@ -218,12 +233,14 @@ impl StateMachine for PreSigning {
 		let store1_wants_more = self.round0_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
 		let store2_wants_more = self.round1_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
 		let store3_wants_more = self.round2_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
+		let store4_wants_more = self.round3_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
 
 		match &self.round {
 			R::Round0(_) => true,
 			R::Round1(_) => !store1_wants_more,
 			R::Round2(_) => !store2_wants_more,
 			R::Round3(_) => !store3_wants_more,
+			R::Round4(_) => !store4_wants_more,
 			R::Final(_) | R::Gone => false,
 		}
 	}
@@ -263,7 +280,8 @@ impl StateMachine for PreSigning {
 			R::Round1(_) => 1,
 			R::Round2(_) => 2,
 			R::Round3(_) => 3,
-			R::Final(_) | R::Gone => 4,
+			R::Round4(_) => 4,
+			R::Final(_) | R::Gone => 5,
 		}
 	}
 
@@ -285,6 +303,7 @@ impl crate::traits::RoundBlame for PreSigning {
 		let store1_blame = self.round0_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
 		let store2_blame = self.round1_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
 		let store3_blame = self.round2_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
+		let store4_blame = self.round3_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
 
 		let default = (0, vec![]);
 		match &self.round {
@@ -292,6 +311,7 @@ impl crate::traits::RoundBlame for PreSigning {
 			R::Round1(_) => store1_blame,
 			R::Round2(_) => store2_blame,
 			R::Round3(_) => store3_blame,
+			R::Round4(_) => store4_blame,
 			R::Final(_) | R::Gone => default,
 		}
 	}
@@ -341,7 +361,8 @@ enum R {
 	Round1(Round1),
 	Round2(Box<Round2>),
 	Round3(Box<Round3>),
-	Final(()),
+	Round4(Box<Round4>),
+	Final(Option<(PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)>),
 	Gone,
 }
 
@@ -355,9 +376,10 @@ pub struct ProtocolMessage(M);
 
 #[derive(Debug, Clone)]
 enum M {
-	Round1(Option<()>),
-	Round2(Option<()>),
-	Round3(()),
+	Round1(PreSigningP2PMessage1<Secp256k1>),
+	Round2(PreSigningP2PMessage2<Secp256k1>),
+	Round3(PreSigningP2PMessage3<Secp256k1>),
+	Round4(Option<IdentifiableAbortBroadcastMessage<Secp256k1>>),
 }
 
 // Error

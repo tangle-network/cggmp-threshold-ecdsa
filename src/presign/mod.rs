@@ -25,6 +25,7 @@ use zeroize::Zeroize;
 pub mod rounds;
 pub mod state_machine;
 
+#[derive(Debug, Clone)]
 pub struct SSID<E: Curve> {
 	// Group generator and order
 	pub g: Point<E>,
@@ -40,6 +41,7 @@ pub struct SSID<E: Curve> {
 	pub T: BigInt,
 }
 
+#[derive(Debug, Clone)]
 pub struct PreSigningSecrets {
 	pub x_i: BigInt,
 	pub y_i: Option<BigInt>,
@@ -47,6 +49,7 @@ pub struct PreSigningSecrets {
 	pub dk: DecryptionKey,
 }
 
+#[derive(Debug, Clone)]
 pub struct PreSigningP2PMessage1<E: Curve> {
 	pub ssid: SSID<E>,
 	pub i: u16,
@@ -57,6 +60,7 @@ pub struct PreSigningP2PMessage1<E: Curve> {
 	pub enc_j_statement: PaillierEncryptionInRangeStatement<E, Sha256>,
 }
 
+#[derive(Debug, Clone)]
 pub struct PreSigningP2PMessage2<E: Curve> {
 	pub ssid: SSID<E>,
 	pub i: u16,
@@ -73,6 +77,7 @@ pub struct PreSigningP2PMessage2<E: Curve> {
 	pub statement_psi_prime_j_i: PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
 }
 
+#[derive(Debug, Clone)]
 pub struct PreSigningP2PMessage3<E: Curve> {
 	pub ssid: SSID<E>,
 	pub i: u16,
@@ -82,7 +87,7 @@ pub struct PreSigningP2PMessage3<E: Curve> {
 	pub statement_psi_prime_prime_j_i: KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
 }
 
-#[derive(Zeroize)]
+#[derive(Zeroize, Debug, Clone)]
 pub struct PresigningOutput<E: Curve> {
 	pub ssid: SSID<E>,
 	pub R: Point<E>,
@@ -91,6 +96,7 @@ pub struct PresigningOutput<E: Curve> {
 	pub chi_i: BigInt,
 }
 
+#[derive(Debug, Clone)]
 pub struct PresigningTranscript<E: Curve> {
 	pub ssid: SSID<E>,
 	pub secrets: PreSigningSecrets,
@@ -129,6 +135,7 @@ pub struct PresigningTranscript<E: Curve> {
 	pub N_hats: HashMap<u16, BigInt>,
 }
 
+#[derive(Debug, Clone)]
 pub struct IdentifiableAbortBroadcastMessage<E: Curve> {
 	pub statements_D_j_i:
 		HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>>,
