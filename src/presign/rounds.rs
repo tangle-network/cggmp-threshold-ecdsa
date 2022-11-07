@@ -20,7 +20,7 @@ use crate::utilities::{
 		KnowledgeOfExponentPaillierEncryptionWitness,
 	},
 	mul::{PaillierMulProof, PaillierMulStatement, PaillierMulWitness},
-	sample_relatively_prime_integer, L, L_PRIME,
+	sample_relatively_prime_integer, L_PRIME,
 };
 
 use super::{
@@ -44,6 +44,7 @@ use round_based::{
 	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore, P2PMsgs, P2PMsgsStore},
 	Msg,
 };
+
 use sha2::Sha256;
 
 use super::state_machine::{Round0Messages, Round1Messages};
@@ -362,6 +363,7 @@ impl Round1 {
 				gamma_i: self.gamma_i,
 				k_i: self.k_i,
 				gamma_i: self.gamma_i,
+				Gamma_i,
 				nu_i: self.nu_i,
 				rho_i: self.rho_i,
 				G_i: self.G_i,
@@ -392,6 +394,7 @@ pub struct Round2 {
 	pub ssid: SSID<Secp256k1>,
 	pub secrets: PreSigningSecrets,
 	pub gamma_i: BigInt,
+	pub Gamma_i: Point<Secp256k1>,
 	pub k_i: BigInt,
 	pub nu_i: BigInt,
 	pub rho_i: BigInt,
@@ -417,56 +420,64 @@ impl Round2 {
 	where
 		O: Push<Msg<PreSigningP2PMessage2<Secp256k1>>>,
 	{
-		let S: HashMap<u16, BigInt> = HashMap::new();
-		let T: HashMap<u16, BigInt> = HashMap::new();
-		let N_hats: HashMap<u16, BigInt> = HashMap::new();
 		let D_i: HashMap<u16, BigInt> = HashMap::new();
 		let D_hat_i: HashMap<u16, BigInt> = HashMap::new();
+		let F_i: HashMap<u16, BigInt> = HashMap::new();
+		let F_hat_i: HashMap<u16, BigInt> = HashMap::new();
+		let Gammas: HashMap<u16, Point<Secp256k1>> = HashMap::new();
 		for msg in input.into_vec() {
+			// j
 			let j = msg.i;
-			S.insert(j, msg.statement_psi_j_i.s);
-			T.insert(j, msg.psi_j_i.t);
-			N_hats.insert(j, msg.psi_j_i.N_hat);
+			// Insert D_i_j
 			D_i.insert(j, msg.D_j_i);
+			// Insert D_hat_i_j
 			D_hat_i.insert(j, msg.D_hat_j_i);
+			// Insert F_i_j
+			F_i.insert(j, msg.F_j_i);
+			// Insert F_hat_i_j
+			F_hat_i.insert(j, msg.F_hat_j_i);
+			// Insert Gamma_j
+			Gammas.insert(j, msg.Gamma_i);
 			// Verify first aff-g
 			let psi_i_j = msg.psi_j_i;
 			let statement_psi_i_j = msg.statement_psi_j_i;
+			// Verify psi_i_j
 			PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
 				&psi_i_j,
 				&statement_psi_i_j,
 			)
 			.map_err(|e| Err(format!("Party {} verification of aff_j psi failed", j)));
 
-			// Verify second aff-g
-			let psi_prime_i_j = msg.psi_prime_j_i;
-			let statement_psi_prime_i_j = msg.statement_psi_prime_j_i;
+			// Verify psi_prime_i_j
+			let psi_hat_i_j = msg.psi_hat_j_i;
+			let statement_psi_hat_i_j = msg.statement_psi_hat_j_i;
 			PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
-				&psi_prime_i_j,
-				&statement_psi_prime_i_j,
+				&psi_hat_i_j,
+				&statement_psi_hat_i_j,
 			)
 			.map_err(|e| Err(format!("Party {} verification of aff_j psi prime failed", j)));
 
-			// Verify log*
-			let psi_hat_i_j = msg.psi_hat_j_i;
-			let statement_psi_hat_i_j = msg.statement_psi_hat_j_i;
+			// Verify psi_hat_i_j
+			let psi_prime_i_j = msg.psi_prime_j_i;
+			let statement_psi_prime_i_j = msg.statement_psi_prime_j_i;
 			KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::verify(
-				&psi_hat_i_j,
-				&statement_psi_hat_i_j,
+				&psi_prime_i_j,
+				&statement_psi_prime_i_j,
 			)
 			.map_err(|e| Err(format!("Party {} verification of log star psi hatfailed", j)));
 		}
 
-		// Compute Gamma
-		let Gamma = self
-			.Gamma_map
+		// Gamma = Prod_j (Gamma_j)
+		let Gamma = Gammas
 			.values()
 			.into_iter()
 			.fold(Point::<Secp256k1>::zero(), |acc, x| acc.add(x));
+		Gamma.add(self.Gamma_i);
 
-		// Compute Delta_i
+		// Delta = Gamma^{k_i}
 		let Delta_i = Gamma * Scalar::from_bigint(&self.k_i);
 
+		// {alpha, alpha_hat}_i will store mapping from j to {alpha, alpha_hat}_i_j
 		let alpha_i: HashMap<u16, BigInt> = HashMap::new();
 		let alpha_hat_i: HashMap<u16, BigInt> = HashMap::new();
 		for j in self.ssid.P.iter() {
@@ -478,29 +489,34 @@ impl Round2 {
 			}
 		}
 
+		// Sum alpha_i_j's
 		let sum_of_alphas = alpha_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
 
+		// Sum alpha_hat_i_j's
 		let sum_of_alpha_hats =
 			alpha_hat_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
 
+		// Sum beta_i_j's
 		let sum_of_betas =
 			self.beta_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
 
+		// Sum beta_hat_i_j's
 		let sum_of_beta_hats =
 			self.beta_hat_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
 
+		// delta_i = gamma_i * k_i + sum of alpha_i_j's + sum of beta_i_j's mod q
 		let delta_i = BigInt::mod_mul(&self.gamma_i, &self.k_i, self.ssid.q)
 			.mod_add(sum_of_alphas, self.ssid.q)
-			.add(sum_of_betas, self.ssid.q);
+			.mod_add(sum_of_betas, self.ssid.q);
 
+		// chi_i = x_i * k_i + sum of alpha_hat_i_j's + sum of beta_hat_i_j's
 		let chi_i = BigInt::mod_mul(&self.secrets.x_i, &self.k_i, self.ssid.q)
 			.mod_add(sum_of_alpha_hats, self.ssid.q)
-			.add(sum_of_beta_hats, self.ssid.q);
+			.mod_add(sum_of_beta_hats, self.ssid.q);
 
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
-				// log* proof
-				// Compute psi_prime_j_i
+				// Compute psi_prime_prime_j_i
 				let witness_psi_prime_prime_j_i = KnowledgeOfExponentPaillierEncryptionWitness {
 					x: self.k_i,
 					rho: self.rho_i,
@@ -512,9 +528,9 @@ impl Round2 {
 						NN0: self.secrets.ek.nn,
 						C: self.K_i,
 						X: Delta_i,
-						s: S.get(j),
-						t: T.get(j),
-						N_hat: N_hats.get(j),
+						s: self.S.get(j),
+						t: self.T.get(j),
+						N_hat: self.N_hats.get(j),
 						phantom: PhantomData,
 					};
 				let psi_prime_prime_j_i =
@@ -525,7 +541,7 @@ impl Round2 {
 
 				// Send Message
 				let body = PreSigningP2PMessage3 {
-					ssid: todo!(),
+					ssid: self.ssid,
 					i: self.ssid.X.i,
 					delta_i,
 					Delta_i,
@@ -535,8 +551,35 @@ impl Round2 {
 				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
 			}
 		}
-
-		Ok(Round3 { ssid: self.ssid, Gamma, k_i: self.k_i, chi_i })
+		Ok(Round3 {
+			ssid: self.ssid,
+			secrets: self.secrets,
+			gamma_i: self.gamma_i,
+			Gamma_i: self.Gamma_i,
+			Gamma,
+			k_i: self.k_i,
+			nu_i: self.nu_i,
+			rho_i: self.rho_i,
+			G_i: self.G_i,
+			K_i: self.K_i,
+			beta_i: self.beta_i,
+			beta_hat_i: self.beta_hat_i,
+			r_i: self.r_i,
+			r_hat_i: self.r_hat_i,
+			s_i: self.s_i,
+			s_hat_i: self.s_hat_i,
+			delta_i,
+			chi_i,
+			D_i,
+			D_hat_i,
+			F_i,
+			F_hat_i,
+			alpha_i,
+			alpha_hat_i,
+			S: self.S,
+			T: self.T,
+			N_hats: self.N_hats,
+		})
 	}
 
 	pub fn is_expensive(&self) -> bool {
@@ -548,10 +591,33 @@ impl Round2 {
 }
 
 pub struct Round3 {
-	ssid: SSID<Secp256k1>,
-	Gamma: Point<Secp256k1>,
-	k_i: BigInt,
-	chi_i: BigInt,
+	pub ssid: SSID<Secp256k1>,
+	pub secrets: PreSigningSecrets,
+	pub gamma_i: BigInt,
+	pub Gamma_i: Point<Secp256k1>,
+	pub Gamma: Point<Secp256k1>,
+	pub k_i: BigInt,
+	pub nu_i: BigInt,
+	pub rho_i: BigInt,
+	pub G_i: BigInt,
+	pub K_i: BigInt,
+	pub beta_i: HashMap<u16, BigInt>,
+	pub beta_hat_i: HashMap<u16, BigInt>,
+	pub r_i: HashMap<u16, BigInt>,
+	pub r_hat_i: HashMap<u16, BigInt>,
+	pub s_i: HashMap<u16, BigInt>,
+	pub s_hat_i: HashMap<u16, BigInt>,
+	pub delta_i: BigInt,
+	pub chi_i: BigInt,
+	pub D_i: HashMap<u16, BigInt>,
+	pub D_hat_i: HashMap<u16, BigInt>,
+	pub F_i: HashMap<u16, BigInt>,
+	pub F_hat_i: HashMap<u16, BigInt>,
+	pub alpha_i: HashMap<u16, BigInt>,
+	pub alpha_hat_i: HashMap<u16, BigInt>,
+	pub S: HashMap<u16, BigInt>,
+	pub T: HashMap<u16, BigInt>,
+	pub N_hats: HashMap<u16, BigInt>,
 }
 
 impl Round3 {
