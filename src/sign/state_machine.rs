@@ -1,6 +1,6 @@
 use super::{
 	rounds::{Round0, Round1, Round2, Round3},
-	PreSigningP2PMessage1,
+	PreSigningP2PMessage1, SigningBroadcastMessage1, SigningIdentifiableAbortMessage,
 };
 
 use curv::elliptic::curves::Secp256k1;
@@ -22,9 +22,8 @@ use thiserror::Error;
 // `P2PMsgs` to send all the data we need peers to receive.
 // FIXME: If we re-design `round-based-traits` to support sending 2 types of messages
 // in the same round, we can remove this hack.
-pub type Round0Messages = Store<P2PMsgs<PreSigningP2PMessage1<Secp256k1>>>;
-pub type Round1Messages = Store<P2PMsgs<()>>;
-pub type Round2Messages = Store<P2PMsgs<()>>;
+pub type Round0Messages = Store<BroadcastMsgs<SigningBroadcastMessage1<Secp256k1>>>;
+pub type Round1Messages = Store<BroadcastMsgs<Option<SigningIdentifiableAbortMessage<Secp256k1>>>>;
 
 pub struct PreSigning {
 	// Current round
@@ -33,7 +32,6 @@ pub struct PreSigning {
 	// Messages
 	round0_msgs: Option<Round0Messages>,
 	round1_msgs: Option<Round1Messages>,
-	round2_msgs: Option<Round2Messages>,
 
 	// Message queue
 	msgs_queue: Vec<Msg<ProtocolMessage>>,
@@ -141,6 +139,7 @@ impl PreSigning {
 				next_state = s;
 				false
 			},
+
 			s @ R::Final(_) | s @ R::Gone => {
 				next_state = s;
 				false

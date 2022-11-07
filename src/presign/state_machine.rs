@@ -1,10 +1,10 @@
 use super::{
 	rounds::{Round0, Round1, Round2, Round3, Round4},
 	IdentifiableAbortBroadcastMessage, PreSigningP2PMessage1, PreSigningP2PMessage2,
-	PreSigningP2PMessage3,
+	PreSigningP2PMessage3, PreSigningSecrets, SSID,
 };
 
-use curv::elliptic::curves::Secp256k1;
+use curv::{elliptic::curves::Secp256k1, BigInt};
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
 use private::InternalError;
 use round_based::{
@@ -37,53 +37,37 @@ pub struct PreSigning {
 	round0_msgs: Option<Round0Messages>,
 	round1_msgs: Option<Round1Messages>,
 	round2_msgs: Option<Round2Messages>,
+	round3_msgs: Option<Round3Messages>,
 
 	// Message queue
 	msgs_queue: Vec<Msg<ProtocolMessage>>,
-
-	// Party details
-	party_i: u16,
-	party_n: u16,
 }
 
 impl PreSigning {
 	pub fn new(
-		local_key_option: Option<LocalKey<Secp256k1>>,
-		new_party_index_option: Option<u16>,
-		old_to_new_map: &HashMap<u16, u16>,
-		t: u16,
-		n: u16,
+		ssid: SSID<Secp256k1>,
+		secrets: PreSigningSecrets,
+		S: HashMap<u16, BigInt>,
+		T: HashMap<u16, BigInt>,
+		N_hats: HashMap<u16, BigInt>,
+		l: usize,
 	) -> Result<Self> {
+		let n = ssid.P.len();
 		if n < 2 {
 			return Err(Error::TooFewParties)
 		}
-		if t == 0 || t >= n {
-			return Err(Error::InvalidThreshold)
-		}
 
-		let i = match local_key_option {
-			None => new_party_index_option.unwrap(),
-			_ => local_key_option.clone().unwrap().i,
-		};
+		let i = ssid.X.i;
 
 		let mut state = Self {
-			round: R::Round0(Round0 {
-				local_key_option,
-				new_party_index_option,
-				old_to_new_map: old_to_new_map.clone(),
-				t,
-				n,
-			}),
+			round: R::Round0(Round0 { ssid, secrets, S, T, N_hats, l }),
 
 			round0_msgs: Some(Round1::expects_messages(i, n)),
 			round1_msgs: Some(Round2::expects_messages(i, n)),
 			round2_msgs: Some(Round2::expects_messages(i, n)),
+			round3_msgs: Some(Round3::expects_messages(i, n)),
 
 			msgs_queue: vec![],
-
-			party_i: i,
-
-			party_n: n,
 		};
 
 		state.proceed_round(false)?;
@@ -111,7 +95,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(self.gmap_queue(M::Round1))
 					.map(R::Round1)
-					.map_err(Error::ProceedRound)?;
+					.map_err(Error::ProceedRound { msg_round: 0 })?;
 				true
 			},
 			s @ R::Round0(_) => {
@@ -124,7 +108,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(msgs, self.gmap_queue(M::Round2))
 					.map(|msg| R::Round2(Box::new(msg)))
-					.map_err(Error::ProceedRound)?;
+					.map_err(Error::ProceedRound { msg_round: 1 })?;
 				true
 			},
 			s @ R::Round1(_) => {
@@ -137,7 +121,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(msgs, self.gmap_queue(M::Round3))
 					.map(|msg| R::Round3(Box::new(msg)))
-					.map_err(Error::ProceedRound)?;
+					.map_err(Error::ProceedRound { msg_round: 2 })?;
 				true
 			},
 			s @ R::Round2(_) => {
@@ -145,12 +129,28 @@ impl PreSigning {
 				false
 			},
 			R::Round3(round) if !store3_wants_more && (!round.is_expensive() || may_block) => {
-				let store = self.round1_msgs.take().ok_or(InternalError::StoreGone)?;
+				let store = self.round2_msgs.take().ok_or(InternalError::StoreGone)?;
 				let msgs = store.finish().map_err(InternalError::RetrieveRoundMessages)?;
-				next_state = round.proceed(msgs).map(R::Final).map_err(Error::ProceedRound)?;
+				next_state = round
+					.proceed(msgs, self.gmap_queue(M::Round4))
+					.map(|msg| R::Round4(Box::new(msg)))
+					.map_err(Error::ProceedRound { msg_round: 3 })?;
 				true
 			},
 			s @ R::Round3(_) => {
+				next_state = s;
+				false
+			},
+			R::Round4(round) if !store3_wants_more && (!round.is_expensive() || may_block) => {
+				let store = self.round3_msgs.take().ok_or(InternalError::StoreGone)?;
+				let msgs = store.finish().map_err(InternalError::RetrieveRoundMessages)?;
+				next_state = round
+					.proceed(msgs)
+					.map(R::Final)
+					.map_err(Error::ProceedRound { msg_round: 4 })?;
+				true
+			},
+			s @ R::Round4(_) => {
 				next_state = s;
 				false
 			},
@@ -304,6 +304,7 @@ impl fmt::Debug for PreSigning {
 			R::Round1(_) => "1",
 			R::Round2(_) => "2",
 			R::Round3(_) => "3",
+			R::Round4(_) => "4",
 			R::Final(_) => "[Final]",
 			R::Gone => "[Gone]",
 		};
@@ -312,6 +313,14 @@ impl fmt::Debug for PreSigning {
 			None => "[None]".into(),
 		};
 		let round1_msgs = match self.round1_msgs.as_ref() {
+			Some(msgs) => format!("[{}/{}]", msgs.messages_received(), msgs.messages_total()),
+			None => "[None]".into(),
+		};
+		let round2_msgs = match self.round2_msgs.as_ref() {
+			Some(msgs) => format!("[{}/{}]", msgs.messages_received(), msgs.messages_total()),
+			None => "[None]".into(),
+		};
+		let round3_msgs = match self.round3_msgs.as_ref() {
 			Some(msgs) => format!("[{}/{}]", msgs.messages_received(), msgs.messages_total()),
 			None => "[None]".into(),
 		};

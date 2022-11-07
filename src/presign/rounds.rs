@@ -1,7 +1,4 @@
-use std::{
-	char::REPLACEMENT_CHARACTER, collections::HashMap, f32::consts::E, hash::Hash, io::Error,
-	marker::PhantomData,
-};
+use std::{collections::HashMap, io::Error, marker::PhantomData};
 
 use crate::utilities::{
 	aff_g::{
@@ -32,7 +29,6 @@ use curv::{
 	elliptic::curves::{Point, Scalar, Secp256k1},
 	BigInt,
 };
-use fs_dkr::{add_party_message::*, error::*, refresh_message::*};
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
 	party_i::Keys, state_machine::keygen::*,
 };
