@@ -92,7 +92,38 @@ pub struct PresigningOutput<E: Curve> {
 }
 
 pub struct PresigningTranscript<E: Curve> {
-	// TODO: fill in
+	ssid: SSID<E>,
+	secrets: PreSigningSecrets,
+	gamma_i: BigInt,
+	Gamma_i: Point<E>,
+	Gammas: HashMap<u16, Point<E>>,
+	Gamma: Point<E>,
+	k_i: BigInt,
+	nu_i: BigInt,
+	rho_i: BigInt,
+	G_i: BigInt,
+	K_i: BigInt,
+	beta_i: HashMap<u16, BigInt>,
+	beta_hat_i: HashMap<u16, BigInt>,
+	r_i: HashMap<u16, BigInt>,
+	r_hat_i: HashMap<u16, BigInt>,
+	s_i: HashMap<u16, BigInt>,
+	s_hat_i: HashMap<u16, BigInt>,
+	delta_i: BigInt,
+	chi_i: BigInt,
+	Delta_i: Point<E>,
+	deltas: HashMap<u16, BigInt>,
+	Deltas: HashMap<u16, Point<E>>,
+	delta: BigInt,
+	D_i: HashMap<u16, BigInt>,
+	D_hat_i: HashMap<u16, BigInt>,
+	F_i: HashMap<u16, BigInt>,
+	F_hat_i: HashMap<u16, BigInt>,
+	alpha_i: HashMap<u16, BigInt>,
+	alpha_hat_i: HashMap<u16, BigInt>,
+	S: HashMap<u16, BigInt>,
+	T: HashMap<u16, BigInt>,
+	N_hats: HashMap<u16, BigInt>,
 }
 
 pub struct IdentifiableAbortBroadcastMessage<E: Curve> {

@@ -468,11 +468,7 @@ impl Round2 {
 		}
 
 		// Gamma = Prod_j (Gamma_j)
-		let Gamma = Gammas
-			.values()
-			.into_iter()
-			.fold(Point::<Secp256k1>::zero(), |acc, x| acc.add(x));
-		Gamma.add(self.Gamma_i);
+		let Gamma = Gammas.values().into_iter().fold(self.Gamma_i, |acc, x| acc.add(x));
 
 		// Delta = Gamma^{k_i}
 		let Delta_i = Gamma * Scalar::from_bigint(&self.k_i);
@@ -556,6 +552,7 @@ impl Round2 {
 			secrets: self.secrets,
 			gamma_i: self.gamma_i,
 			Gamma_i: self.Gamma_i,
+			Gammas,
 			Gamma,
 			k_i: self.k_i,
 			nu_i: self.nu_i,
@@ -596,6 +593,7 @@ pub struct Round3 {
 	pub secrets: PreSigningSecrets,
 	pub gamma_i: BigInt,
 	pub Gamma_i: Point<Secp256k1>,
+	pub Gammas: HashMap<u16, Point<Secp256k1>>,
 	pub Gamma: Point<Secp256k1>,
 	pub k_i: BigInt,
 	pub nu_i: BigInt,
@@ -629,13 +627,16 @@ impl Round3 {
 		mut output: O,
 	) -> Result<Round4>
 	where
-		O: Push<Msg<IdentifiableAbortBroadcastMessage<Secp256k1>>>,
+		O: Push<Msg<Option<IdentifiableAbortBroadcastMessage<Secp256k1>>>>,
 	{
+		// Mapping from j to delta_j
 		let deltas: HashMap<u16, BigInt> = HashMap::new();
+		// Mapping from j to Delta_j
 		let Deltas: HashMap<u16, Point<Secp256k1>> = HashMap::new();
 		for msg in input.into_vec() {
+			// j
 			let j = msg.i;
-			// Verify log star proof
+			// Verify psi_prime_prime_i_j
 			let psi_prime_prime_i_j = msg.psi_prime_prime_j_i;
 
 			let statement_psi_prime_prime_i_j = msg.statement_psi_prime_prime_j_i;
@@ -648,23 +649,21 @@ impl Round3 {
 				Err(format!("Party {} verification of log star psi prime prime failed", j))
 			});
 
-			// Add to Deltas and deltas
+			// Insert into deltas and Deltas
 			deltas.insert(j, msg.delta_i);
 			Deltas.insert(j, msg.Delta_i);
 		}
 
-		// Compute delta
-		let delta = deltas.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
+		// delta = sum of delta_j's
+		let delta = deltas.values().into_iter().fold(self.delta_i, |acc, x| acc.add(x));
 
-		// Compute product of Deltas
-		let product_of_deltas = Deltas
-			.values()
-			.into_iter()
-			.fold(Point::<Secp256k1>::zero(), |acc, x| acc.add(x));
+		// Compute product of Delta_j's
+		let product_of_Deltas = Deltas.values().into_iter().fold(self.Delta_i, |acc, x| acc.add(x));
 
-		if product_of_deltas ==
+		if product_of_Deltas ==
 			Point::<Secp256k1>::generator().as_point() * Scalar::from_bigint(&delta)
 		{
+			// R = Gamma^{delta^{-1}}
 			let R = self.Gamma * Scalar::from_bigint(BigInt::mod_inv(&delta));
 			let output = PresigningOutput {
 				ssid: self.ssid,
@@ -674,19 +673,41 @@ impl Round3 {
 				chi_i: self.chi_i,
 			};
 			let transcript = PresigningTranscript {
-				// TODO: fill this in
+				ssid: self.ssid,
+				secrets: self.secrets,
+				gamma_i: self.gamma_i,
+				Gamma_i: self.Gamma_i,
+				Gammas: self.Gammas,
+				Gamma: self.Gamma,
+				k_i: self.k_i,
+				nu_i: self.nu_i,
+				rho_i: self.rho_i,
+				G_i: self.G_i,
+				K_i: self.K_i,
+				beta_i: self.beta_i,
+				beta_hat_i: self.beta_hat_i,
+				r_i: self.r_i,
+				r_hat_i: self.r_hat_i,
+				s_i: self.s_i,
+				s_hat_i: self.s_hat_i,
+				delta_i: self.delta_i,
+				chi_i: self.chi_i,
+				Delta_i: self.Delta_i,
+				deltas,
+				Deltas,
+				delta,
+				D_i: self.D_i,
+				D_hat_i: self.D_hat_i,
+				F_i: self.F_i,
+				F_hat_i: self.F_hat_i,
+				alpha_i: self.alpha_i,
+				alpha_hat_i: self.alpha_hat_i,
+				S: self.S,
+				T: self.T,
+				N_hats: self.N_hats,
 			};
 
-			let body = IdentifiableAbortBroadcastMessage {
-				statements_D_j_i: None,
-				D_j_i_proofs: None,
-				statement_H_i: None,
-				H_i_proof: None,
-				statement_delta_i: None,
-				delta_i_proof: None,
-			};
-
-			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
+			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: None });
 
 			Ok(Round4 { output: Some(output), transcript: Some(transcript) })
 		} else {
