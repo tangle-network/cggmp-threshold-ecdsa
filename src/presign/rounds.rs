@@ -712,7 +712,7 @@ impl Round3 {
 			Ok(Round4 { output: Some(output), transcript: Some(transcript) })
 		} else {
 			// D_j_i proofs
-			let D_j_i_proofs: HashMap<u16, PaillierAffineOpWithGroupComInRangeProof<Secp256k1>> =
+			let proofs_D_j_i: HashMap<u16, PaillierAffineOpWithGroupComInRangeProof<Secp256k1>> =
 				HashMap::new();
 
 			let statements_D_j_i: HashMap<
@@ -724,9 +724,9 @@ impl Round3 {
 				if j != self.ssid.X.i {
 					let witness_D_j_i = PaillierAffineOpWithGroupComInRangeWitness {
 						x: self.gamma_i,
-						y: self.beta_i_j,
-						rho: self.s_i_j,
-						rho_y: self.r_i_j,
+						y: self.beta_i.get(j),
+						rho: self.s_i.get(j),
+						rho_y: self.r_i.get(j),
 						phantom: PhantomData,
 					};
 					let statement_D_j_i = PaillierAffineOpWithGroupComInRangeStatement {
@@ -750,7 +750,7 @@ impl Round3 {
 							&witness_D_j_i,
 							&statement_D_j_i,
 						);
-					D_j_i_proofs.insert(j, D_j_i_proof);
+					proofs_D_j_i.insert(j, D_j_i_proof);
 					statements_D_j_i.insert(j, statement_D_j_i);
 				}
 			}
@@ -817,14 +817,14 @@ impl Round3 {
 				&statement_delta_i,
 			);
 
-			let body = IdentifiableAbortBroadcastMessage {
-				statements_D_j_i: Some(statements_D_j_i),
-				D_j_i_proofs: Some(D_j_i_proofs),
-				statement_H_i: Some(statement_H_i),
-				H_i_proof: Some(H_i_proof),
-				statement_delta_i: Some(statement_delta_i),
-				delta_i_proof: Some(delta_i_proof),
-			};
+			let body = Some(IdentifiableAbortBroadcastMessage {
+				statements_D_j_i,
+				proofs_D_j_i,
+				statement_H_i,
+				H_i_proof,
+				statement_delta_i,
+				delta_i_proof,
+			});
 
 			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
 			Ok(Round4 { output: None, transcript: None })
@@ -854,8 +854,8 @@ impl Round4 {
 		} else {
 			for msg in input.into_vec() {
 				// Check D_i_j proofs
-				for i in msg.D_j_i_proofs.keys() {
-					let D_i_j_proof = msg.D_j_i_proofs.unwrap().get(i);
+				for i in msg.proofs_D_j_i.keys() {
+					let D_i_j_proof = msg.proofs_D_j_i.unwrap().get(i);
 
 					let statement_D_i_j = msg.statements_D_j_i.unwrap().get(i);
 

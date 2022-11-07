@@ -127,11 +127,10 @@ pub struct PresigningTranscript<E: Curve> {
 }
 
 pub struct IdentifiableAbortBroadcastMessage<E: Curve> {
-	statements_D_j_i:
-		Option<HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>>>,
-	D_j_i_proofs: Option<HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>>,
-	statement_H_i: Option<PaillierMulStatement<E, Sha256>>,
-	H_i_proof: Option<PaillierMulProof<E, Sha256>>,
-	statement_delta_i: Option<PaillierDecryptionModQProof<E, Sha256>>,
-	delta_i_proof: Option<PaillierDecryptionModQProof<E, Sha256>>,
+	statements_D_j_i: HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>>,
+	proofs_D_j_i: HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>,
+	statement_H_i: PaillierMulStatement<E, Sha256>,
+	H_i_proof: PaillierMulProof<E, Sha256>,
+	statement_delta_i: PaillierDecryptionModQProof<E, Sha256>,
+	delta_i_proof: PaillierDecryptionModQProof<E, Sha256>,
 }
