@@ -62,8 +62,8 @@ impl PreSigning {
 		let mut state = Self {
 			round: R::Round0(Round0 { ssid, secrets, S, T, N_hats, l }),
 
-			round0_msgs: Some(Round1::expects_messages(i, n)),
-			round1_msgs: Some(Round2::expects_messages(i, n)),
+			round0_msgs: Some(Round0::expects_messages(i, n)),
+			round1_msgs: Some(Round1::expects_messages(i, n)),
 			round2_msgs: Some(Round2::expects_messages(i, n)),
 			round3_msgs: Some(Round3::expects_messages(i, n)),
 

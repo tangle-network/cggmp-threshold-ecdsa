@@ -1,6 +1,6 @@
 use super::{
-	rounds::{Round0, Round1, Round2, Round3},
-	PreSigningP2PMessage1, SigningBroadcastMessage1, SigningIdentifiableAbortMessage,
+	rounds::{Round0, Round1},
+	SigningBroadcastMessage1, SigningIdentifiableAbortMessage,
 };
 
 use curv::elliptic::curves::Secp256k1;
@@ -25,7 +25,7 @@ use thiserror::Error;
 pub type Round0Messages = Store<BroadcastMsgs<SigningBroadcastMessage1<Secp256k1>>>;
 pub type Round1Messages = Store<BroadcastMsgs<Option<SigningIdentifiableAbortMessage<Secp256k1>>>>;
 
-pub struct PreSigning {
+pub struct Signing {
 	// Current round
 	round: R,
 
@@ -35,13 +35,9 @@ pub struct PreSigning {
 
 	// Message queue
 	msgs_queue: Vec<Msg<ProtocolMessage>>,
-
-	// Party details
-	party_i: u16,
-	party_n: u16,
 }
 
-impl PreSigning {
+impl Signing {
 	pub fn new(
 		local_key_option: Option<LocalKey<Secp256k1>>,
 		new_party_index_option: Option<u16>,
@@ -52,14 +48,6 @@ impl PreSigning {
 		if n < 2 {
 			return Err(Error::TooFewParties)
 		}
-		if t == 0 || t >= n {
-			return Err(Error::InvalidThreshold)
-		}
-
-		let i = match local_key_option {
-			None => new_party_index_option.unwrap(),
-			_ => local_key_option.clone().unwrap().i,
-		};
 
 		let mut state = Self {
 			round: R::Round0(Round0 {
@@ -72,13 +60,8 @@ impl PreSigning {
 
 			round0_msgs: Some(Round1::expects_messages(i, n)),
 			round1_msgs: Some(Round2::expects_messages(i, n)),
-			round2_msgs: Some(Round2::expects_messages(i, n)),
 
 			msgs_queue: vec![],
-
-			party_i: i,
-
-			party_n: n,
 		};
 
 		state.proceed_round(false)?;
