@@ -47,7 +47,7 @@ use round_based::{
 
 use sha2::Sha256;
 
-use super::state_machine::{Round0Messages, Round1Messages};
+use super::state_machine::{Round0Messages, Round1Messages, Round2Messages, Round3Messages};
 
 pub struct Round0 {
 	pub ssid: SSID<Secp256k1>,
@@ -817,19 +817,19 @@ impl Round3 {
 				PaillierMulProof::<Secp256k1, Sha256>::prove(&witness_H_i, &statement_H_i);
 
 			// delta_i proofs
-			let delta_i_encrypted_value = BigInt::one();
+			let ciphertext_delta_i = BigInt::one();
 			let delta_i_randomness = BigInt::one();
 			for j in self.ssid.P.iter() {
 				if j != self.ssid.X.i {
-					delta_i_encrypted_value.mul(self.D_j_i).mul(self.F_i_j);
+					ciphertext_delta_i.mul(self.D_j_i).mul(self.F_i_j);
 					delta_i_randomness.mul(self.rho_i).mul(self.s_j_i).mul(self.r_i_j);
 				}
 			}
-			delta_i_encrypted_value.mul(&H_i);
+			ciphertext_delta_i.mul(&H_i);
 			delta_i_randomness.mul(H_i_randomness);
 
 			let witness_delta_i = PaillierDecryptionModQWitness {
-				y: Paillier::decrypt(&self.secrets.dk, delta_i_encrypted_value),
+				y: Paillier::decrypt(&self.secrets.dk, ciphertext_delta_i),
 				rho: H_i_randomness,
 				phantom: PhantomData,
 			};
@@ -840,7 +840,7 @@ impl Round3 {
 				N_hat: self.N_hats.get(j),
 				N0: self.secrets.ek.n,
 				NN0: self.secrets.ek.nn,
-				C: delta_i_encrypted_value,
+				C: ciphertext_delta_i,
 				x: self.delta_i,
 				ek_prover: self.secrets.ek,
 				phantom: PhantomData,
@@ -868,7 +868,7 @@ impl Round3 {
 	pub fn is_expensive(&self) -> bool {
 		false
 	}
-	pub fn expects_messages(i: u16, n: u16) -> Round1Messages {
+	pub fn expects_messages(i: u16, n: u16) -> Round2Messages {
 		P2PMsgsStore::new(i, n)
 	}
 }
@@ -881,8 +881,8 @@ pub struct Round4 {
 impl Round4 {
 	pub fn proceed(
 		self,
-		input: BroadcastMsgs<IdentifiableAbortBroadcastMessage<Secp256k1>>,
-	) -> (Option<PresigningOutput<Secp256k1>>, Option<PresigningTranscript<Secp256k1>>) {
+		input: BroadcastMsgs<Option<IdentifiableAbortBroadcastMessage<Secp256k1>>>,
+	) -> Option<(PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)> {
 		if self.output.is_some() {
 			(self.output, self.transcript)
 		} else {
@@ -914,15 +914,15 @@ impl Round4 {
 				PaillierDecryptionModQProof::verify(&delta_i_proof, &statement_delta_i)
 					.map_err(|e| Err(format!("delta_j proof failed")));
 			}
-			(None, None)
+			None
 		}
 	}
 
 	pub fn is_expensive(&self) -> bool {
 		false
 	}
-	pub fn expects_messages(i: u16, n: u16) -> Round1Messages {
-		P2PMsgsStore::new(i, n)
+	pub fn expects_messages(i: u16, n: u16) -> Round3Messages {
+		BroadcastMsgsStore::new(i, n)
 	}
 }
 
