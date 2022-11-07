@@ -29,6 +29,8 @@ use crate::{
 	},
 };
 
+use zeroize::Zeroize;
+
 use super::{SigningBroadcastMessage1, SigningIdentifiableAbortMessage, SigningOutput, SSID};
 
 pub struct Round0 {
@@ -50,7 +52,8 @@ impl Round0 {
 			let sigma_i = output.k_i.mul(self.m).add(r.mul(output.chi_i));
 			let body = SigningBroadcastMessage1 { ssid: self.ssid, i: self.ssid.X.i, sigma_i };
 			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
-			// TODO: Erase output from memory
+			// Erase output from memory
+			output.zeroize();
 			Ok(Round1 {
 				ssid: self.ssid,
 				i: self.ssid.X.i,
