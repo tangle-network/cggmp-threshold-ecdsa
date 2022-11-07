@@ -13,6 +13,10 @@ use crate::utilities::{
 		PaillierAffineOpWithGroupComInRangeProof, PaillierAffineOpWithGroupComInRangeStatement,
 	},
 	dec_q::PaillierDecryptionModQProof,
+	enc::{PaillierEncryptionInRangeProof, PaillierEncryptionInRangeStatement},
+	log_star::{
+		KnowledgeOfExponentPaillierEncryptionProof, KnowledgeOfExponentPaillierEncryptionStatement,
+	},
 	mul::{PaillierMulProof, PaillierMulStatement},
 };
 
@@ -49,8 +53,8 @@ pub struct PreSigningP2PMessage1<E: Curve> {
 	pub K_i: BigInt,
 	pub G_i: BigInt,
 	pub ek: EncryptionKey,
-	pub psi_0_j_i: crate::utilities::enc::PaillierEncryptionInRangeProof<E, Sha256>,
-	pub enc_j_statement: crate::utilities::enc::PaillierEncryptionInRangeStatement<E, Sha256>,
+	pub psi_0_j_i: PaillierEncryptionInRangeProof<E, Sha256>,
+	pub enc_j_statement: PaillierEncryptionInRangeStatement<E, Sha256>,
 }
 
 pub struct PreSigningP2PMessage2<E: Curve> {
@@ -61,16 +65,12 @@ pub struct PreSigningP2PMessage2<E: Curve> {
 	F_j_i: BigInt,
 	D_hat_j_i: BigInt,
 	F_hat_j_i: BigInt,
-	psi_j_i: crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
-	psi_hat_j_i: crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
-	psi_prime_j_i:
-		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
-	statement_psi_j_i:
-		crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
-	statement_psi_prime_j_i:
-		crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
-	statement_psi_hat_j_i:
-		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
+	psi_j_i: PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
+	psi_hat_j_i: PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
+	psi_prime_j_i: KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
+	statement_psi_j_i: PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
+	statement_psi_prime_j_i: PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
+	statement_psi_hat_j_i: KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
 }
 
 pub struct PreSigningP2PMessage3<E: Curve> {
@@ -78,10 +78,8 @@ pub struct PreSigningP2PMessage3<E: Curve> {
 	pub i: u16,
 	pub delta_i: BigInt,
 	pub Delta_i: Point<E>,
-	psi_prime_prime_j_i:
-		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
-	statement_psi_prime_prime_j_i:
-		crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
+	psi_prime_prime_j_i: KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
+	statement_psi_prime_prime_j_i: KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
 }
 
 #[derive(Zeroize)]

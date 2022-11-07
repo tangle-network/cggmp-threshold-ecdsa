@@ -4,11 +4,23 @@ use std::{
 };
 
 use crate::utilities::{
-	aff_g::PaillierAffineOpWithGroupComInRangeProof,
+	aff_g::{
+		PaillierAffineOpWithGroupComInRangeProof, PaillierAffineOpWithGroupComInRangeStatement,
+		PaillierAffineOpWithGroupComInRangeWitness,
+	},
 	dec_q::{
 		PaillierDecryptionModQProof, PaillierDecryptionModQStatement, PaillierDecryptionModQWitness,
 	},
+	enc::{
+		PaillierEncryptionInRangeProof, PaillierEncryptionInRangeStatement,
+		PaillierEncryptionInRangeWitness,
+	},
+	log_star::{
+		KnowledgeOfExponentPaillierEncryptionProof, KnowledgeOfExponentPaillierEncryptionStatement,
+		KnowledgeOfExponentPaillierEncryptionWitness,
+	},
 	mul::{PaillierMulProof, PaillierMulStatement, PaillierMulWitness},
+	sample_relatively_prime_integer, L,
 };
 
 use super::{
@@ -55,9 +67,9 @@ impl Round0 {
 		// gamma_i <- F_q
 		let gamma_i = BigInt::sample_below(&self.ssid.q);
 		// rho_i <- Z*_{N_i}
-		let rho_i = crate::utilities::sample_relatively_prime_integer(&self.secrets.ek.n);
+		let rho_i = sample_relatively_prime_integer(&self.secrets.ek.n);
 		// nu_i <- Z*_{N_i}
-		let nu_i = crate::utilities::sample_relatively_prime_integer(&self.secrets.ek.n);
+		let nu_i = sample_relatively_prime_integer(&self.secrets.ek.n);
 		// G_i = enc_i(gamma_i; nu_i)
 		let G_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 			&self.secrets.ek,
@@ -72,15 +84,11 @@ impl Round0 {
 			&Randomness(rho_i.clone()),
 		)
 		.into();
-		let witness = crate::utilities::enc::PaillierEncryptionInRangeWitness {
-			k: k_i,
-			rho: rho_i,
-			phantom: PhantomData,
-		};
+		let witness = PaillierEncryptionInRangeWitness { k: k_i, rho: rho_i, phantom: PhantomData };
 
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
-				let statement = crate::utilities::enc::PaillierEncryptionInRangeStatement {
+				let statement = PaillierEncryptionInRangeStatement {
 					N0: self.secrets.ek.n.clone(),
 					NN0: self.secrets.ek.nn.clone(),
 					K: K_i,
@@ -89,10 +97,9 @@ impl Round0 {
 					N_hat: self.N_hats.get(j),
 					phantom: PhantomData,
 				};
-				let psi_0_j_i = crate::utilities::enc::PaillierEncryptionInRangeProof::<
-					Secp256k1,
-					Sha256,
-				>::prove(&witness, &statement);
+				let psi_0_j_i = PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(
+					&witness, &statement,
+				);
 
 				let body = PreSigningP2PMessage1 {
 					ssid: self.ssid,
@@ -151,11 +158,8 @@ impl Round1 {
 			let psi_i_j = msg.psi_j_i;
 			let enc_i_statement = msg.enc_j_statement;
 
-			crate::utilities::enc::PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(
-				&psi_i_j,
-				&enc_i_statement,
-			)
-			.map_err(|e| Err(format!("Party {} verification of enc failed", j)));
+			PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(&psi_i_j, &enc_i_statement)
+				.map_err(|e| Err(format!("Party {} verification of enc failed", j)));
 		}
 
 		// Compute Gamma_i
@@ -172,7 +176,7 @@ impl Round1 {
 				let r_hat_i_j = BigInt::sample_below(eks.get(j).n);
 				let s_hat_i_j = BigInt::sample_below(eks.get(j).n);
 
-				let upper = BigInt::pow(&BigInt::from(2), crate::utilities::L as u32);
+				let upper = BigInt::pow(&BigInt::from(2), L as u32);
 				let lower = BigInt::from(-1).mul(&upper);
 
 				let beta_i_j = BigInt::sample_range(lower, upper);
@@ -219,91 +223,86 @@ impl Round1 {
 				);
 
 				// Compute psi_j_i
-				let witness_psi_j_i =
-					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
-						x: self.gamma_i,
-						y: beta_i_j,
-						rho: s_i_j,
-						rho_y: r_i_j,
-						phantom: PhantomData,
-					};
-				let statement_psi_j_i =
-					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-						S: S.get(j),
-						T: T.get(j),
-						N_hat: N_hats.get(j),
-						N0: self.secrets.ek.n,
-						N1: eks.get(j).n,
-						NN0: self.secrets.ek.nn,
-						NN1: eks.get(j).nn,
-						C: D_j_i,
-						D: K.get(j),
-						Y: F_j_i,
-						X: Gamma_i,
-						ek_prover: self.secrets.ek,
-						ek_verifier: eks.get(j),
-						phantom: PhantomData,
-					};
-				let psi_j_i = crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
-					Secp256k1,
-					Sha256,
-				>::prove(&witness_psi_j_i, &statement_psi_j_i);
+				let witness_psi_j_i = PaillierAffineOpWithGroupComInRangeWitness {
+					x: self.gamma_i,
+					y: beta_i_j,
+					rho: s_i_j,
+					rho_y: r_i_j,
+					phantom: PhantomData,
+				};
+				let statement_psi_j_i = PaillierAffineOpWithGroupComInRangeStatement {
+					S: S.get(j),
+					T: T.get(j),
+					N_hat: N_hats.get(j),
+					N0: self.secrets.ek.n,
+					N1: eks.get(j).n,
+					NN0: self.secrets.ek.nn,
+					NN1: eks.get(j).nn,
+					C: D_j_i,
+					D: K.get(j),
+					Y: F_j_i,
+					X: Gamma_i,
+					ek_prover: self.secrets.ek,
+					ek_verifier: eks.get(j),
+					phantom: PhantomData,
+				};
+				let psi_j_i = PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::prove(
+					&witness_psi_j_i,
+					&statement_psi_j_i,
+				);
 
 				// Compute psi_hat_j_i
-				let witness_psi_hat_j_i =
-					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
-						x: self.secrets.x_i,
-						y: beta_hat_i_j,
-						rho: s_hat_i_j,
-						rho_y: r_hat_i_j,
-						phantom: PhantomData,
-					};
-				let statement_psi_hat_j_i =
-					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-						S: S.get(j),
-						T: T.get(j),
-						N_hat: N_hats.get(j),
-						N0: self.secrets.ek.n,
-						N1: eks.get(j).n,
-						NN0: self.secrets.ek.nn,
-						NN1: eks.get(j).nn,
-						C: D_hat_j_i,
-						D: K.get(j),
-						Y: F_hat_j_i,
-						X: Point::<Secp256k1>::generator().as_point() *
-							Scalar::from_bigint(&self.secrets.x_i),
-						ek_prover: self.secrets.ek,
-						ek_verifier: eks.get(j),
-						phantom: PhantomData,
-					};
-				let psi_hat_j_i = crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
-					Secp256k1,
-					Sha256,
-				>::prove(&witness_psi_hat_j_i, &statement_psi_hat_j_i);
+				let witness_psi_hat_j_i = PaillierAffineOpWithGroupComInRangeWitness {
+					x: self.secrets.x_i,
+					y: beta_hat_i_j,
+					rho: s_hat_i_j,
+					rho_y: r_hat_i_j,
+					phantom: PhantomData,
+				};
+				let statement_psi_hat_j_i = PaillierAffineOpWithGroupComInRangeStatement {
+					S: S.get(j),
+					T: T.get(j),
+					N_hat: N_hats.get(j),
+					N0: self.secrets.ek.n,
+					N1: eks.get(j).n,
+					NN0: self.secrets.ek.nn,
+					NN1: eks.get(j).nn,
+					C: D_hat_j_i,
+					D: K.get(j),
+					Y: F_hat_j_i,
+					X: Point::<Secp256k1>::generator().as_point() *
+						Scalar::from_bigint(&self.secrets.x_i),
+					ek_prover: self.secrets.ek,
+					ek_verifier: eks.get(j),
+					phantom: PhantomData,
+				};
+				let psi_hat_j_i =
+					PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::prove(
+						&witness_psi_hat_j_i,
+						&statement_psi_hat_j_i,
+					);
 
 				// Compute psi_prime_j_i
-				let witness_psi_prime_j_i =
-					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionWitness {
-						x: self.gamma_i,
-						rho: self.nu_i,
-						phantom: PhantomData,
-					};
-				let statement_psi_prime_j_i =
-					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement {
-						N0: self.secrets.ek.n,
-						NN0: self.secrets.ek.nn,
-						C: self.K_i,
-						X: Gamma_i,
-						s: S.get(j),
-						t: T.get(j),
-						N_hat: N_hats.get(j),
-						phantom: PhantomData,
-					};
+				let witness_psi_prime_j_i = KnowledgeOfExponentPaillierEncryptionWitness {
+					x: self.gamma_i,
+					rho: self.nu_i,
+					phantom: PhantomData,
+				};
+				let statement_psi_prime_j_i = KnowledgeOfExponentPaillierEncryptionStatement {
+					N0: self.secrets.ek.n,
+					NN0: self.secrets.ek.nn,
+					C: self.K_i,
+					X: Gamma_i,
+					s: S.get(j),
+					t: T.get(j),
+					N_hat: N_hats.get(j),
+					phantom: PhantomData,
+				};
 				let psi_prime_j_i =
-					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof::<
-						Secp256k1,
-						Sha256,
-					>::prove(&witness_psi_prime_j_i, &statement_psi_prime_j_i);
+					KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::prove(
+						&witness_psi_prime_j_i,
+						&statement_psi_prime_j_i,
+					);
 
 				// Send Message
 				let body = PreSigningP2PMessage2 {
@@ -380,7 +379,7 @@ impl Round2 {
 			// Verify first aff-g
 			let psi_i_j = msg.psi_j_i;
 			let statement_psi_i_j = msg.statement_psi_j_i;
-			crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>:: verify(
+			PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
 				&psi_i_j,
 				&statement_psi_i_j,
 			)
@@ -389,7 +388,7 @@ impl Round2 {
 			// Verify second aff-g
 			let psi_prime_i_j = msg.psi_prime_j_i;
 			let statement_psi_prime_i_j = msg.statement_psi_prime_j_i;
-			crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>:: verify(
+			PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
 				&psi_prime_i_j,
 				&statement_psi_prime_i_j,
 			)
@@ -398,10 +397,10 @@ impl Round2 {
 			// Verify log*
 			let psi_hat_i_j = msg.psi_hat_j_i;
 			let statement_psi_hat_i_j = msg.statement_psi_hat_j_i;
-			crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof::<
-				Secp256k1,
-				Sha256,
-			>::verify(&psi_hat_i_j, &statement_psi_hat_i_j)
+			KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::verify(
+				&psi_hat_i_j,
+				&statement_psi_hat_i_j,
+			)
 			.map_err(|e| Err(format!("Party {} verification of log star psi hatfailed", j)));
 		}
 
@@ -449,14 +448,13 @@ impl Round2 {
 			if j != &self.ssid.X.i {
 				// log* proof
 				// Compute psi_prime_j_i
-				let witness_psi_prime_prime_j_i =
-					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionWitness {
-						x: self.k_i,
-						rho: self.rho_i,
-						phantom: PhantomData,
-					};
+				let witness_psi_prime_prime_j_i = KnowledgeOfExponentPaillierEncryptionWitness {
+					x: self.k_i,
+					rho: self.rho_i,
+					phantom: PhantomData,
+				};
 				let statement_psi_prime_prime_j_i =
-					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionStatement {
+					KnowledgeOfExponentPaillierEncryptionStatement {
 						N0: self.secrets.ek.n,
 						NN0: self.secrets.ek.nn,
 						C: self.K_i,
@@ -467,10 +465,10 @@ impl Round2 {
 						phantom: PhantomData,
 					};
 				let psi_prime_prime_j_i =
-					crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof::<
-						Secp256k1,
-						Sha256,
-					>::prove(&witness_psi_prime_prime_j_i, &statement_psi_prime_prime_j_i);
+					KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::prove(
+						&witness_psi_prime_prime_j_i,
+						&statement_psi_prime_prime_j_i,
+					);
 
 				// Send Message
 				let body = PreSigningP2PMessage3 {
@@ -521,10 +519,10 @@ impl Round3 {
 
 			let statement_psi_prime_prime_i_j = msg.statement_psi_prime_prime_j_i;
 
-			crate::utilities::log_star::KnowledgeOfExponentPaillierEncryptionProof::<
-				Secp256k1,
-				Sha256,
-			>::verify(&psi_prime_prime_i_j, &statement_psi_prime_prime_i_j)
+			KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::verify(
+				&psi_prime_prime_i_j,
+				&statement_psi_prime_prime_i_j,
+			)
 			.map_err(|e| {
 				Err(format!("Party {} verification of log star psi prime prime failed", j))
 			});
@@ -582,44 +580,41 @@ impl Round3 {
 
 			for j in self.ssid.P.iter() {
 				if j != self.ssid.X.i {
-					let witness_D_j_i =
-						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
-							x: self.gamma_i,
-							y: self.beta_i_j,
-							rho: self.s_i_j,
-							rho_y: self.r_i_j,
-							phantom: PhantomData,
-						};
-					let statement_D_j_i =
-						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-							S: self.S.get(j),
-							T: self.T.get(j),
-							N_hat: self.N_hats.get(j),
-							N0: self.secrets.ek.n,
-							N1: self.eks.get(j).n,
-							NN0: self.secrets.ek.nn,
-							NN1: self.eks.get(j).nn,
-							C: self.D_j_i,
-							D: self.K.get(j),
-							Y: self.F_j_i,
-							X: self.Gamma_i,
-							ek_prover: self.secrets.ek,
-							ek_verifier: self.eks.get(j),
-							phantom: PhantomData,
-						};
+					let witness_D_j_i = PaillierAffineOpWithGroupComInRangeWitness {
+						x: self.gamma_i,
+						y: self.beta_i_j,
+						rho: self.s_i_j,
+						rho_y: self.r_i_j,
+						phantom: PhantomData,
+					};
+					let statement_D_j_i = PaillierAffineOpWithGroupComInRangeStatement {
+						S: self.S.get(j),
+						T: self.T.get(j),
+						N_hat: self.N_hats.get(j),
+						N0: self.secrets.ek.n,
+						N1: self.eks.get(j).n,
+						NN0: self.secrets.ek.nn,
+						NN1: self.eks.get(j).nn,
+						C: self.D_j_i,
+						D: self.K.get(j),
+						Y: self.F_j_i,
+						X: self.Gamma_i,
+						ek_prover: self.secrets.ek,
+						ek_verifier: self.eks.get(j),
+						phantom: PhantomData,
+					};
 					let D_j_i_proof =
-						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
-							Secp256k1,
-							Sha256,
-						>::prove(&witness_D_j_i, &statement_D_j_i);
+						PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::prove(
+							&witness_D_j_i,
+							&statement_D_j_i,
+						);
 					D_j_i_proofs.insert(j, D_j_i_proof);
 					statements_D_j_i.insert(j, statement_D_j_i);
 				}
 			}
 
 			// H_i proof
-			let H_i_randomness =
-				crate::utilities::sample_relatively_prime_integer(&self.secrets.ek.n);
+			let H_i_randomness = sample_relatively_prime_integer(&self.secrets.ek.n);
 			let H_i = Paillier::encrypt_with_chosen_randomness(
 				&self.secrets.ek,
 				RawPlaintext::from(BigInt::mul(&self.k_i, &self.gamma_i)),
@@ -722,10 +717,10 @@ impl Round4 {
 
 					let statement_D_i_j = msg.statements_D_j_i.unwrap().get(i);
 
-					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
-						Secp256k1,
-						Sha256,
-					>::verify(&D_i_j_proof, &statement_D_i_j)
+					PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
+						&D_i_j_proof,
+						&statement_D_i_j,
+					)
 					.map_err(|e| Err(format!("D_i_j proof failed")));
 				}
 
