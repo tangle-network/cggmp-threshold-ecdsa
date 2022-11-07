@@ -173,7 +173,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 	}
 
 	#[allow(dead_code)]
-	fn verify(
+	pub fn verify(
 		proof: &PaillierEncryptionInRangeProof<E, H>,
 		statement: &PaillierEncryptionInRangeStatement<E, H>,
 	) -> Result<(), IncorrectProof> {

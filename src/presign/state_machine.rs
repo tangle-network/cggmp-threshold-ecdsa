@@ -4,7 +4,12 @@ use super::{
 	PreSigningP2PMessage3, PreSigningSecrets, PresigningOutput, PresigningTranscript, SSID,
 };
 
-use curv::{elliptic::curves::Secp256k1, BigInt};
+use curv::{
+	arithmetic::{traits::*, Modulo},
+	cryptographic_primitives::hashing::{Digest, DigestExt},
+	elliptic::curves::{Curve, Point, Scalar, Secp256k1},
+	BigInt,
+};
 use private::InternalError;
 use round_based::{
 	containers::{
