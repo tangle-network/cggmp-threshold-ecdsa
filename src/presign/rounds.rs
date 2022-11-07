@@ -152,7 +152,7 @@ impl Round1 {
 		mut output: O,
 	) -> Result<Round2>
 	where
-		O: Push<Msg<PreSigningP2PMessage1<Secp256k1>>>,
+		O: Push<Msg<PreSigningP2PMessage2<Secp256k1>>>,
 	{
 		let K: HashMap<u16, BigInt> = HashMap::new();
 		let G: HashMap<u16, BigInt> = HashMap::new();
@@ -420,7 +420,7 @@ impl Round2 {
 		mut output: O,
 	) -> Result<Round3>
 	where
-		O: Push<Msg<PreSigningP2PMessage2<Secp256k1>>>,
+		O: Push<Msg<PreSigningP2PMessage3<Secp256k1>>>,
 	{
 		let D_i: HashMap<u16, BigInt> = HashMap::new();
 		let D_hat_i: HashMap<u16, BigInt> = HashMap::new();

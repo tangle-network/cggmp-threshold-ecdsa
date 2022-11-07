@@ -100,7 +100,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(self.gmap_queue(M::Round1))
 					.map(R::Round1)
-					.map_err(Error::ProceedRound { msg_round: 0 })?;
+					.map_err(|e| Error::ProceedRound { msg_round: 0 })?;
 				true
 			},
 			s @ R::Round0(_) => {
@@ -113,7 +113,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(msgs, self.gmap_queue(M::Round2))
 					.map(|msg| R::Round2(Box::new(msg)))
-					.map_err(Error::ProceedRound { msg_round: 1 })?;
+					.map_err(|e| Error::ProceedRound { msg_round: 1 })?;
 				true
 			},
 			s @ R::Round1(_) => {
@@ -126,7 +126,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(msgs, self.gmap_queue(M::Round3))
 					.map(|msg| R::Round3(Box::new(msg)))
-					.map_err(Error::ProceedRound { msg_round: 2 })?;
+					.map_err(|e| Error::ProceedRound { msg_round: 2 })?;
 				true
 			},
 			s @ R::Round2(_) => {
@@ -139,7 +139,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(msgs, self.gmap_queue(M::Round4))
 					.map(|msg| R::Round4(Box::new(msg)))
-					.map_err(Error::ProceedRound { msg_round: 3 })?;
+					.map_err(|e| Error::ProceedRound { msg_round: 3 })?;
 				true
 			},
 			s @ R::Round3(_) => {
@@ -152,7 +152,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(msgs)
 					.map(R::Final)
-					.map_err(Error::ProceedRound { msg_round: 4 })?;
+					.map_err(|e| Error::ProceedRound { msg_round: 4 })?;
 				true
 			},
 			s @ R::Round4(_) => {
