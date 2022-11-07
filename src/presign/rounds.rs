@@ -360,6 +360,7 @@ impl Round1 {
 			Ok(Round2 {
 				ssid: self.ssid,
 				secrets: self.secrets,
+				eks: self.eks,
 				gamma_i: self.gamma_i,
 				k_i: self.k_i,
 				gamma_i: self.gamma_i,
@@ -368,6 +369,8 @@ impl Round1 {
 				rho_i: self.rho_i,
 				G_i: self.G_i,
 				K_i: self.K_i,
+				G,
+				K,
 				beta_i,
 				beta_hat_i,
 				r_i,
@@ -393,6 +396,7 @@ impl Round1 {
 pub struct Round2 {
 	pub ssid: SSID<Secp256k1>,
 	pub secrets: PreSigningSecrets,
+	pub eks: HashMap<u16, EncryptionKey>,
 	pub gamma_i: BigInt,
 	pub Gamma_i: Point<Secp256k1>,
 	pub k_i: BigInt,
@@ -400,6 +404,8 @@ pub struct Round2 {
 	pub rho_i: BigInt,
 	pub G_i: BigInt,
 	pub K_i: BigInt,
+	pub G: HashMap<u16, BigInt>,
+	pub K: HashMap<u16, BigInt>,
 	pub beta_i: HashMap<u16, BigInt>,
 	pub beta_hat_i: HashMap<u16, BigInt>,
 	pub r_i: HashMap<u16, BigInt>,
@@ -550,6 +556,7 @@ impl Round2 {
 		Ok(Round3 {
 			ssid: self.ssid,
 			secrets: self.secrets,
+			eks: self.eks,
 			gamma_i: self.gamma_i,
 			Gamma_i: self.Gamma_i,
 			Gammas,
@@ -559,6 +566,8 @@ impl Round2 {
 			rho_i: self.rho_i,
 			G_i: self.G_i,
 			K_i: self.K_i,
+			G: self.G,
+			K: self.K,
 			beta_i: self.beta_i,
 			beta_hat_i: self.beta_hat_i,
 			r_i: self.r_i,
@@ -591,6 +600,7 @@ impl Round2 {
 pub struct Round3 {
 	pub ssid: SSID<Secp256k1>,
 	pub secrets: PreSigningSecrets,
+	pub eks: HashMap<u16, EncryptionKey>,
 	pub gamma_i: BigInt,
 	pub Gamma_i: Point<Secp256k1>,
 	pub Gammas: HashMap<u16, Point<Secp256k1>>,
@@ -600,6 +610,8 @@ pub struct Round3 {
 	pub rho_i: BigInt,
 	pub G_i: BigInt,
 	pub K_i: BigInt,
+	pub G: HashMap<u16, BigInt>,
+	pub K: HashMap<u16, BigInt>,
 	pub beta_i: HashMap<u16, BigInt>,
 	pub beta_hat_i: HashMap<u16, BigInt>,
 	pub r_i: HashMap<u16, BigInt>,
@@ -675,6 +687,7 @@ impl Round3 {
 			let transcript = PresigningTranscript {
 				ssid: self.ssid,
 				secrets: self.secrets,
+				eks: self.eks,
 				gamma_i: self.gamma_i,
 				Gamma_i: self.Gamma_i,
 				Gammas: self.Gammas,
@@ -684,6 +697,8 @@ impl Round3 {
 				rho_i: self.rho_i,
 				G_i: self.G_i,
 				K_i: self.K_i,
+				G: self.G,
+				K: self.K,
 				beta_i: self.beta_i,
 				beta_hat_i: self.beta_hat_i,
 				r_i: self.r_i,
@@ -722,6 +737,25 @@ impl Round3 {
 
 			for j in self.ssid.P.iter() {
 				if j != self.ssid.X.i {
+					let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(
+						&self.eks.get(j),
+						RawPlaintext::from(BigInt::from(-1).mul(self.beta_i.get(j))),
+						Randomness::from(self.s_i.get(j)),
+					);
+					// D_j_i =  (gamma_i [.] K_j ) ⊕ enc_j(-beta_i_j; s_i_j) where [.] is Paillier
+					// multiplication
+					let D_j_i = Paillier::add(
+						&self.eks.get(j),
+						Paillier::mul(&self.eks.get(j), self.K.get(j), self.gamma_i),
+						encrypt_minus_beta_i_j,
+					);
+
+					// F_j_i = enc_i(beta_i_j, r_i_j)
+					let F_j_i = Paillier::encrypt_with_chosen_randomness(
+						&self.secrets.ek,
+						RawPlaintext::from(self.beta_i.get(j)),
+						Randomness::from(self.r_i.get(j)),
+					);
 					let witness_D_j_i = PaillierAffineOpWithGroupComInRangeWitness {
 						x: self.gamma_i,
 						y: self.beta_i.get(j),
@@ -737,9 +771,9 @@ impl Round3 {
 						N1: self.eks.get(j).n,
 						NN0: self.secrets.ek.nn,
 						NN1: self.eks.get(j).nn,
-						C: self.D_j_i,
+						C: D_j_i,
 						D: self.K.get(j),
-						Y: self.F_j_i,
+						Y: F_j_i,
 						X: self.Gamma_i,
 						ek_prover: self.secrets.ek,
 						ek_verifier: self.eks.get(j),
