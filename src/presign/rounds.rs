@@ -216,43 +216,55 @@ impl Round1 {
 				let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(
 					&eks.get(j).unwrap().clone(),
 					RawPlaintext::from(BigInt::from(-1).mul(&beta_i_j)),
-					Randomness::from(s_i_j),
+					&Randomness::from(s_i_j),
 				);
 				// D_j_i =  (gamma_i [.] K_j ) ⊕ enc_j(-beta_i_j; s_i_j) where [.] is Paillier
 				// multiplication
 				let D_j_i = Paillier::add(
-					&eks.get(j).unwrap(),
-					Paillier::mul(&eks.get(j).unwrap(), K.get(j).unwrap(), self.gamma_i),
-					encrypt_minus_beta_i_j,
-				);
+					eks.get(j).unwrap(),
+					Paillier::mul(
+						eks.get(j).unwrap(),
+						RawCiphertext::from(K.get(j).unwrap()),
+						RawPlaintext::from(self.gamma_i),
+					),
+					RawCiphertext::from(encrypt_minus_beta_i_j),
+				)
+				.into();
 
 				// F_j_i = enc_i(beta_i_j, r_i_j)
 				let F_j_i = Paillier::encrypt_with_chosen_randomness(
 					&self.secrets.ek,
 					RawPlaintext::from(beta_i_j),
-					Randomness::from(r_i_j),
-				);
+					&Randomness::from(r_i_j),
+				)
+				.into();
 
 				// Compute D_hat_j_i
 				let encrypt_minus_beta_hat_i_j = Paillier::encrypt_with_chosen_randomness(
-					&eks.get(j).unwrap(),
-					RawPlaintext::from(BigInt::from(-1).mul(beta_hat_i_j)),
-					Randomness::from(s_hat_i_j),
+					eks.get(j).unwrap(),
+					RawPlaintext::from(BigInt::from(-1).mul(&beta_hat_i_j)),
+					&Randomness::from(s_hat_i_j),
 				);
 				// D_hat_j_i =  (x_i [.] K_j ) ⊕ enc_j(-beta_hat_i_j; s_hat_i_j) where [.] is
 				// Paillier multiplication
 				let D_hat_j_i = Paillier::add(
-					&eks.get(j).unwrap(),
-					Paillier::mul(&eks.get(j).unwrap(), K.get(j).unwrap(), self.secrets.x_i),
-					encrypt_minus_beta_hat_i_j,
-				);
+					eks.get(j).unwrap(),
+					Paillier::mul(
+						eks.get(j).unwrap(),
+						RawCiphertext::from(K.get(j).unwrap().clone()),
+						RawPlaintext::from(self.secrets.x_i),
+					),
+					RawCiphertext::from(encrypt_minus_beta_hat_i_j),
+				)
+				.into();
 
 				// F_hat_j_i = enc_i(beta_hat_i_j, r_hat_i_j)
 				let F_hat_j_i = Paillier::encrypt_with_chosen_randomness(
 					&self.secrets.ek,
 					RawPlaintext::from(beta_hat_i_j),
-					Randomness::from(r_hat_i_j),
-				);
+					&Randomness::from(r_hat_i_j),
+				)
+				.into();
 
 				// psi_j_i
 				let witness_psi_j_i = PaillierAffineOpWithGroupComInRangeWitness {
@@ -470,7 +482,7 @@ impl Round2 {
 		}
 
 		// Gamma = Prod_j (Gamma_j)
-		let Gamma = Gammas.values().into_iter().fold(self.Gamma_i, |acc, x| acc.add(x));
+		let Gamma = Gammas.values().into_iter().fold(self.Gamma_i, |acc, x| acc + x);
 
 		// Delta = Gamma^{k_i}
 		let Delta_i = Gamma * Scalar::from_bigint(&self.k_i);
@@ -480,12 +492,22 @@ impl Round2 {
 		let alpha_hat_i: HashMap<u16, BigInt> = HashMap::new();
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
-				alpha_i
-					.insert(j.clone(), Paillier::decrypt(&self.secrets.ek, D_i.get(j).unwrap()))
-					.into();
-				alpha_hat_i
-					.insert(j.clone(), Paillier::decrypt(&self.secrets.ek, D_hat_i.get(j).unwrap()))
-					.into();
+				alpha_i.insert(
+					j.clone(),
+					Paillier::decrypt(
+						&self.secrets.dk,
+						RawCiphertext::from(RawCiphertext::from(D_i.get(j).unwrap().clone())),
+					)
+					.into(),
+				);
+				alpha_hat_i.insert(
+					j.clone(),
+					Paillier::decrypt(
+						&self.secrets.dk,
+						RawCiphertext::from(D_hat_i.get(j).unwrap()),
+					)
+					.into(),
+				);
 			}
 		}
 
@@ -505,14 +527,14 @@ impl Round2 {
 			self.beta_hat_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
 
 		// delta_i = gamma_i * k_i + sum of alpha_i_j's + sum of beta_i_j's mod q
-		let delta_i = BigInt::mod_mul(&self.gamma_i, &self.k_i, self.ssid.q)
+		let delta_i = BigInt::mod_mul(&self.gamma_i, &self.k_i, &self.ssid.q)
 			.mod_add(sum_of_alphas, self.ssid.q)
 			.mod_add(sum_of_betas, self.ssid.q);
 
 		// chi_i = x_i * k_i + sum of alpha_hat_i_j's + sum of beta_hat_i_j's
 		let chi_i = BigInt::mod_mul(&self.secrets.x_i, &self.k_i, self.ssid.q)
-			.mod_add(sum_of_alpha_hats, self.ssid.q)
-			.mod_add(sum_of_beta_hats, self.ssid.q);
+			.mod_add(&sum_of_alpha_hats, self.ssid.q)
+			.mod_add(&sum_of_beta_hats, self.ssid.q);
 
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
