@@ -179,8 +179,8 @@ impl Round1 {
 				D: self.presigning_transcript.H_hat_i,
 				X: self.presigning_transcript.X_i,
 				N_hat: self.presigning_transcript.N_hats.get(j),
-				s: self.presigning_transcript.S_hats.get(j),
-				t: self.presigning_transcript.T_hats.get(j),
+				s: self.presigning_transcript.S.get(j),
+				t: self.presigning_transcript.T.get(j),
 				phantom: PhantomData,
 			};
 
@@ -190,18 +190,28 @@ impl Round1 {
 			);
 
 			// dec proof
+			let ciphertext = H_hat_i;
+			for j in self.ssid.X.P.iter() {
+				if j != self.i {
+					ciphertext.mul(self.presigning_transcript.D_hat_i_j).mul(self.presigning_transcript.F_hat_j_i);
+				}
+			}
+
+			ciphertext.pow(&self.r);
+			ciphertext.mul(self.presigning_transcript.K_i.pow(&self.m));
+
 			let witness_sigma_i =
 				PaillierDecryptionModQWitness { y: todo!(), rho: todo!(), phantom: PhantomData };
 
 			let statement_sigma_i = PaillierDecryptionModQStatement {
-				S: todo!(),
-				T: todo!(),
-				N_hat: todo!(),
-				N0: todo!(),
-				NN0: todo!(),
-				C: todo!(),
-				x: todo!(),
-				ek_prover: todo!(),
+				S: self.presigning_transcript.S.get(j),
+				T: self.presigning_transcript.T.get(j),
+				N_hat: self.presigning_transcript.N_hat.get(j),
+				N0: self.presigning_transcript.secrets.ek.n,
+				NN0: self.presigning_transcript.secrets.ek.nn,
+				C: ciphertext,
+				x: self.presigning_transcript.sigma_i,
+				ek_prover: self.presigning_transcript.secrets.ek,
 				phantom: PhantomData,
 			};
 
