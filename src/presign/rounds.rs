@@ -981,7 +981,7 @@ impl Round4 {
 						return Err(PresignError::ProofVerificationError {
 							proof_type: format!("aff-g"),
 							proof_symbol: format!("D_i_j"),
-							verifying_party: self.ssid.X.i,
+							verifying_party: i,
 							faulty_party: j,
 						})
 					}
