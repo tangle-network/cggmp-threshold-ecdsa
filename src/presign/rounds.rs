@@ -801,15 +801,6 @@ impl Round3 {
 				PaillierAffineOpWithGroupComInRangeStatement<Secp256k1, Sha256>,
 			> = HashMap::new();
 
-			// Includes some computations for delta_i proof
-			let ciphertext_delta_i = BigInt::one();
-			let delta_i_randomness = BigInt::one();
-			// Computations for delta_i proof
-			ciphertext_delta_i.mul(&D_j_i).mul(self.F_i.get(j).unwrap_or(&BigInt::zero()));
-			delta_i_randomness
-				.mul(&self.rho_i)
-				.mul(s_j_i)
-				.mul(self.r_i.get(j).unwrap_or(&BigInt::zero()));
 			(self.ssid.P, self.ssid.P).par_iter().map(|(j, l)| {
 				if *j != self.ssid.X.i && j != l {
 					let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(
@@ -902,8 +893,17 @@ impl Round3 {
 				PaillierMulProof::<Secp256k1, Sha256>::prove(&witness_H_i, &statement_H_i);
 
 			// delta_i proofs
-			ciphertext_delta_i.mul(&H_i);
-			delta_i_randomness.mul(&H_i_randomness);
+			let ciphertext_delta_i = BigInt::one();
+			let delta_i_randomness = BigInt::one();
+			self.ssid.P.iter().map(|j| {
+				if *j != self.ssid.X.i {
+					ciphertext_delta_i.mul(&D_j_i).mul(self.F_i.get(j).unwrap_or(&BigInt::zero()));
+					delta_i_randomness
+						.mul(&self.rho_i)
+						.mul(s_j_i)
+						.mul(self.r_i.get(j).unwrap_or(&BigInt::zero()));
+				}
+			});
 
 			let statement_delta_i: HashMap<
 				u16,
