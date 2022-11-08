@@ -948,9 +948,7 @@ impl Round4 {
 					.is_err()
 					{
 						return Err(PresignError::ProofVerificationError)
-					} else {
-						continue
-					};
+					}
 				}
 
 				// Check H_j proofs
@@ -985,6 +983,6 @@ type Result<T> = std::result::Result<T, PresignError>;
 
 #[derive(Error, Debug, Clone)]
 pub enum PresignError {
-	#[error("Proof Verifaction Error")]
+	#[error("Proof Verification Error")]
 	ProofVerificationError,
 }

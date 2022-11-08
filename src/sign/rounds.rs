@@ -1,7 +1,9 @@
 use std::{collections::HashMap, io::Error, marker::PhantomData};
 
 use curv::{
-	elliptic::curves::{Point, Scalar, Secp256k1},
+	arithmetic::{traits::*, Modulo, Samplable},
+	cryptographic_primitives::hashing::{Digest, DigestExt},
+	elliptic::curves::{Curve, Point, Scalar, Secp256k1},
 	BigInt,
 };
 use round_based::{
@@ -28,6 +30,7 @@ use crate::{
 		},
 	},
 };
+use thiserror::Error;
 
 use zeroize::Zeroize;
 
@@ -49,26 +52,27 @@ impl Round0 {
 		O: Push<Msg<SigningBroadcastMessage1<Secp256k1>>>,
 	{
 		// If there is a record for (l,...)
-		if self.presigning_data.get(self.l).is_some() {
-			let (output, transcript) = self.presigning_data.get(self.l);
+		if let Some((presigning_output, presigning_transcript)) =
+			self.presigning_data.get(&(self.l as u16))
+		{
 			// r = R projected onto x axis
-			let r = output.R.x_coord().unwrap();
+			let r = presigning_output.R.x_coord().unwrap();
 			// sigma_i = k*m + r*chi
-			let sigma_i = output.k_i.mul(&self.m).add(r.mul(&output.chi_i));
+			let sigma_i = presigning_output.k_i.mul(&self.m).add(&r.mul(&presigning_output.chi_i));
 			let body = SigningBroadcastMessage1 { ssid: self.ssid, i: self.ssid.X.i, sigma_i };
 			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
 			// Erase output from memory
-			output.zeroize();
+			(*presigning_output).zeroize();
 			Ok(Round1 {
 				ssid: self.ssid,
 				i: self.ssid.X.i,
-				presigning_transcript: transcript,
+				presigning_transcript: presigning_transcript.clone(),
 				m: self.m,
 				r,
 				sigma_i,
 			})
 		} else {
-			Err(format!("No offline stage for {}", self.l))
+			Err(SignError::NoOfflineStageError)
 		}
 	}
 	pub fn is_expensive(&self) -> bool {
@@ -103,16 +107,17 @@ impl Round1 {
 
 		// Verify (r, sigma) is a valid signature
 		// sigma^{-1}
-		let sigma_inv = BigInt::mod_inv(sigma);
+		let sigma_inv = BigInt::mod_inv(&sigma, &self.ssid.q).unwrap();
 		// m*sigma^{-1}
-		let m_sigma_inv = self.m.mul(sigma_inv);
+		let m_sigma_inv = self.m.mul(&sigma_inv);
 		// r*sigma^{-1}
-		let r_sigma_inv = self.r.mul(sigma_inv);
+		let r_sigma_inv = self.r.mul(&sigma_inv);
 		let g = Point::<Secp256k1>::generator();
 		let X = self.ssid.X.public_key();
-		let x_projection = ((g * Scalar::from_bigint(m_sigma_inv))
-			.add(X * Scalar::from_bigint(r_sigma_inv)))
-		.x_coord();
+		let x_projection = ((g * Scalar::from_bigint(&m_sigma_inv)) +
+			(X * Scalar::from_bigint(&r_sigma_inv)))
+		.x_coord()
+		.unwrap();
 
 		if self.r == x_projection {
 			let signing_output = SigningOutput { ssid: self.ssid, m: self.m, r: self.r, sigma };
@@ -122,66 +127,70 @@ impl Round1 {
 			// D_hat_j_i proofs
 			let proofs_D_hat_j_i: HashMap<
 				u16,
-				PaillierAffineOpWithGroupComInRangeProof<Secp256k1>,
+				PaillierAffineOpWithGroupComInRangeProof<Secp256k1, Sha256>,
 			> = HashMap::new();
 			// D_hat_j_i statements
 			let statements_D_hat_j_i: HashMap<
 				u16,
-				PaillierAffineOpWithGroupComInRangeStatement<Secp256k1>,
+				PaillierAffineOpWithGroupComInRangeStatement<Secp256k1, Sha256>,
 			> = HashMap::new();
 
 			for j in self.ssid.P.iter() {
-				if j != self.ssid.X.i {
+				if *j != self.ssid.X.i {
 					// Compute D_hat_j_i
 					let encrypt_minus_beta_hat_i_j = Paillier::encrypt_with_chosen_randomness(
-						&self.presigning_transcript.eks.get(j),
+						self.presigning_transcript.eks.get(j).unwrap(),
 						RawPlaintext::from(
-							BigInt::from(-1).mul(self.presigning_transcript.beta_hat_i.get(j)),
+							BigInt::from(-1)
+								.mul(self.presigning_transcript.beta_hat_i.get(j).unwrap()),
 						),
-						Randomness::from(self.presigning_transcript.s_hat_i.get(j)),
+						&Randomness::from(self.presigning_transcript.s_hat_i.get(j).unwrap()),
 					);
 					// D_hat_j_i =  (x_i [.] K_j ) ⊕ enc_j(-beta_hat_i_j; s_hat_i_j) where [.] is
 					// Paillier multiplication
 					let D_hat_j_i = Paillier::add(
-						&self.eks.get(j),
+						self.presigning_transcript.eks.get(j).unwrap(),
 						Paillier::mul(
-							&self.presigning_transcript.eks.get(j),
-							self.presigning_transcript.K.get(j),
-							self.presigning_transcript.secrets.x_i,
+							self.presigning_transcript.eks.get(j).unwrap(),
+							RawCiphertext::from(self.presigning_transcript.K.get(j).unwrap()),
+							RawPlaintext::from(self.presigning_transcript.secrets.x_i),
 						),
-						encrypt_minus_beta_hat_i_j,
-					);
+						RawCiphertext::from(encrypt_minus_beta_hat_i_j),
+					)
+					.into();
 
 					// F_hat_j_i = enc_i(beta_hat_i_j, r_hat_i_j)
 					let F_hat_j_i = Paillier::encrypt_with_chosen_randomness(
-						&self.secrets.ek,
-						RawPlaintext::from(self.presigning_transcript.beta_hat_i.get(j)),
-						Randomness::from(self.presigning_transcript.r_hat_i.get(j)),
-					);
+						&self.presigning_transcript.secrets.ek,
+						RawPlaintext::from(self.presigning_transcript.beta_hat_i.get(j).unwrap()),
+						&Randomness::from(self.presigning_transcript.r_hat_i.get(j).unwrap()),
+					)
+					.into();
+
 					let witness_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
 							x: self.presigning_transcript.secrets.x_i,
-							y: self.presigning_transcript.beta_hat_i.get(j),
-							rho: self.presigning_transcript.s_hat_i.get(j),
-							rho_y: self.presigning_transcript.r_hat_i.get(j),
+							y: self.presigning_transcript.beta_hat_i.get(j).unwrap().clone(),
+							rho: self.presigning_transcript.s_hat_i.get(j).unwrap().clone(),
+							rho_y: self.presigning_transcript.r_hat_i.get(j).unwrap().clone(),
 							phantom: PhantomData,
 						};
 					let statement_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-							S: self.presigning_transcript.S.get(j),
-							T: self.presigning_transcript.T.get(j),
-							N_hat: self.presigning_transcript.N_hats.get(j),
+							S: self.presigning_transcript.S.get(j).unwrap().clone(),
+							T: self.presigning_transcript.T.get(j).unwrap().clone(),
+							N_hat: self.presigning_transcript.N_hats.get(j).unwrap().clone(),
 							N0: self.presigning_transcript.secrets.ek.n,
-							N1: self.presigning_transcript.eks.get(j).n,
+							N1: self.presigning_transcript.eks.get(j).unwrap().clone().n,
 							NN0: self.presigning_transcript.secrets.ek.nn,
-							NN1: self.presigning_transcript.eks.get(j).nn,
+							NN1: self.presigning_transcript.eks.get(j).unwrap().clone().nn,
 							C: D_hat_j_i,
-							D: self.presigning_transcript.K.get(j),
+							D: self.presigning_transcript.K.get(j).unwrap().clone(),
 							Y: F_hat_j_i,
 							X: Point::<Secp256k1>::generator().as_point() *
 								Scalar::from_bigint(&self.presigning_transcript.secrets.x_i),
 							ek_prover: self.presigning_transcript.secrets.ek,
-							ek_verifier: self.presigning_transcript.eks.get(j),
+							ek_verifier: self.presigning_transcript.eks.get(j).unwrap().clone(),
 							phantom: PhantomData,
 						};
 					let proof_D_hat_j_i =
@@ -189,8 +198,8 @@ impl Round1 {
 							Secp256k1,
 							Sha256,
 						>::prove(&witness_D_hat_j_i, &statement_D_hat_j_i);
-					proofs_D_hat_j_i.insert(j, proof_D_hat_j_i);
-					statements_D_hat_j_i.insert(j, statement_D_hat_j_i);
+					proofs_D_hat_j_i.insert(*j, proof_D_hat_j_i);
+					statements_D_hat_j_i.insert(*j, statement_D_hat_j_i);
 				}
 			}
 
@@ -199,12 +208,13 @@ impl Round1 {
 				&self.presigning_transcript.secrets.ek.n,
 			);
 			let H_hat_i = Paillier::encrypt_with_chosen_randomness(
-				&self.presigning_transcript.ek,
+				&self.presigning_transcript.secrets.ek,
 				RawPlaintext::from(
-					self.presigning_transcript.k_i.mul(self.presigning_transcript.x_i),
+					self.presigning_transcript.k_i.mul(&self.presigning_transcript.secrets.x_i),
 				),
-				Randomness::from(H_hat_i_randomness),
-			);
+				&Randomness::from(H_hat_i_randomness),
+			)
+			.into();
 			let witness_H_hat_i = PaillierMultiplicationVersusGroupWitness {
 				x: self.presigning_transcript.secrets.x_i,
 				rho: self.presigning_transcript.rho_i.mul(&H_hat_i_randomness),
@@ -219,9 +229,9 @@ impl Round1 {
 				C: self.presigning_transcript.K_i,
 				D: H_hat_i,
 				X: X_i,
-				N_hat: self.presigning_transcript.N_hats.get(j),
-				s: self.presigning_transcript.S.get(j),
-				t: self.presigning_transcript.T.get(j),
+				N_hat: self.presigning_transcript.N_hats.get(j).unwrap().clone(),
+				s: self.presigning_transcript.S.get(j).unwrap().clone(),
+				t: self.presigning_transcript.T.get(j).unwrap().clone(),
 				phantom: PhantomData,
 			};
 
@@ -234,32 +244,36 @@ impl Round1 {
 			let ciphertext = H_hat_i;
 			let ciphertext_randomness = H_hat_i_randomness;
 			for j in self.ssid.X.P.iter() {
-				if j != self.i {
+				if *j != self.i {
 					ciphertext
-						.mul(self.presigning_transcript.D_hat_i.get(j))
-						.mul(self.presigning_transcript.F_hat_j_i);
+						.mul(&self.presigning_transcript.D_hat_i.get(j).unwrap())
+						.mul(&F_hat_j_i);
 					ciphertext_randomness
-						.mul(self.presigning_transcript.s_hat_j_i)
-						.mul(&self.presigning_transcript.r_hat_i.get(j));
+						.mul(&s_hat_j_i)
+						.mul(&self.presigning_transcript.r_hat_i.get(j).unwrap());
 				}
 			}
 
 			ciphertext.pow(&self.r);
-			ciphertext.mul(self.presigning_transcript.K_i.pow(&self.m));
+			ciphertext.mul(&self.presigning_transcript.K_i.pow(&self.m));
 			ciphertext_randomness
 				.pow(&self.r)
-				.mul(self.presigning_transcript.k_i.pow(&self.m));
+				.mul(&self.presigning_transcript.k_i.pow(&self.m));
 
 			let witness_sigma_i = PaillierDecryptionModQWitness {
-				y: Paillier::decrypt(&self.presigning_transcript.secrets.dk, ciphertext),
+				y: Paillier::decrypt(
+					&self.presigning_transcript.secrets.dk,
+					RawCiphertext::from(ciphertext),
+				)
+				.into(),
 				rho: ciphertext_randomness,
 				phantom: PhantomData,
 			};
 
 			let statement_sigma_i = PaillierDecryptionModQStatement {
-				S: self.presigning_transcript.S.get(j),
-				T: self.presigning_transcript.T.get(j),
-				N_hat: self.presigning_transcript.N_hats.get(j),
+				S: self.presigning_transcript.S.get(j).unwrap().clone(),
+				T: self.presigning_transcript.T.get(j).unwrap().clone(),
+				N_hat: self.presigning_transcript.N_hats.get(j).unwrap().clone(),
 				N0: self.presigning_transcript.secrets.ek.n,
 				NN0: self.presigning_transcript.secrets.ek.nn,
 				C: ciphertext,
@@ -303,39 +317,51 @@ impl Round2 {
 	pub fn proceed(
 		self,
 		input: BroadcastMsgs<Option<SigningIdentifiableAbortMessage<Secp256k1>>>,
-	) -> Option<SigningOutput<Secp256k1>> {
+	) -> Result<Option<SigningOutput<Secp256k1>>> {
 		if self.output.is_some() {
-			(self.output, self.transcript)
+			Ok(Some(self.output.unwrap()))
 		} else {
 			for msg in input.into_vec() {
+				let msg = msg.unwrap();
 				// Check D_i_j proofs
 				for i in msg.proofs_D_hat_j_i.keys() {
-					let D_hat_i_j_proof = msg.proofs_D_hat_j_i.unwrap().get(i);
+					let D_hat_i_j_proof = msg.proofs_D_hat_j_i.get(i).unwrap();
 
-					let statement_D_i_j = msg.statements_D_hat_j_i.unwrap().get(i);
+					let statement_D_i_j = msg.statements_D_hat_j_i.get(i).unwrap();
 
-					crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
-						Secp256k1,
-						Sha256,
-					>::verify(&D_hat_i_j_proof, &statement_D_i_j)
-					.map_err(|e| Err(format!("D_hat_i_j proof failed")));
+					if PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
+						D_hat_i_j_proof,
+						statement_D_i_j,
+					)
+					.is_err()
+					{
+						return Err(SignError::ProofVerificationError)
+					}
 				}
 
 				// Check H_j proofs
-				let H_hat_i_proof = msg.H_hat_i_proof.unwrap();
-				let statement_H_hat_i = msg.statement_H_hat_i.unwrap();
+				let H_hat_i_proof = msg.H_hat_i_proof;
+				let statement_H_hat_i = msg.statement_H_hat_i;
 
-				PaillierMultiplicationVersusGroupProof::verify(&H_hat_i_proof, &statement_H_hat_i)
-					.map_err(|e| Err(format!("H_hat_j proof failed")));
+				if PaillierMultiplicationVersusGroupProof::verify(
+					&H_hat_i_proof,
+					&statement_H_hat_i,
+				)
+				.is_err()
+				{
+					return Err(SignError::ProofVerificationError)
+				}
 
 				// Check delta_j_proof
-				let sigma_i_proof = msg.sigma_i_proof.unwrap();
-				let statement_sigma_i = msg.statement_sigma_i.unwrap();
+				let sigma_i_proof = msg.sigma_i_proof;
+				let statement_sigma_i = msg.statement_sigma_i;
 
-				PaillierDecryptionModQProof::verify(&sigma_i_proof, &statement_sigma_i)
-					.map_err(|e| Err(format!("sigma_j proof failed")));
+				if PaillierDecryptionModQProof::verify(&sigma_i_proof, &statement_sigma_i).is_err()
+				{
+					return Err(SignError::ProofVerificationError)
+				}
 			}
-			None
+			Ok(None)
 		}
 	}
 
@@ -347,4 +373,13 @@ impl Round2 {
 	}
 }
 
-type Result<T> = std::result::Result<T, Error>;
+type Result<T> = std::result::Result<T, SignError>;
+
+#[derive(Error, Debug, Clone)]
+pub enum SignError {
+	#[error("Proof Verification Error")]
+	ProofVerificationError,
+
+	#[error("Offline Stage Does Not Exist")]
+	NoOfflineStageError,
+}
