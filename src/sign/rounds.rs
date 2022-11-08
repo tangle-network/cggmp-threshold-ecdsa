@@ -66,7 +66,7 @@ impl Round0 {
 			Ok(Round1 {
 				ssid: self.ssid,
 				i: self.ssid.X.i,
-				presigning_transcript: presigning_transcript.clone(),
+				presigning_transcript: *presigning_transcript,
 				m: self.m,
 				r,
 				sigma_i,
@@ -170,27 +170,27 @@ impl Round1 {
 					let witness_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
 							x: self.presigning_transcript.secrets.x_i,
-							y: self.presigning_transcript.beta_hat_i.get(j).unwrap().clone(),
-							rho: self.presigning_transcript.s_hat_i.get(j).unwrap().clone(),
-							rho_y: self.presigning_transcript.r_hat_i.get(j).unwrap().clone(),
+							y: *self.presigning_transcript.beta_hat_i.get(j).unwrap(),
+							rho: *self.presigning_transcript.s_hat_i.get(j).unwrap(),
+							rho_y: *self.presigning_transcript.r_hat_i.get(j).unwrap(),
 							phantom: PhantomData,
 						};
 					let statement_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-							S: self.presigning_transcript.S.get(j).unwrap().clone(),
-							T: self.presigning_transcript.T.get(j).unwrap().clone(),
-							N_hat: self.presigning_transcript.N_hats.get(j).unwrap().clone(),
+							S: *self.presigning_transcript.S.get(j).unwrap(),
+							T: *self.presigning_transcript.T.get(j).unwrap(),
+							N_hat: *self.presigning_transcript.N_hats.get(j).unwrap(),
 							N0: self.presigning_transcript.secrets.ek.n,
-							N1: self.presigning_transcript.eks.get(j).unwrap().clone().n,
+							N1: self.presigning_transcript.eks.get(j).unwrap().n,
 							NN0: self.presigning_transcript.secrets.ek.nn,
-							NN1: self.presigning_transcript.eks.get(j).unwrap().clone().nn,
+							NN1: self.presigning_transcript.eks.get(j).unwrap().nn,
 							C: D_hat_j_i,
-							D: self.presigning_transcript.K.get(j).unwrap().clone(),
+							D: *self.presigning_transcript.K.get(j).unwrap(),
 							Y: F_hat_j_i,
 							X: Point::<Secp256k1>::generator().as_point() *
 								Scalar::from_bigint(&self.presigning_transcript.secrets.x_i),
 							ek_prover: self.presigning_transcript.secrets.ek,
-							ek_verifier: self.presigning_transcript.eks.get(j).unwrap().clone(),
+							ek_verifier: *self.presigning_transcript.eks.get(j).unwrap(),
 							phantom: PhantomData,
 						};
 					let proof_D_hat_j_i =
@@ -229,9 +229,9 @@ impl Round1 {
 				C: self.presigning_transcript.K_i,
 				D: H_hat_i,
 				X: X_i,
-				N_hat: self.presigning_transcript.N_hats.get(j).unwrap().clone(),
-				s: self.presigning_transcript.S.get(j).unwrap().clone(),
-				t: self.presigning_transcript.T.get(j).unwrap().clone(),
+				N_hat: *self.presigning_transcript.N_hats.get(j).unwrap(),
+				s: *self.presigning_transcript.S.get(j).unwrap(),
+				t: *self.presigning_transcript.T.get(j).unwrap(),
 				phantom: PhantomData,
 			};
 
@@ -271,9 +271,9 @@ impl Round1 {
 			};
 
 			let statement_sigma_i = PaillierDecryptionModQStatement {
-				S: self.presigning_transcript.S.get(j).unwrap().clone(),
-				T: self.presigning_transcript.T.get(j).unwrap().clone(),
-				N_hat: self.presigning_transcript.N_hats.get(j).unwrap().clone(),
+				S: *self.presigning_transcript.S.get(j).unwrap(),
+				T: *self.presigning_transcript.T.get(j).unwrap(),
+				N_hat: *self.presigning_transcript.N_hats.get(j).unwrap(),
 				N0: self.presigning_transcript.secrets.ek.n,
 				NN0: self.presigning_transcript.secrets.ek.nn,
 				C: ciphertext,
