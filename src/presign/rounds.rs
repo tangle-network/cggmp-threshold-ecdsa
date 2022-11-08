@@ -72,29 +72,29 @@ impl Round0 {
 		// G_i = enc_i(gamma_i; nu_i)
 		let G_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 			&self.secrets.ek,
-			RawPlaintext::from(gamma_i.clone()),
-			&Randomness::from(nu_i.clone()),
+			RawPlaintext::from(gamma_i),
+			&Randomness::from(nu_i),
 		)
 		.into();
 		// K_i = enc_i(k_i; rho_i)
 		let K_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 			&self.secrets.ek,
-			RawPlaintext::from(k_i.clone()),
-			&Randomness(rho_i.clone()),
+			RawPlaintext::from(k_i),
+			&Randomness(rho_i),
 		)
 		.into();
 		let witness_psi_0_j_i =
 			PaillierEncryptionInRangeWitness { k: k_i, rho: rho_i, phantom: PhantomData };
 
 		for j in self.ssid.P.iter() {
-			if j != &self.ssid.X.i {
+			if *j != self.ssid.X.i {
 				let statement_psi_0_j_i = PaillierEncryptionInRangeStatement {
-					N0: self.secrets.ek.n.clone(),
-					NN0: self.secrets.ek.nn.clone(),
+					N0: self.secrets.ek.n,
+					NN0: self.secrets.ek.nn,
 					K: K_i,
-					s: self.S.get(j).unwrap().clone(),
-					t: self.T.get(j).unwrap().clone(),
-					N_hat: self.N_hats.get(j).unwrap().clone(),
+					s: *self.S.get(j).unwrap_or(&BigInt::zero()),
+					t: *self.T.get(j).unwrap_or(&BigInt::zero()),
+					N_hat: *self.N_hats.get(j).unwrap_or(&BigInt::zero()),
 					phantom: PhantomData,
 				};
 				let psi_0_j_i = PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(
@@ -111,7 +111,7 @@ impl Round0 {
 					enc_j_statement: statement_psi_0_j_i,
 					ek: self.secrets.ek,
 				};
-				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
+				output.push(Msg { sender: self.ssid.X.i, receiver: Some(*j), body });
 			}
 		}
 		Ok(Round1 {
@@ -164,11 +164,11 @@ impl Round1 {
 			// j
 			let j = msg.i;
 			// Insert K_j
-			K.insert(j.clone(), msg.K_i);
+			K.insert(j, msg.K_i);
 			// Insert G_j
-			G.insert(j.clone(), msg.G_i);
+			G.insert(j, msg.G_i);
 			// Insert j's Paillier encryption key
-			eks.insert(j.clone(), msg.ek);
+			eks.insert(j, msg.ek);
 			let psi_0_i_j = msg.psi_0_j_i;
 			let enc_i_statement = msg.enc_j_statement;
 			// Verify psi_0_i_j proof
@@ -197,28 +197,28 @@ impl Round1 {
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
 				// r_i_j <- Z_{N_j}
-				let r_i_j = BigInt::sample_below(&eks.get(j).unwrap().clone().n);
-				r_i.insert(j.clone(), r_i_j);
+				let r_i_j = BigInt::sample_below(&eks.get(j).unwrap().n);
+				r_i.insert(*j, r_i_j);
 				// s_i_j <- Z_{N_j}
-				let s_i_j = BigInt::sample_below(&eks.get(j).unwrap().clone().n);
-				s_i.insert(j.clone(), s_i_j);
+				let s_i_j = BigInt::sample_below(&eks.get(j).unwrap().n);
+				s_i.insert(*j, s_i_j);
 				// r_hat_i_j <- Z_{N_j}
-				let r_hat_i_j = BigInt::sample_below(&eks.get(j).unwrap().clone().n);
-				r_hat_i.insert(j.clone(), r_hat_i_j);
+				let r_hat_i_j = BigInt::sample_below(&eks.get(j).unwrap().n);
+				r_hat_i.insert(*j, r_hat_i_j);
 				// s_hat_i_j <- Z_{N_j}
-				let s_hat_i_j = BigInt::sample_below(&eks.get(j).unwrap().clone().n);
-				s_hat_i.insert(j.clone(), s_hat_i_j);
+				let s_hat_i_j = BigInt::sample_below(&eks.get(j).unwrap().n);
+				s_hat_i.insert(*j, s_hat_i_j);
 				let upper = BigInt::pow(&BigInt::from(2), L_PRIME as u32);
 				let lower = BigInt::from(-1).mul(&upper);
 				// beta_i_j <- [-2^L_PRIME, 2^L_PRIME]
 				let beta_i_j = BigInt::sample_range(&lower, &upper);
-				beta_i.insert(j.clone(), beta_i_j);
+				beta_i.insert(*j, beta_i_j);
 				// beta_hat_i_j <- [-2^L_PRIME, 2^L_PRIME]
 				let beta_hat_i_j = BigInt::sample_range(&lower, &upper);
-				beta_hat_i.insert(j.clone(), beta_hat_i_j);
+				beta_hat_i.insert(*j, beta_hat_i_j);
 
 				let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(
-					&eks.get(j).unwrap().clone(),
+					eks.get(j).unwrap(),
 					RawPlaintext::from(BigInt::from(-1).mul(&beta_i_j)),
 					&Randomness::from(s_i_j),
 				);
@@ -255,7 +255,7 @@ impl Round1 {
 					eks.get(j).unwrap(),
 					Paillier::mul(
 						eks.get(j).unwrap(),
-						RawCiphertext::from(K.get(j).unwrap().clone()),
+						RawCiphertext::from(K.get(j).unwrap()),
 						RawPlaintext::from(self.secrets.x_i),
 					),
 					RawCiphertext::from(encrypt_minus_beta_hat_i_j),
@@ -279,19 +279,19 @@ impl Round1 {
 					phantom: PhantomData,
 				};
 				let statement_psi_j_i = PaillierAffineOpWithGroupComInRangeStatement {
-					S: self.S.get(j).unwrap().clone(),
-					T: self.T.get(j).unwrap().clone(),
-					N_hat: self.N_hats.get(j).unwrap().clone(),
+					S: *self.S.get(j).unwrap(),
+					T: *self.T.get(j).unwrap(),
+					N_hat: *self.N_hats.get(j).unwrap(),
 					N0: self.secrets.ek.n,
-					N1: eks.get(j).unwrap().clone().n,
+					N1: eks.get(j).unwrap().n,
 					NN0: self.secrets.ek.nn,
-					NN1: eks.get(j).unwrap().clone().nn,
+					NN1: eks.get(j).unwrap().nn,
 					C: D_j_i,
-					D: K.get(j).unwrap().clone(),
+					D: *K.get(j).unwrap(),
 					Y: F_j_i,
 					X: Gamma_i,
 					ek_prover: self.secrets.ek,
-					ek_verifier: eks.get(j).unwrap().clone(),
+					ek_verifier: *eks.get(j).unwrap(),
 					phantom: PhantomData,
 				};
 				let psi_j_i = PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::prove(
@@ -308,20 +308,20 @@ impl Round1 {
 					phantom: PhantomData,
 				};
 				let statement_psi_hat_j_i = PaillierAffineOpWithGroupComInRangeStatement {
-					S: self.S.get(j).unwrap().clone(),
-					T: self.T.get(j).unwrap().clone(),
-					N_hat: self.N_hats.get(j).unwrap().clone(),
+					S: *self.S.get(j).unwrap(),
+					T: *self.T.get(j).unwrap(),
+					N_hat: *self.N_hats.get(j).unwrap(),
 					N0: self.secrets.ek.n,
-					N1: eks.get(j).unwrap().clone().n,
+					N1: eks.get(j).unwrap().n,
 					NN0: self.secrets.ek.nn,
-					NN1: eks.get(j).unwrap().clone().nn,
+					NN1: eks.get(j).unwrap().nn,
 					C: D_hat_j_i,
-					D: K.get(j).unwrap().clone(),
+					D: *K.get(j).unwrap(),
 					Y: F_hat_j_i,
 					X: Point::<Secp256k1>::generator().as_point() *
 						Scalar::from_bigint(&self.secrets.x_i),
 					ek_prover: self.secrets.ek,
-					ek_verifier: eks.get(j).unwrap().clone(),
+					ek_verifier: *eks.get(j).unwrap(),
 					phantom: PhantomData,
 				};
 				let psi_hat_j_i =
@@ -341,9 +341,9 @@ impl Round1 {
 					NN0: self.secrets.ek.nn,
 					C: self.K_i,
 					X: Gamma_i,
-					s: self.S.get(j).unwrap().clone(),
-					t: self.T.get(j).unwrap().clone(),
-					N_hat: self.N_hats.get(j).unwrap().clone(),
+					s: *self.S.get(j).unwrap(),
+					t: *self.T.get(j).unwrap(),
+					N_hat: *self.N_hats.get(j).unwrap(),
 					phantom: PhantomData,
 				};
 				let psi_prime_j_i =
@@ -368,7 +368,7 @@ impl Round1 {
 					psi_prime_j_i,
 					statement_psi_prime_j_i,
 				};
-				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
+				output.push(Msg { sender: self.ssid.X.i, receiver: Some(*j), body });
 			}
 		}
 		Ok(Round2 {
@@ -447,15 +447,15 @@ impl Round2 {
 			// j
 			let j = msg.i;
 			// Insert D_i_j
-			D_i.insert(j.clone(), msg.D_j_i);
+			D_i.insert(j, msg.D_j_i);
 			// Insert D_hat_i_j
-			D_hat_i.insert(j.clone(), msg.D_hat_j_i);
+			D_hat_i.insert(j, msg.D_hat_j_i);
 			// Insert F_i_j
-			F_i.insert(j.clone(), msg.F_j_i);
+			F_i.insert(j, msg.F_j_i);
 			// Insert F_hat_i_j
-			F_hat_i.insert(j.clone(), msg.F_hat_j_i);
+			F_hat_i.insert(j, msg.F_hat_j_i);
 			// Insert Gamma_j
-			Gammas.insert(j.clone(), msg.Gamma_i);
+			Gammas.insert(j, msg.Gamma_i);
 			// Verify first aff-g
 			let psi_i_j = msg.psi_j_i;
 			let statement_psi_i_j = msg.statement_psi_j_i;
@@ -506,15 +506,15 @@ impl Round2 {
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
 				alpha_i.insert(
-					j.clone(),
+					*j,
 					Paillier::decrypt(
 						&self.secrets.dk,
-						RawCiphertext::from(RawCiphertext::from(D_i.get(j).unwrap().clone())),
+						RawCiphertext::from(RawCiphertext::from(D_i.get(j).unwrap())),
 					)
 					.into(),
 				);
 				alpha_hat_i.insert(
-					j.clone(),
+					*j,
 					Paillier::decrypt(
 						&self.secrets.dk,
 						RawCiphertext::from(D_hat_i.get(j).unwrap()),
@@ -567,9 +567,9 @@ impl Round2 {
 						NN0: self.secrets.ek.nn,
 						C: self.K_i,
 						X: Delta_i,
-						s: self.S.get(j).unwrap().clone(),
-						t: self.T.get(j).unwrap().clone(),
-						N_hat: self.N_hats.get(j).unwrap().clone(),
+						s: *self.S.get(j).unwrap(),
+						t: *self.T.get(j).unwrap(),
+						N_hat: *self.N_hats.get(j).unwrap(),
 						phantom: PhantomData,
 					};
 				let psi_prime_prime_j_i =
@@ -587,7 +587,7 @@ impl Round2 {
 					psi_prime_prime_j_i,
 					statement_psi_prime_prime_j_i,
 				};
-				output.push(Msg { sender: self.ssid.X.i, receiver: Some(j.clone()), body });
+				output.push(Msg { sender: self.ssid.X.i, receiver: Some(*j), body });
 			}
 		}
 		Ok(Round3 {
@@ -699,8 +699,8 @@ impl Round3 {
 			});
 
 			// Insert into deltas and Deltas
-			deltas.insert(j.clone(), msg.delta_i);
-			Deltas.insert(j.clone(), msg.Delta_i);
+			deltas.insert(j, msg.delta_i);
+			Deltas.insert(j, msg.Delta_i);
 		}
 
 		// delta = sum of delta_j's
@@ -779,7 +779,7 @@ impl Round3 {
 			let ciphertext_delta_i = BigInt::one();
 			let delta_i_randomness = BigInt::one();
 			for j in self.ssid.P.iter() {
-				if j.clone() != self.ssid.X.i {
+				if *j != self.ssid.X.i {
 					let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(
 						self.eks.get(j).unwrap(),
 						RawPlaintext::from(BigInt::from(-1).mul(self.beta_i.get(j).unwrap())),
@@ -791,7 +791,7 @@ impl Round3 {
 						self.eks.get(j).unwrap(),
 						Paillier::mul(
 							self.eks.get(j).unwrap(),
-							RawCiphertext::from(self.K.get(j).unwrap().clone()),
+							RawCiphertext::from(self.K.get(j).unwrap_or(&BigInt::zero())),
 							RawPlaintext::from(self.gamma_i),
 						),
 						RawCiphertext::from(encrypt_minus_beta_i_j),
@@ -807,25 +807,25 @@ impl Round3 {
 					.into();
 					let witness_D_j_i = PaillierAffineOpWithGroupComInRangeWitness {
 						x: self.gamma_i,
-						y: self.beta_i.get(j).unwrap().clone(),
-						rho: self.s_i.get(j).unwrap().clone(),
-						rho_y: self.r_i.get(j).unwrap().clone(),
+						y: *self.beta_i.get(j).unwrap(),
+						rho: *self.s_i.get(j).unwrap(),
+						rho_y: *self.r_i.get(j).unwrap(),
 						phantom: PhantomData,
 					};
 					let statement_D_j_i = PaillierAffineOpWithGroupComInRangeStatement {
-						S: self.S.get(j).unwrap().clone(),
-						T: self.T.get(j).unwrap().clone(),
-						N_hat: self.N_hats.get(j).unwrap().clone(),
+						S: *self.S.get(j).unwrap(),
+						T: *self.T.get(j).unwrap(),
+						N_hat: *self.N_hats.get(j).unwrap(),
 						N0: self.secrets.ek.n,
-						N1: self.eks.get(j).unwrap().clone().clone().n,
+						N1: self.eks.get(j).unwrap().n,
 						NN0: self.secrets.ek.nn,
-						NN1: self.eks.get(j).unwrap().clone().clone().nn,
+						NN1: self.eks.get(j).unwrap().nn,
 						C: D_j_i,
-						D: self.K.get(j).unwrap().clone(),
+						D: *self.K.get(j).unwrap(),
 						Y: F_j_i,
 						X: self.Gamma_i,
 						ek_prover: self.secrets.ek,
-						ek_verifier: self.eks.get(j).unwrap().clone(),
+						ek_verifier: *self.eks.get(j).unwrap(),
 						phantom: PhantomData,
 					};
 					let D_j_i_proof =
@@ -833,8 +833,8 @@ impl Round3 {
 							&witness_D_j_i,
 							&statement_D_j_i,
 						);
-					proofs_D_j_i.insert(j.clone(), D_j_i_proof);
-					statements_D_j_i.insert(j.clone(), statement_D_j_i);
+					proofs_D_j_i.insert(*j, D_j_i_proof);
+					statements_D_j_i.insert(*j, statement_D_j_i);
 
 					// Computations for delta_i proof
 					ciphertext_delta_i.mul(&D_j_i).mul(self.F_i.get(j).unwrap());
