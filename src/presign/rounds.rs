@@ -905,6 +905,14 @@ impl Round3 {
 			ciphertext_delta_i.mul(&H_i);
 			delta_i_randomness.mul(&H_i_randomness);
 
+			let statement_delta_i: HashMap<
+				u16,
+				PaillierDecryptionModQStatement<Secp256k1, Sha256>,
+			> = HashMap::new();
+
+			let proof_delta_i: HashMap<u16, PaillierDecryptionModQProof<Secp256k1, Sha256>> =
+				HashMap::new();
+
 			self.ssid.P.iter().map(|l| {
 				if *l != self.ssid.X.i {
 					let witness_delta_i = PaillierDecryptionModQWitness {
@@ -917,10 +925,10 @@ impl Round3 {
 						phantom: PhantomData,
 					};
 
-					let statement_delta_i = PaillierDecryptionModQStatement {
-						S: *self.S.get(j).unwrap_or(&BigInt::zero()),
-						T: *self.T.get(j).unwrap_or(&BigInt::zero()),
-						N_hat: *self.N_hats.get(j).unwrap_or(&BigInt::zero()),
+					let statement_delta_l_i = PaillierDecryptionModQStatement {
+						S: *self.S.get(l).unwrap_or(&BigInt::zero()),
+						T: *self.T.get(l).unwrap_or(&BigInt::zero()),
+						N_hat: *self.N_hats.get(l).unwrap_or(&BigInt::zero()),
 						N0: self.secrets.ek.n,
 						NN0: self.secrets.ek.nn,
 						C: ciphertext_delta_i,
@@ -929,9 +937,14 @@ impl Round3 {
 						phantom: PhantomData,
 					};
 
-					let proof_delta_i = PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
-						&witness_delta_i,
-						&statement_delta_i,
+					statement_delta_i.insert(*l, statement_delta_l_i);
+
+					proof_delta_i.insert(
+						*l,
+						PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
+							&witness_delta_i,
+							&statement_delta_l_i,
+						),
 					);
 				}
 			});

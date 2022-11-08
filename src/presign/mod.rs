@@ -195,6 +195,6 @@ pub struct IdentifiableAbortBroadcastMessage<E: Curve> {
 	pub proofs_D_j_i: HashMap<u16, PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>,
 	pub statement_H_i: PaillierMulStatement<E, Sha256>,
 	pub proof_H_i: PaillierMulProof<E, Sha256>,
-	pub statement_delta_i: PaillierDecryptionModQStatement<E, Sha256>,
-	pub proof_delta_i: PaillierDecryptionModQProof<E, Sha256>,
+	pub statement_delta_i: HashMap<u16, PaillierDecryptionModQStatement<E, Sha256>>,
+	pub proof_delta_i: HashMap<u16, PaillierDecryptionModQProof<E, Sha256>>,
 }
