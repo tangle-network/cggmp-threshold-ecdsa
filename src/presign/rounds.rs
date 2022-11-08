@@ -47,6 +47,7 @@ use sha2::Sha256;
 use thiserror::Error;
 
 use super::state_machine::{Round0Messages, Round1Messages, Round2Messages, Round3Messages};
+use rayon::prelude::*;
 
 pub struct Round0 {
 	pub ssid: SSID<Secp256k1>,
@@ -803,8 +804,14 @@ impl Round3 {
 			// Includes some computations for delta_i proof
 			let ciphertext_delta_i = BigInt::one();
 			let delta_i_randomness = BigInt::one();
-			for j in self.ssid.P.iter() {
-				if *j != self.ssid.X.i {
+			// Computations for delta_i proof
+			ciphertext_delta_i.mul(&D_j_i).mul(self.F_i.get(j).unwrap_or(&BigInt::zero()));
+			delta_i_randomness
+				.mul(&self.rho_i)
+				.mul(s_j_i)
+				.mul(self.r_i.get(j).unwrap_or(&BigInt::zero()));
+			(self.ssid.P, self.ssid.P).par_iter().map(|(j, l)| {
+				if *j != self.ssid.X.i && j != l {
 					let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(
 						self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
 						RawPlaintext::from(
@@ -840,9 +847,9 @@ impl Round3 {
 						phantom: PhantomData,
 					};
 					let statement_D_j_i = PaillierAffineOpWithGroupComInRangeStatement {
-						S: *self.S.get(j).unwrap_or(&BigInt::zero()),
-						T: *self.T.get(j).unwrap_or(&BigInt::zero()),
-						N_hat: *self.N_hats.get(j).unwrap_or(&BigInt::zero()),
+						S: *self.S.get(l).unwrap_or(&BigInt::zero()),
+						T: *self.T.get(l).unwrap_or(&BigInt::zero()),
+						N_hat: *self.N_hats.get(l).unwrap_or(&BigInt::zero()),
 						N0: self.secrets.ek.n,
 						N1: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n,
 						NN0: self.secrets.ek.nn,
@@ -862,15 +869,8 @@ impl Round3 {
 						);
 					proofs_D_j_i.insert(*j, D_j_i_proof);
 					statements_D_j_i.insert(*j, statement_D_j_i);
-
-					// Computations for delta_i proof
-					ciphertext_delta_i.mul(&D_j_i).mul(self.F_i.get(j).unwrap_or(&BigInt::zero()));
-					delta_i_randomness
-						.mul(&self.rho_i)
-						.mul(s_j_i)
-						.mul(self.r_i.get(j).unwrap_or(&BigInt::zero()));
 				}
-			}
+			});
 
 			// H_i proof
 			let H_i_randomness = sample_relatively_prime_integer(&self.secrets.ek.n);
@@ -880,6 +880,7 @@ impl Round3 {
 				&Randomness::from(H_i_randomness),
 			)
 			.into();
+
 			let witness_H_i = PaillierMulWitness {
 				x: self.k_i,
 				rho: self.nu_i,
@@ -904,29 +905,36 @@ impl Round3 {
 			ciphertext_delta_i.mul(&H_i);
 			delta_i_randomness.mul(&H_i_randomness);
 
-			let witness_delta_i = PaillierDecryptionModQWitness {
-				y: Paillier::decrypt(&self.secrets.dk, RawCiphertext::from(ciphertext_delta_i))
-					.into(),
-				rho: H_i_randomness,
-				phantom: PhantomData,
-			};
+			self.ssid.P.iter().map(|l| {
+				if *l != self.ssid.X.i {
+					let witness_delta_i = PaillierDecryptionModQWitness {
+						y: Paillier::decrypt(
+							&self.secrets.dk,
+							RawCiphertext::from(ciphertext_delta_i),
+						)
+						.into(),
+						rho: H_i_randomness,
+						phantom: PhantomData,
+					};
 
-			let statement_delta_i = PaillierDecryptionModQStatement {
-				S: *self.S.get(j).unwrap_or(&BigInt::zero()),
-				T: *self.T.get(j).unwrap_or(&BigInt::zero()),
-				N_hat: *self.N_hats.get(j).unwrap_or(&BigInt::zero()),
-				N0: self.secrets.ek.n,
-				NN0: self.secrets.ek.nn,
-				C: ciphertext_delta_i,
-				x: self.delta_i,
-				ek_prover: self.secrets.ek,
-				phantom: PhantomData,
-			};
+					let statement_delta_i = PaillierDecryptionModQStatement {
+						S: *self.S.get(j).unwrap_or(&BigInt::zero()),
+						T: *self.T.get(j).unwrap_or(&BigInt::zero()),
+						N_hat: *self.N_hats.get(j).unwrap_or(&BigInt::zero()),
+						N0: self.secrets.ek.n,
+						NN0: self.secrets.ek.nn,
+						C: ciphertext_delta_i,
+						x: self.delta_i,
+						ek_prover: self.secrets.ek,
+						phantom: PhantomData,
+					};
 
-			let proof_delta_i = PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
-				&witness_delta_i,
-				&statement_delta_i,
-			);
+					let proof_delta_i = PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
+						&witness_delta_i,
+						&statement_delta_i,
+					);
+				}
+			});
 
 			let body = Some(IdentifiableAbortBroadcastMessage {
 				statements_D_j_i,
