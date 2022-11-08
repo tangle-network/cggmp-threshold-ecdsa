@@ -15,7 +15,7 @@ use sha2::Sha256;
 use paillier::*;
 
 use crate::{
-	presign::{PresigningOutput, PresigningTranscript},
+	presign::{PresigningOutput, PresigningTranscript, DEFAULT_ENCRYPTION_KEY},
 	utilities::{
 		aff_g::{
 			PaillierAffineOpWithGroupComInRangeProof, PaillierAffineOpWithGroupComInRangeStatement,
@@ -56,7 +56,7 @@ impl Round0 {
 			self.presigning_data.get(&(self.l as u16))
 		{
 			// r = R projected onto x axis
-			let r = presigning_output.R.x_coord().unwrap();
+			let r = presigning_output.R.x_coord().unwrap_or(BigInt::zero());
 			// sigma_i = k*m + r*chi
 			let sigma_i = presigning_output.k_i.mul(&self.m).add(&r.mul(&presigning_output.chi_i));
 			let body = SigningBroadcastMessage1 { ssid: self.ssid, i: self.ssid.X.i, sigma_i };
@@ -117,7 +117,7 @@ impl Round1 {
 		let x_projection = ((g * Scalar::from_bigint(&m_sigma_inv)) +
 			(X * Scalar::from_bigint(&r_sigma_inv)))
 		.x_coord()
-		.unwrap();
+		.unwrap_or(BigInt::zero());
 
 		if self.r == x_projection {
 			let signing_output = SigningOutput { ssid: self.ssid, m: self.m, r: self.r, sigma };
@@ -139,20 +139,26 @@ impl Round1 {
 				if *j != self.ssid.X.i {
 					// Compute D_hat_j_i
 					let encrypt_minus_beta_hat_i_j = Paillier::encrypt_with_chosen_randomness(
-						self.presigning_transcript.eks.get(j).unwrap(),
-						RawPlaintext::from(
-							BigInt::from(-1)
-								.mul(self.presigning_transcript.beta_hat_i.get(j).unwrap()),
+						self.presigning_transcript.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
+						RawPlaintext::from(BigInt::from(-1).mul(
+							self.presigning_transcript.beta_hat_i.get(j).unwrap_or(&BigInt::zero()),
+						)),
+						&Randomness::from(
+							self.presigning_transcript.s_hat_i.get(j).unwrap_or(&BigInt::zero()),
 						),
-						&Randomness::from(self.presigning_transcript.s_hat_i.get(j).unwrap()),
 					);
 					// D_hat_j_i =  (x_i [.] K_j ) ⊕ enc_j(-beta_hat_i_j; s_hat_i_j) where [.] is
 					// Paillier multiplication
 					let D_hat_j_i = Paillier::add(
-						self.presigning_transcript.eks.get(j).unwrap(),
+						self.presigning_transcript.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
 						Paillier::mul(
-							self.presigning_transcript.eks.get(j).unwrap(),
-							RawCiphertext::from(self.presigning_transcript.K.get(j).unwrap()),
+							self.presigning_transcript
+								.eks
+								.get(j)
+								.unwrap_or(&DEFAULT_ENCRYPTION_KEY),
+							RawCiphertext::from(
+								self.presigning_transcript.K.get(j).unwrap_or(&BigInt::zero()),
+							),
 							RawPlaintext::from(self.presigning_transcript.secrets.x_i),
 						),
 						RawCiphertext::from(encrypt_minus_beta_hat_i_j),
@@ -162,35 +168,69 @@ impl Round1 {
 					// F_hat_j_i = enc_i(beta_hat_i_j, r_hat_i_j)
 					let F_hat_j_i = Paillier::encrypt_with_chosen_randomness(
 						&self.presigning_transcript.secrets.ek,
-						RawPlaintext::from(self.presigning_transcript.beta_hat_i.get(j).unwrap()),
-						&Randomness::from(self.presigning_transcript.r_hat_i.get(j).unwrap()),
+						RawPlaintext::from(
+							self.presigning_transcript.beta_hat_i.get(j).unwrap_or(&BigInt::zero()),
+						),
+						&Randomness::from(
+							self.presigning_transcript.r_hat_i.get(j).unwrap_or(&BigInt::zero()),
+						),
 					)
 					.into();
 
 					let witness_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
 							x: self.presigning_transcript.secrets.x_i,
-							y: *self.presigning_transcript.beta_hat_i.get(j).unwrap(),
-							rho: *self.presigning_transcript.s_hat_i.get(j).unwrap(),
-							rho_y: *self.presigning_transcript.r_hat_i.get(j).unwrap(),
+							y: *self
+								.presigning_transcript
+								.beta_hat_i
+								.get(j)
+								.unwrap_or(&BigInt::zero()),
+							rho: *self
+								.presigning_transcript
+								.s_hat_i
+								.get(j)
+								.unwrap_or(&BigInt::zero()),
+							rho_y: *self
+								.presigning_transcript
+								.r_hat_i
+								.get(j)
+								.unwrap_or(&BigInt::zero()),
 							phantom: PhantomData,
 						};
 					let statement_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-							S: *self.presigning_transcript.S.get(j).unwrap(),
-							T: *self.presigning_transcript.T.get(j).unwrap(),
-							N_hat: *self.presigning_transcript.N_hats.get(j).unwrap(),
+							S: *self.presigning_transcript.S.get(j).unwrap_or(&BigInt::zero()),
+							T: *self.presigning_transcript.T.get(j).unwrap_or(&BigInt::zero()),
+							N_hat: *self
+								.presigning_transcript
+								.N_hats
+								.get(j)
+								.unwrap_or(&BigInt::zero()),
 							N0: self.presigning_transcript.secrets.ek.n,
-							N1: self.presigning_transcript.eks.get(j).unwrap().n,
+							N1: self
+								.presigning_transcript
+								.eks
+								.get(j)
+								.unwrap_or(&DEFAULT_ENCRYPTION_KEY)
+								.n,
 							NN0: self.presigning_transcript.secrets.ek.nn,
-							NN1: self.presigning_transcript.eks.get(j).unwrap().nn,
+							NN1: self
+								.presigning_transcript
+								.eks
+								.get(j)
+								.unwrap_or(&DEFAULT_ENCRYPTION_KEY)
+								.nn,
 							C: D_hat_j_i,
-							D: *self.presigning_transcript.K.get(j).unwrap(),
+							D: *self.presigning_transcript.K.get(j).unwrap_or(&BigInt::zero()),
 							Y: F_hat_j_i,
 							X: Point::<Secp256k1>::generator().as_point() *
 								Scalar::from_bigint(&self.presigning_transcript.secrets.x_i),
 							ek_prover: self.presigning_transcript.secrets.ek,
-							ek_verifier: *self.presigning_transcript.eks.get(j).unwrap(),
+							ek_verifier: *self
+								.presigning_transcript
+								.eks
+								.get(j)
+								.unwrap_or(&DEFAULT_ENCRYPTION_KEY),
 							phantom: PhantomData,
 						};
 					let proof_D_hat_j_i =
@@ -229,9 +269,9 @@ impl Round1 {
 				C: self.presigning_transcript.K_i,
 				D: H_hat_i,
 				X: X_i,
-				N_hat: *self.presigning_transcript.N_hats.get(j).unwrap(),
-				s: *self.presigning_transcript.S.get(j).unwrap(),
-				t: *self.presigning_transcript.T.get(j).unwrap(),
+				N_hat: *self.presigning_transcript.N_hats.get(j).unwrap_or(&BigInt::zero()),
+				s: *self.presigning_transcript.S.get(j).unwrap_or(&BigInt::zero()),
+				t: *self.presigning_transcript.T.get(j).unwrap_or(&BigInt::zero()),
 				phantom: PhantomData,
 			};
 
@@ -246,11 +286,11 @@ impl Round1 {
 			for j in self.ssid.P.iter() {
 				if *j != self.i {
 					ciphertext
-						.mul(&self.presigning_transcript.D_hat_i.get(j).unwrap())
+						.mul(&self.presigning_transcript.D_hat_i.get(j).unwrap_or(&BigInt::zero()))
 						.mul(&F_hat_j_i);
 					ciphertext_randomness
 						.mul(&s_hat_j_i)
-						.mul(&self.presigning_transcript.r_hat_i.get(j).unwrap());
+						.mul(&self.presigning_transcript.r_hat_i.get(j).unwrap_or(&BigInt::zero()));
 				}
 			}
 
@@ -271,9 +311,9 @@ impl Round1 {
 			};
 
 			let statement_sigma_i = PaillierDecryptionModQStatement {
-				S: *self.presigning_transcript.S.get(j).unwrap(),
-				T: *self.presigning_transcript.T.get(j).unwrap(),
-				N_hat: *self.presigning_transcript.N_hats.get(j).unwrap(),
+				S: *self.presigning_transcript.S.get(j).unwrap_or(&BigInt::zero()),
+				T: *self.presigning_transcript.T.get(j).unwrap_or(&BigInt::zero()),
+				N_hat: *self.presigning_transcript.N_hats.get(j).unwrap_or(&BigInt::zero()),
 				N0: self.presigning_transcript.secrets.ek.n,
 				NN0: self.presigning_transcript.secrets.ek.nn,
 				C: ciphertext,

@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, default};
 
 use curv::{
+	arithmetic::Zero,
 	elliptic::curves::{Curve, Point},
 	BigInt,
 };
@@ -24,6 +25,9 @@ use zeroize::Zeroize;
 
 pub mod rounds;
 pub mod state_machine;
+
+pub const DEFAULT_ENCRYPTION_KEY: EncryptionKey =
+	EncryptionKey { n: BigInt::zero(), nn: BigInt::zero() };
 
 #[derive(Debug, Clone)]
 pub struct SSID<E: Curve> {
