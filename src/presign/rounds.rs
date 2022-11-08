@@ -43,7 +43,7 @@ use round_based::{
 };
 
 use sha2::Sha256;
-use zk_paillier::zkproofs::IncorrectProof;
+use thiserror::Error;
 
 use super::state_machine::{Round0Messages, Round1Messages, Round2Messages, Round3Messages};
 
@@ -172,11 +172,14 @@ impl Round1 {
 			let psi_0_i_j = msg.psi_0_j_i;
 			let enc_i_statement = msg.enc_j_statement;
 			// Verify psi_0_i_j proof
-			PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(
+			if PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(
 				&psi_0_i_j,
 				&enc_i_statement,
 			)
-			.map_err(|e| Err(format!("Party {} verification of enc failed", j)));
+			.is_err()
+			{
+				return Err(PresignError::ProofVerificationError)
+			}
 		}
 
 		// Gamma_i = g^{gamma_i}
@@ -457,29 +460,38 @@ impl Round2 {
 			let psi_i_j = msg.psi_j_i;
 			let statement_psi_i_j = msg.statement_psi_j_i;
 			// Verify psi_i_j
-			PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
+			if PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
 				&psi_i_j,
 				&statement_psi_i_j,
 			)
-			.map_err(|e| Err(format!("Party {} verification of aff_j psi failed", j)));
+			.is_err()
+			{
+				return Err(PresignError::ProofVerificationError)
+			}
 
 			// Verify psi_prime_i_j
 			let psi_hat_i_j = msg.psi_hat_j_i;
 			let statement_psi_hat_i_j = msg.statement_psi_hat_j_i;
-			PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
+			if PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
 				&psi_hat_i_j,
 				&statement_psi_hat_i_j,
 			)
-			.map_err(|e| Err(format!("Party {} verification of aff_j psi prime failed", j)));
+			.is_err()
+			{
+				return Err(PresignError::ProofVerificationError)
+			}
 
 			// Verify psi_hat_i_j
 			let psi_prime_i_j = msg.psi_prime_j_i;
 			let statement_psi_prime_i_j = msg.statement_psi_prime_j_i;
-			KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::verify(
+			if KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::verify(
 				&psi_prime_i_j,
 				&statement_psi_prime_i_j,
 			)
-			.map_err(|e| Err(format!("Party {} verification of log star psi hatfailed", j)));
+			.is_err()
+			{
+				return Err(PresignError::ProofVerificationError)
+			}
 		}
 
 		// Gamma = Prod_j (Gamma_j)
@@ -917,9 +929,9 @@ impl Round4 {
 	pub fn proceed(
 		self,
 		input: BroadcastMsgs<Option<IdentifiableAbortBroadcastMessage<Secp256k1>>>,
-	) -> Option<(PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)> {
+	) -> Result<Option<(PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)>> {
 		if self.output.is_some() {
-			Some((self.output.unwrap(), self.transcript.unwrap()))
+			Ok(Some((self.output.unwrap(), self.transcript.unwrap())))
 		} else {
 			for msg in input.into_vec() {
 				// Check D_i_j proofs
@@ -929,28 +941,35 @@ impl Round4 {
 
 					let statement_D_i_j = msg.statements_D_j_i.get(i).unwrap();
 
-					PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
+					if PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
 						D_i_j_proof,
 						statement_D_i_j,
 					)
-					.map_err(|e| Err(format!("D_i_j proof failed")));
+					.is_err()
+					{
+						return Err(PresignError::ProofVerificationError)
+					} else {
+						continue
+					};
 				}
 
 				// Check H_j proofs
 				let proof_H_i = msg.proof_H_i;
 				let statement_H_i = msg.statement_H_i;
 
-				PaillierMulProof::verify(&proof_H_i, &statement_H_i)
-					.map_err(|e| Err(format!("H_j proof failed")));
-
+				if PaillierMulProof::verify(&proof_H_i, &statement_H_i).is_err() {
+					return Err(PresignError::ProofVerificationError)
+				}
 				// Check delta_j_proof
 				let proof_delta_i = msg.proof_delta_i;
 				let statement_delta_i = msg.statement_delta_i;
 
-				PaillierDecryptionModQProof::verify(&proof_delta_i, &statement_delta_i)
-					.map_err(|e| Err(format!("delta_j proof failed")));
+				if PaillierDecryptionModQProof::verify(&proof_delta_i, &statement_delta_i).is_err()
+				{
+					return Err(PresignError::ProofVerificationError)
+				}
 			}
-			None
+			Ok(None)
 		}
 	}
 
@@ -962,4 +981,10 @@ impl Round4 {
 	}
 }
 
-type Result<T> = std::result::Result<T, Error>;
+type Result<T> = std::result::Result<T, PresignError>;
+
+#[derive(Error, Debug, Clone)]
+pub enum PresignError {
+	#[error("Proof Verifaction Error")]
+	ProofVerificationError,
+}
