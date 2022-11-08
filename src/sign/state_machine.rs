@@ -1,9 +1,16 @@
+use crate::presign::{PresigningOutput, PresigningTranscript, SSID};
+
 use super::{
-	rounds::{Round0, Round1},
-	SigningBroadcastMessage1, SigningIdentifiableAbortMessage,
+	rounds::{Round0, Round1, Round2},
+	SigningBroadcastMessage1, SigningIdentifiableAbortMessage, SigningOutput,
 };
 
-use curv::elliptic::curves::Secp256k1;
+use curv::{
+	arithmetic::{traits::*, Modulo, Samplable},
+	cryptographic_primitives::hashing::{Digest, DigestExt},
+	elliptic::curves::{Curve, Point, Scalar, Secp256k1},
+	BigInt,
+};
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
 use private::InternalError;
 use round_based::{
@@ -13,7 +20,6 @@ use round_based::{
 	},
 	IsCritical, Msg, StateMachine,
 };
-
 use std::{collections::HashMap, fmt, mem::replace, time::Duration};
 use thiserror::Error;
 
@@ -35,33 +41,36 @@ pub struct Signing {
 
 	// Message queue
 	msgs_queue: Vec<Msg<ProtocolMessage>>,
+	party_i: u16,
+	party_n: u16,
 }
 
 impl Signing {
 	pub fn new(
-		local_key_option: Option<LocalKey<Secp256k1>>,
-		new_party_index_option: Option<u16>,
-		old_to_new_map: &HashMap<u16, u16>,
-		t: u16,
-		n: u16,
+		ssid: SSID<Secp256k1>,
+		l: usize, // This is the number of presignings to run in parallel
+		m: BigInt,
+		presigning_data: HashMap<
+			u16,
+			(PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>),
+		>,
 	) -> Result<Self> {
+		let n = ssid.P.len() as u16;
+		let i = ssid.X.i;
 		if n < 2 {
 			return Err(Error::TooFewParties)
 		}
 
 		let mut state = Self {
-			round: R::Round0(Round0 {
-				local_key_option,
-				new_party_index_option,
-				old_to_new_map: old_to_new_map.clone(),
-				t,
-				n,
-			}),
+			round: R::Round0(Round0 { ssid, l, m, presigning_data }),
 
 			round0_msgs: Some(Round1::expects_messages(i, n)),
 			round1_msgs: Some(Round2::expects_messages(i, n)),
 
 			msgs_queue: vec![],
+
+			party_i: i,
+			party_n: n,
 		};
 
 		state.proceed_round(false)?;
@@ -80,7 +89,6 @@ impl Signing {
 	fn proceed_round(&mut self, may_block: bool) -> Result<()> {
 		let store1_wants_more = self.round0_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
 		let store2_wants_more = self.round1_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
-		let store3_wants_more = self.round2_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
 
 		let next_state: R;
 
@@ -89,7 +97,7 @@ impl Signing {
 				next_state = round
 					.proceed(self.gmap_queue(M::Round1))
 					.map(R::Round1)
-					.map_err(Error::ProceedRound)?;
+					.map_err(|e| Error::ProceedRound { msg_round: 0 })?;
 				true
 			},
 			s @ R::Round0(_) => {
@@ -102,7 +110,7 @@ impl Signing {
 				next_state = round
 					.proceed(msgs, self.gmap_queue(M::Round2))
 					.map(|msg| R::Round2(Box::new(msg)))
-					.map_err(Error::ProceedRound)?;
+					.map_err(|e| Error::ProceedRound { msg_round: 1 })?;
 				true
 			},
 			s @ R::Round1(_) => {
@@ -113,9 +121,9 @@ impl Signing {
 				let store = self.round1_msgs.take().ok_or(InternalError::StoreGone)?;
 				let msgs = store.finish().map_err(InternalError::RetrieveRoundMessages)?;
 				next_state = round
-					.proceed(msgs, self.gmap_queue(M::Round3))
-					.map(|msg| R::Round3(Box::new(msg)))
-					.map_err(Error::ProceedRound)?;
+					.proceed(msgs)
+					.map(R::Final)
+					.map_err(|e| Error::ProceedRound { msg_round: 2 })?;
 				true
 			},
 			s @ R::Round2(_) => {
@@ -137,10 +145,10 @@ impl Signing {
 	}
 }
 
-impl StateMachine for PreSigning {
+impl StateMachine for Signing {
 	type MessageBody = ProtocolMessage;
 	type Err = Error;
-	type Output = LocalKey<Secp256k1>;
+	type Output = Option<SigningOutput<Secp256k1>>;
 
 	fn handle_incoming(&mut self, msg: Msg<Self::MessageBody>) -> Result<()> {
 		let current_round = self.current_round();
@@ -236,7 +244,7 @@ impl StateMachine for PreSigning {
 	}
 }
 
-impl crate::traits::RoundBlame for PreSigning {
+impl crate::traits::RoundBlame for Signing {
 	fn round_blame(&self) -> (u16, Vec<u16>) {
 		let store1_blame = self.round0_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
 		let store2_blame = self.round1_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
@@ -251,7 +259,7 @@ impl crate::traits::RoundBlame for PreSigning {
 	}
 }
 
-impl fmt::Debug for PreSigning {
+impl fmt::Debug for Signing {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let current_round = match &self.round {
 			R::Round0(_) => "0",
@@ -284,7 +292,7 @@ enum R {
 	Round0(Round0),
 	Round1(Round1),
 	Round2(Box<Round2>),
-	Final(()),
+	Final(Option<SigningOutput<Secp256k1>>),
 	Gone,
 }
 
@@ -298,8 +306,8 @@ pub struct ProtocolMessage(M);
 
 #[derive(Debug, Clone)]
 enum M {
-	Round1(Option<()>),
-	Round2(),
+	Round1(SigningBroadcastMessage1<Secp256k1>),
+	Round2(Option<SigningIdentifiableAbortMessage<Secp256k1>>),
 }
 
 // Error

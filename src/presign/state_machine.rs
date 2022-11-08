@@ -97,6 +97,7 @@ impl PreSigning {
 		let store1_wants_more = self.round0_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
 		let store2_wants_more = self.round1_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
 		let store3_wants_more = self.round2_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
+		let store4_wants_more = self.round3_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
 
 		let next_state: R;
 
@@ -151,7 +152,7 @@ impl PreSigning {
 				next_state = s;
 				false
 			},
-			R::Round4(round) if !store3_wants_more && (!round.is_expensive() || may_block) => {
+			R::Round4(round) if !store4_wants_more && (!round.is_expensive() || may_block) => {
 				let store = self.round3_msgs.take().ok_or(InternalError::StoreGone)?;
 				let msgs = store.finish().map_err(InternalError::RetrieveRoundMessages)?;
 				next_state = round

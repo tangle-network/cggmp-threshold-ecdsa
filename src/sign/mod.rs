@@ -24,12 +24,14 @@ use crate::presign::SSID;
 pub mod rounds;
 pub mod state_machine;
 
+#[derive(Debug, Clone)]
 pub struct SigningBroadcastMessage1<E: Curve> {
 	pub ssid: SSID<E>,
 	pub i: u16,
 	pub sigma_i: BigInt,
 }
 
+#[derive(Debug, Clone)]
 pub struct SigningOutput<E: Curve> {
 	ssid: SSID<E>,
 	m: BigInt,
@@ -37,6 +39,7 @@ pub struct SigningOutput<E: Curve> {
 	sigma: BigInt,
 }
 
+#[derive(Debug, Clone)]
 pub struct SigningIdentifiableAbortMessage<E: Curve> {
 	proofs_D_hat_j_i: HashMap<u16, PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>,
 	statements_D_hat_j_i: HashMap<u16, PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>>,
