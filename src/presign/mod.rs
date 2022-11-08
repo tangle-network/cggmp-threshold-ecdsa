@@ -12,7 +12,7 @@ use crate::utilities::{
 	aff_g::{
 		PaillierAffineOpWithGroupComInRangeProof, PaillierAffineOpWithGroupComInRangeStatement,
 	},
-	dec_q::PaillierDecryptionModQProof,
+	dec_q::{PaillierDecryptionModQProof, PaillierDecryptionModQStatement},
 	enc::{PaillierEncryptionInRangeProof, PaillierEncryptionInRangeStatement},
 	log_star::{
 		KnowledgeOfExponentPaillierEncryptionProof, KnowledgeOfExponentPaillierEncryptionStatement,
@@ -137,11 +137,10 @@ pub struct PresigningTranscript<E: Curve> {
 
 #[derive(Debug, Clone)]
 pub struct IdentifiableAbortBroadcastMessage<E: Curve> {
-	pub statements_D_j_i:
-		HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>>,
-	pub proofs_D_j_i: HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>,
+	pub statements_D_j_i: HashMap<u16, PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>>,
+	pub proofs_D_j_i: HashMap<u16, PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>,
 	pub statement_H_i: PaillierMulStatement<E, Sha256>,
-	pub H_i_proof: PaillierMulProof<E, Sha256>,
-	pub statement_delta_i: PaillierDecryptionModQProof<E, Sha256>,
-	pub delta_i_proof: PaillierDecryptionModQProof<E, Sha256>,
+	pub proof_H_i: PaillierMulProof<E, Sha256>,
+	pub statement_delta_i: PaillierDecryptionModQStatement<E, Sha256>,
+	pub proof_delta_i: PaillierDecryptionModQProof<E, Sha256>,
 }

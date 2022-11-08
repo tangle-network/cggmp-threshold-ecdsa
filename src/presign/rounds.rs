@@ -43,6 +43,7 @@ use round_based::{
 };
 
 use sha2::Sha256;
+use zk_paillier::zkproofs::IncorrectProof;
 
 use super::state_machine::{Round0Messages, Round1Messages, Round2Messages, Round3Messages};
 
@@ -527,14 +528,18 @@ impl Round2 {
 			self.beta_hat_i.values().into_iter().fold(BigInt::zero(), |acc, x| acc.add(x));
 
 		// delta_i = gamma_i * k_i + sum of alpha_i_j's + sum of beta_i_j's mod q
-		let delta_i = BigInt::mod_mul(&self.gamma_i, &self.k_i, &self.ssid.q)
-			.mod_add(sum_of_alphas, self.ssid.q)
-			.mod_add(sum_of_betas, self.ssid.q);
+		let delta_i = BigInt::mod_add(
+			&BigInt::mod_mul(&self.gamma_i, &self.k_i, &self.ssid.q),
+			&BigInt::mod_add(&sum_of_alphas, &sum_of_betas, &self.ssid.q),
+			&self.ssid.q,
+		);
 
 		// chi_i = x_i * k_i + sum of alpha_hat_i_j's + sum of beta_hat_i_j's
-		let chi_i = BigInt::mod_mul(&self.secrets.x_i, &self.k_i, self.ssid.q)
-			.mod_add(&sum_of_alpha_hats, self.ssid.q)
-			.mod_add(&sum_of_beta_hats, self.ssid.q);
+		let chi_i = BigInt::mod_add(
+			&BigInt::mod_mul(&self.secrets.x_i, &self.k_i, &self.ssid.q),
+			&BigInt::mod_add(&sum_of_alpha_hats, &sum_of_beta_hats, &self.ssid.q),
+			&self.ssid.q,
+		);
 
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
@@ -550,9 +555,9 @@ impl Round2 {
 						NN0: self.secrets.ek.nn,
 						C: self.K_i,
 						X: Delta_i,
-						s: self.S.get(j).unwrap(),
-						t: self.T.get(j).unwrap(),
-						N_hat: self.N_hats.get(j).unwrap(),
+						s: self.S.get(j).unwrap().clone(),
+						t: self.T.get(j).unwrap().clone(),
+						N_hat: self.N_hats.get(j).unwrap().clone(),
 						phantom: PhantomData,
 					};
 				let psi_prime_prime_j_i =
@@ -758,31 +763,36 @@ impl Round3 {
 				PaillierAffineOpWithGroupComInRangeStatement<Secp256k1, Sha256>,
 			> = HashMap::new();
 
+			// Includes some computations for delta_i proof
+			let ciphertext_delta_i = BigInt::one();
+			let delta_i_randomness = BigInt::one();
 			for j in self.ssid.P.iter() {
 				if j.clone() != self.ssid.X.i {
 					let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(
-						&self.eks.get(j).unwrap(),
+						self.eks.get(j).unwrap(),
 						RawPlaintext::from(BigInt::from(-1).mul(self.beta_i.get(j).unwrap())),
-						Randomness::from(self.s_i.get(j).unwrap()),
+						&Randomness::from(self.s_i.get(j).unwrap()),
 					);
 					// D_j_i =  (gamma_i [.] K_j ) ⊕ enc_j(-beta_i_j; s_i_j) where [.] is Paillier
 					// multiplication
 					let D_j_i = Paillier::add(
-						&self.eks.get(j).unwrap(),
+						self.eks.get(j).unwrap(),
 						Paillier::mul(
-							&self.eks.get(j).unwrap(),
-							self.K.get(j).unwrap(),
-							self.gamma_i,
+							self.eks.get(j).unwrap(),
+							RawCiphertext::from(self.K.get(j).unwrap().clone()),
+							RawPlaintext::from(self.gamma_i),
 						),
-						encrypt_minus_beta_i_j,
-					);
+						RawCiphertext::from(encrypt_minus_beta_i_j),
+					)
+					.into();
 
 					// F_j_i = enc_i(beta_i_j, r_i_j)
 					let F_j_i = Paillier::encrypt_with_chosen_randomness(
 						&self.secrets.ek,
 						RawPlaintext::from(self.beta_i.get(j).unwrap()),
-						Randomness::from(self.r_i.get(j).unwrap()),
-					);
+						&Randomness::from(self.r_i.get(j).unwrap()),
+					)
+					.into();
 					let witness_D_j_i = PaillierAffineOpWithGroupComInRangeWitness {
 						x: self.gamma_i,
 						y: self.beta_i.get(j).unwrap().clone(),
@@ -813,6 +823,10 @@ impl Round3 {
 						);
 					proofs_D_j_i.insert(j.clone(), D_j_i_proof);
 					statements_D_j_i.insert(j.clone(), statement_D_j_i);
+
+					// Computations for delta_i proof
+					ciphertext_delta_i.mul(&D_j_i).mul(self.F_i.get(j).unwrap());
+					delta_i_randomness.mul(&self.rho_i).mul(s_j_i).mul(self.r_i.get(j).unwrap());
 				}
 			}
 
@@ -821,8 +835,9 @@ impl Round3 {
 			let H_i = Paillier::encrypt_with_chosen_randomness(
 				&self.secrets.ek,
 				RawPlaintext::from(BigInt::mul(&self.k_i, &self.gamma_i)),
-				Randomness::from(H_i_randomness),
-			);
+				&Randomness::from(H_i_randomness),
+			)
+			.into();
 			let witness_H_i = PaillierMulWitness {
 				x: self.k_i,
 				rho: self.nu_i,
@@ -840,23 +855,16 @@ impl Round3 {
 				phantom: PhantomData,
 			};
 
-			let H_i_proof =
+			let proof_H_i =
 				PaillierMulProof::<Secp256k1, Sha256>::prove(&witness_H_i, &statement_H_i);
 
 			// delta_i proofs
-			let ciphertext_delta_i = BigInt::one();
-			let delta_i_randomness = BigInt::one();
-			for j in self.ssid.P.iter() {
-				if j != self.ssid.X.i {
-					ciphertext_delta_i.mul(self.D_j_i).mul(self.F_i_j);
-					delta_i_randomness.mul(self.rho_i).mul(self.s_j_i).mul(self.r_i_j);
-				}
-			}
 			ciphertext_delta_i.mul(&H_i);
-			delta_i_randomness.mul(H_i_randomness);
+			delta_i_randomness.mul(&H_i_randomness);
 
 			let witness_delta_i = PaillierDecryptionModQWitness {
-				y: Paillier::decrypt(&self.secrets.dk, ciphertext_delta_i),
+				y: Paillier::decrypt(&self.secrets.dk, RawCiphertext::from(ciphertext_delta_i))
+					.into(),
 				rho: H_i_randomness,
 				phantom: PhantomData,
 			};
@@ -873,7 +881,7 @@ impl Round3 {
 				phantom: PhantomData,
 			};
 
-			let delta_i_proof = PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
+			let proof_delta_i = PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
 				&witness_delta_i,
 				&statement_delta_i,
 			);
@@ -882,9 +890,9 @@ impl Round3 {
 				statements_D_j_i,
 				proofs_D_j_i,
 				statement_H_i,
-				H_i_proof,
+				proof_H_i,
 				statement_delta_i,
-				delta_i_proof,
+				proof_delta_i,
 			});
 
 			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
@@ -911,34 +919,35 @@ impl Round4 {
 		input: BroadcastMsgs<Option<IdentifiableAbortBroadcastMessage<Secp256k1>>>,
 	) -> Option<(PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)> {
 		if self.output.is_some() {
-			Some((self.output, self.transcript))
+			Some((self.output.unwrap(), self.transcript.unwrap()))
 		} else {
 			for msg in input.into_vec() {
 				// Check D_i_j proofs
+				let msg = msg.unwrap();
 				for i in msg.proofs_D_j_i.keys() {
-					let D_i_j_proof = msg.proofs_D_j_i.unwrap().get(i);
+					let D_i_j_proof = msg.proofs_D_j_i.get(i).unwrap();
 
-					let statement_D_i_j = msg.statements_D_j_i.unwrap().get(i);
+					let statement_D_i_j = msg.statements_D_j_i.get(i).unwrap();
 
 					PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
-						&D_i_j_proof,
-						&statement_D_i_j,
+						D_i_j_proof,
+						statement_D_i_j,
 					)
 					.map_err(|e| Err(format!("D_i_j proof failed")));
 				}
 
 				// Check H_j proofs
-				let H_i_proof = msg.H_i_proof.unwrap();
-				let statement_H_i = msg.statement_H_i.unwrap();
+				let proof_H_i = msg.proof_H_i;
+				let statement_H_i = msg.statement_H_i;
 
-				PaillierMulProof::verify(&H_i_proof, &statement_H_i)
+				PaillierMulProof::verify(&proof_H_i, &statement_H_i)
 					.map_err(|e| Err(format!("H_j proof failed")));
 
 				// Check delta_j_proof
-				let delta_i_proof = msg.delta_i_proof.unwrap();
-				let statement_delta_i = msg.statement_delta_i.unwrap();
+				let proof_delta_i = msg.proof_delta_i;
+				let statement_delta_i = msg.statement_delta_i;
 
-				PaillierDecryptionModQProof::verify(&delta_i_proof, &statement_delta_i)
+				PaillierDecryptionModQProof::verify(&proof_delta_i, &statement_delta_i)
 					.map_err(|e| Err(format!("delta_j proof failed")));
 			}
 			None
