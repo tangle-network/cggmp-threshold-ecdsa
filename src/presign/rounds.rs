@@ -179,7 +179,12 @@ impl Round1 {
 			)
 			.is_err()
 			{
-				return Err(PresignError::ProofVerificationError)
+				return Err(PresignError::ProofVerificationError {
+					proof_type: format!("enc"),
+					proof_symbol: format!("psi_0_i_j"),
+					verifying_party: self.ssid.X.i,
+					faulty_party: j,
+				})
 			}
 		}
 
@@ -469,10 +474,15 @@ impl Round2 {
 			)
 			.is_err()
 			{
-				return Err(PresignError::ProofVerificationError)
+				return Err(PresignError::ProofVerificationError {
+					proof_type: format!("aff-g"),
+					proof_symbol: format!("psi_i_j"),
+					verifying_party: self.ssid.X.i,
+					faulty_party: j,
+				})
 			}
 
-			// Verify psi_prime_i_j
+			// Verify psi_hat_i_j
 			let psi_hat_i_j = msg.psi_hat_j_i;
 			let statement_psi_hat_i_j = msg.statement_psi_hat_j_i;
 			if PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
@@ -481,10 +491,15 @@ impl Round2 {
 			)
 			.is_err()
 			{
-				return Err(PresignError::ProofVerificationError)
+				return Err(PresignError::ProofVerificationError {
+					proof_type: format!("aff-g"),
+					proof_symbol: format!("psi_hat_i_j"),
+					verifying_party: self.ssid.X.i,
+					faulty_party: j,
+				})
 			}
 
-			// Verify psi_hat_i_j
+			// Verify psi_prime_i_j
 			let psi_prime_i_j = msg.psi_prime_j_i;
 			let statement_psi_prime_i_j = msg.statement_psi_prime_j_i;
 			if KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::verify(
@@ -493,7 +508,12 @@ impl Round2 {
 			)
 			.is_err()
 			{
-				return Err(PresignError::ProofVerificationError)
+				return Err(PresignError::ProofVerificationError {
+					proof_type: format!("log*"),
+					proof_symbol: format!("psi_prime_i_j"),
+					verifying_party: self.ssid.X.i,
+					faulty_party: j,
+				})
 			}
 		}
 
@@ -946,6 +966,7 @@ impl Round4 {
 			for msg in input.into_vec() {
 				// Check D_i_j proofs
 				let msg = msg.unwrap();
+				let j = msg.i;
 				for i in msg.proofs_D_j_i.keys() {
 					let D_i_j_proof = msg.proofs_D_j_i.get(i).unwrap();
 
@@ -957,7 +978,12 @@ impl Round4 {
 					)
 					.is_err()
 					{
-						return Err(PresignError::ProofVerificationError)
+						return Err(PresignError::ProofVerificationError {
+							proof_type: format!("aff-g"),
+							proof_symbol: format!("D_i_j"),
+							verifying_party: self.ssid.X.i,
+							faulty_party: j,
+						})
 					}
 				}
 
@@ -966,7 +992,12 @@ impl Round4 {
 				let statement_H_i = msg.statement_H_i;
 
 				if PaillierMulProof::verify(&proof_H_i, &statement_H_i).is_err() {
-					return Err(PresignError::ProofVerificationError)
+					return Err(PresignError::ProofVerificationError {
+						proof_type: format!("mul"),
+						proof_symbol: format!("H_i"),
+						verifying_party: i,
+						faulty_party: j,
+					})
 				}
 				// Check delta_j_proof
 				let proof_delta_i = msg.proof_delta_i;
@@ -974,7 +1005,12 @@ impl Round4 {
 
 				if PaillierDecryptionModQProof::verify(&proof_delta_i, &statement_delta_i).is_err()
 				{
-					return Err(PresignError::ProofVerificationError)
+					return Err(PresignError::ProofVerificationError {
+						proof_type: format!("dec_q"),
+						proof_symbol: format!("delta_i"),
+						verifying_party: i,
+						faulty_party: j,
+					})
 				}
 			}
 			Ok(None)
@@ -993,6 +1029,11 @@ type Result<T> = std::result::Result<T, PresignError>;
 
 #[derive(Error, Debug, Clone)]
 pub enum PresignError {
-	#[error("Proof Verification Error")]
-	ProofVerificationError,
+	#[error("Proof Verification Error: Type of Proof {proof_type:?}, Symbol of Proof {proof_symbol:?}, Verifying Party {verifying_party:?}, Party at Fault {faulty_party:?}")]
+	ProofVerificationError {
+		proof_type: String,
+		proof_symbol: String,
+		verifying_party: u16,
+		faulty_party: u16,
+	},
 }
