@@ -243,7 +243,7 @@ impl Round1 {
 			// dec proof
 			let ciphertext = H_hat_i;
 			let ciphertext_randomness = H_hat_i_randomness;
-			for j in self.ssid.X.P.iter() {
+			for j in self.ssid.P.iter() {
 				if *j != self.i {
 					ciphertext
 						.mul(&self.presigning_transcript.D_hat_i.get(j).unwrap())

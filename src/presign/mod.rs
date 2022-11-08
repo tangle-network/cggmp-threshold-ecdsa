@@ -20,7 +20,7 @@ use crate::utilities::{
 	mul::{PaillierMulProof, PaillierMulStatement},
 };
 
-use zeroize::{DefaultIsZeroes, Zeroize};
+use zeroize::Zeroize;
 
 pub mod rounds;
 pub mod state_machine;
@@ -39,6 +39,46 @@ pub struct SSID<E: Curve> {
 	pub N: BigInt,
 	pub S: BigInt,
 	pub T: BigInt,
+}
+
+impl<E: Curve> Zeroize for SSID<E> {
+	fn zeroize(&mut self) {
+		self.g.into_raw().zeroize();
+		self.q.zeroize();
+		self.P.zeroize();
+		self.rid.zeroize();
+		// X zeroize
+		self.X.paillier_dk.p.zeroize();
+		self.X.paillier_dk.q.zeroize();
+		for pk in self.X.pk_vec.iter() {
+			(*pk).into_raw().zeroize();
+		}
+		for encryption_key in self.X.paillier_key_vec.iter() {
+			(*encryption_key).n.zeroize();
+			(*encryption_key).nn.zeroize();
+		}
+		self.X.y_sum_s.into_raw().zeroize();
+		for dlog_statement in self.X.h1_h2_n_tilde_vec.iter() {
+			(*dlog_statement).N.zeroize();
+			(*dlog_statement).g.zeroize();
+			(*dlog_statement).ni.zeroize();
+		}
+		self.X.vss_scheme.parameters.threshold.zeroize();
+		self.X.vss_scheme.parameters.share_count.zeroize();
+		for commitment in self.X.vss_scheme.commitments.iter() {
+			(*commitment).into_raw().zeroize();
+		}
+		self.X.i.zeroize();
+		self.X.t.zeroize();
+		self.X.n.zeroize();
+		// Y zeroize
+		if let Some(Y) = self.Y {
+			Y.into_raw().zeroize();
+		}
+		self.N.zeroize();
+		self.S.zeroize();
+		self.T.zeroize();
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -87,13 +127,23 @@ pub struct PreSigningP2PMessage3<E: Curve> {
 	pub statement_psi_prime_prime_j_i: KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
 }
 
-#[derive(Debug, Clone, Zeroize)]
+#[derive(Debug, Clone)]
 pub struct PresigningOutput<E: Curve> {
 	pub ssid: SSID<E>,
 	pub R: Point<E>,
 	pub i: u16,
 	pub k_i: BigInt,
 	pub chi_i: BigInt,
+}
+
+impl<E: Curve> Zeroize for PresigningOutput<E> {
+	fn zeroize(&mut self) {
+		self.ssid.zeroize();
+		self.R.into_raw().zeroize();
+		self.i.zeroize();
+		self.k_i.zeroize();
+		self.chi_i.zeroize();
+	}
 }
 
 #[derive(Debug, Clone)]
