@@ -72,7 +72,7 @@ impl Round0 {
 				sigma_i,
 			})
 		} else {
-			Err(SignError::NoOfflineStageError)
+			Err(SignError::NoOfflineStageError { l: self.l })
 		}
 	}
 	pub fn is_expensive(&self) -> bool {
@@ -375,7 +375,12 @@ impl Round2 {
 					)
 					.is_err()
 					{
-						return Err(SignError::ProofVerificationError)
+						return Err(SignError::ProofVerificationError {
+							proof_type: format!("aff-g"),
+							proof_symbol: format!("D_hat_i_j"),
+							verifying_party: i,
+							faulty_party: j,
+						})
 					}
 				}
 
@@ -389,7 +394,12 @@ impl Round2 {
 				)
 				.is_err()
 				{
-					return Err(SignError::ProofVerificationError)
+					return Err(SignError::ProofVerificationError {
+						proof_type: format!("mul*"),
+						proof_symbol: format!("H_hat_i"),
+						verifying_party: i,
+						faulty_party: j,
+					})
 				}
 
 				// Check delta_j_proof
@@ -398,7 +408,12 @@ impl Round2 {
 
 				if PaillierDecryptionModQProof::verify(&sigma_i_proof, &statement_sigma_i).is_err()
 				{
-					return Err(SignError::ProofVerificationError)
+					return Err(SignError::ProofVerificationError {
+						proof_type: format!("dec_q"),
+						proof_symbol: format!("sigma_i"),
+						verifying_party: i,
+						faulty_party: j,
+					})
 				}
 			}
 			Ok(None)
@@ -417,9 +432,14 @@ type Result<T> = std::result::Result<T, SignError>;
 
 #[derive(Error, Debug, Clone)]
 pub enum SignError {
-	#[error("Proof Verification Error")]
-	ProofVerificationError,
+	#[error("Proof Verification Error: Type of Proof {proof_type:?}, Symbol of Proof {proof_symbol:?}, Verifying Party {verifying_party:?}, Party at Fault {faulty_party:?}")]
+	ProofVerificationError {
+		proof_type: String,
+		proof_symbol: String,
+		verifying_party: u16,
+		faulty_party: u16,
+	},
 
-	#[error("Offline Stage Does Not Exist")]
-	NoOfflineStageError,
+	#[error("Offline Stage number {l:?} Does Not Exist")]
+	NoOfflineStageError { l: usize },
 }
