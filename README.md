@@ -41,6 +41,9 @@ For the key refresh protocol we opt for a fork of Zengo's [fs-dkr](https://githu
 
 Particularly, we have implemented the **4-round $O(n^2)$ identifiable abort** version of CGGMP. The **remaining work to be done is testing** our implementation, particularly the `presign` and `sign`. 
 
+Other details to be checked out:
+- Identifiable abort proof 2c) in both `presign` and `sign`.
+
 ## Prerequisites
 
 This guide uses <https://rustup.rs> installer and the `rustup` tool to manage the Rust toolchain.
