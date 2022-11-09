@@ -50,28 +50,28 @@ use std::marker::PhantomData;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierAffineOpWithGroupComInRangeStatement<E: Curve, H: Digest + Clone> {
-	S: BigInt,
-	T: BigInt,
-	N_hat: BigInt,
-	N0: BigInt,
-	N1: BigInt,
-	NN0: BigInt,
-	NN1: BigInt,
-	C: BigInt,
-	D: BigInt,
-	Y: BigInt,
-	X: Point<E>,
-	ek_prover: EncryptionKey,
-	ek_verifier: EncryptionKey,
-	phantom: PhantomData<(E, H)>,
+	pub S: BigInt,
+	pub T: BigInt,
+	pub N_hat: BigInt,
+	pub N0: BigInt,
+	pub N1: BigInt,
+	pub NN0: BigInt,
+	pub NN1: BigInt,
+	pub C: BigInt,
+	pub D: BigInt,
+	pub Y: BigInt,
+	pub X: Point<E>,
+	pub ek_prover: EncryptionKey,
+	pub ek_verifier: EncryptionKey,
+	pub phantom: PhantomData<(E, H)>,
 }
 
 pub struct PaillierAffineOpWithGroupComInRangeWitness<E: Curve, H: Digest + Clone> {
-	x: BigInt,
-	y: BigInt,
-	rho: BigInt,
-	rho_y: BigInt,
-	phantom: PhantomData<(E, H)>,
+	pub x: BigInt,
+	pub y: BigInt,
+	pub rho: BigInt,
+	pub rho_y: BigInt,
+	pub phantom: PhantomData<(E, H)>,
 }
 
 impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeStatement<E, H> {

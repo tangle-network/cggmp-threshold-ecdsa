@@ -51,3 +51,8 @@ pub struct ProofVerificationErrorData {
 	proof_symbol: String,
 	verifying_party: u16,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NoOfflineStageErrorData {
+	l: usize,
+}

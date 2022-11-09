@@ -37,20 +37,20 @@ use zk_paillier::zkproofs::IncorrectProof;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierEncryptionInRangeStatement<E: Curve, H: Digest + Clone> {
-	N0: BigInt,
-	NN0: BigInt,
-	K: BigInt,
-	s: BigInt,
-	t: BigInt,
-	N_hat: BigInt,
-	phantom: PhantomData<(E, H)>,
+	pub N0: BigInt,
+	pub NN0: BigInt,
+	pub K: BigInt,
+	pub s: BigInt,
+	pub t: BigInt,
+	pub N_hat: BigInt,
+	pub phantom: PhantomData<(E, H)>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierEncryptionInRangeWitness<E: Curve, H: Digest + Clone> {
-	k: BigInt,
-	rho: BigInt,
-	phantom: PhantomData<(E, H)>,
+	pub k: BigInt,
+	pub rho: BigInt,
+	pub phantom: PhantomData<(E, H)>,
 }
 
 impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeStatement<E, H> {

@@ -79,29 +79,32 @@ impl Round0 {
 		// G_i = enc_i(gamma_i; nu_i)
 		let G_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 			&self.secrets.ek,
-			RawPlaintext::from(gamma_i),
-			&Randomness::from(nu_i),
+			RawPlaintext::from(gamma_i.clone()),
+			&Randomness::from(nu_i.clone()),
 		)
 		.into();
 		// K_i = enc_i(k_i; rho_i)
 		let K_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 			&self.secrets.ek,
-			RawPlaintext::from(k_i),
-			&Randomness(rho_i),
+			RawPlaintext::from(k_i.clone()),
+			&Randomness(rho_i.clone()),
 		)
 		.into();
-		let witness_psi_0_j_i =
-			PaillierEncryptionInRangeWitness { k: k_i, rho: rho_i, phantom: PhantomData };
+		let witness_psi_0_j_i = PaillierEncryptionInRangeWitness {
+			k: k_i.clone(),
+			rho: rho_i.clone(),
+			phantom: PhantomData,
+		};
 
 		for j in self.ssid.P.iter() {
 			if *j != self.ssid.X.i {
 				let statement_psi_0_j_i = PaillierEncryptionInRangeStatement {
-					N0: self.secrets.ek.n,
-					NN0: self.secrets.ek.nn,
-					K: K_i,
-					s: *self.S.get(j).unwrap_or(&BigInt::zero()),
-					t: *self.T.get(j).unwrap_or(&BigInt::zero()),
-					N_hat: *self.N_hats.get(j).unwrap_or(&BigInt::zero()),
+					N0: self.secrets.ek.n.clone(),
+					NN0: self.secrets.ek.nn.clone(),
+					K: K_i.clone(),
+					s: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
+					t: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
+					N_hat: self.N_hats.get(j).unwrap_or(&BigInt::zero()).clone(),
 					phantom: PhantomData,
 				};
 				let psi_0_j_i = PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(
@@ -110,13 +113,13 @@ impl Round0 {
 				);
 
 				let body = PreSigningP2PMessage1 {
-					ssid: self.ssid,
+					ssid: self.ssid.clone(),
 					i: self.ssid.X.i,
-					K_i,
-					G_i,
+					K_i: K_i.clone(),
+					G_i: G_i.clone(),
 					psi_0_j_i,
 					enc_j_statement: statement_psi_0_j_i,
-					ek: self.secrets.ek,
+					ek: self.secrets.ek.clone(),
 				};
 				output.push(Msg { sender: self.ssid.X.i, receiver: Some(*j), body });
 			}
@@ -163,9 +166,9 @@ impl Round1 {
 	where
 		O: Push<Msg<PreSigningP2PMessage2<Secp256k1>>>,
 	{
-		let K: HashMap<u16, BigInt> = HashMap::new();
-		let G: HashMap<u16, BigInt> = HashMap::new();
-		let eks: HashMap<u16, EncryptionKey> = HashMap::new();
+		let mut K: HashMap<u16, BigInt> = HashMap::new();
+		let mut G: HashMap<u16, BigInt> = HashMap::new();
+		let mut eks: HashMap<u16, EncryptionKey> = HashMap::new();
 		// Verify P2P Messages
 		for msg in input.into_vec() {
 			// j
@@ -202,125 +205,125 @@ impl Round1 {
 			Point::<Secp256k1>::generator().as_point() * Scalar::from_bigint(&self.gamma_i);
 		// {beta, beta_hat, r, r_hat, s, s_hat}_i will store mapping from j to {beta, beta_hat, r,
 		// r_hat, s, s_hat}_i_j.
-		let beta_i: HashMap<u16, BigInt> = HashMap::new();
-		let beta_hat_i: HashMap<u16, BigInt> = HashMap::new();
-		let r_i: HashMap<u16, BigInt> = HashMap::new();
-		let r_hat_i: HashMap<u16, BigInt> = HashMap::new();
-		let s_i: HashMap<u16, BigInt> = HashMap::new();
-		let s_hat_i: HashMap<u16, BigInt> = HashMap::new();
-		let D_j: HashMap<u16, BigInt> = HashMap::new();
-		let F_j: HashMap<u16, BigInt> = HashMap::new();
-		let D_hat_j: HashMap<u16, BigInt> = HashMap::new();
-		let F_hat_j: HashMap<u16, BigInt> = HashMap::new();
+		let mut beta_i: HashMap<u16, BigInt> = HashMap::new();
+		let mut beta_hat_i: HashMap<u16, BigInt> = HashMap::new();
+		let mut r_i: HashMap<u16, BigInt> = HashMap::new();
+		let mut r_hat_i: HashMap<u16, BigInt> = HashMap::new();
+		let mut s_i: HashMap<u16, BigInt> = HashMap::new();
+		let mut s_hat_i: HashMap<u16, BigInt> = HashMap::new();
+		let mut D_j: HashMap<u16, BigInt> = HashMap::new();
+		let mut F_j: HashMap<u16, BigInt> = HashMap::new();
+		let mut D_hat_j: HashMap<u16, BigInt> = HashMap::new();
+		let mut F_hat_j: HashMap<u16, BigInt> = HashMap::new();
 
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
 				// r_i_j <- Z_{N_j}
 				let r_i_j = BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n);
-				r_i.insert(*j, r_i_j);
+				r_i.insert(*j, r_i_j.clone());
 				// s_i_j <- Z_{N_j}
 				let s_i_j = BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n);
-				s_i.insert(*j, s_i_j);
+				s_i.insert(*j, s_i_j.clone());
 				// r_hat_i_j <- Z_{N_j}
 				let r_hat_i_j =
 					BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n);
-				r_hat_i.insert(*j, r_hat_i_j);
+				r_hat_i.insert(*j, r_hat_i_j.clone());
 				// s_hat_i_j <- Z_{N_j}
 				let s_hat_i_j =
 					BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n);
-				s_hat_i.insert(*j, s_hat_i_j);
+				s_hat_i.insert(*j, s_hat_i_j.clone());
 				let upper = BigInt::pow(&BigInt::from(2), L_PRIME as u32);
 				let lower = BigInt::from(-1).mul(&upper);
 				// beta_i_j <- [-2^L_PRIME, 2^L_PRIME]
 				let beta_i_j = BigInt::sample_range(&lower, &upper);
-				beta_i.insert(*j, beta_i_j);
+				beta_i.insert(*j, beta_i_j.clone());
 				// beta_hat_i_j <- [-2^L_PRIME, 2^L_PRIME]
 				let beta_hat_i_j = BigInt::sample_range(&lower, &upper);
-				beta_hat_i.insert(*j, beta_hat_i_j);
+				beta_hat_i.insert(*j, beta_hat_i_j.clone());
 
 				let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(
 					eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
-					RawPlaintext::from(BigInt::from(-1).mul(&beta_i_j)),
-					&Randomness::from(s_i_j),
+					RawPlaintext::from(BigInt::from(-1).mul(&beta_i_j.clone())),
+					&Randomness::from(s_i_j.clone()),
 				);
 				// D_j_i =  (gamma_i [.] K_j ) ⊕ enc_j(-beta_i_j; s_i_j) where [.] is Paillier
 				// multiplication
-				let D_j_i = Paillier::add(
+				let D_j_i: BigInt = Paillier::add(
 					eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
 					Paillier::mul(
 						eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
 						RawCiphertext::from(K.get(j).unwrap_or(&BigInt::zero())),
-						RawPlaintext::from(self.gamma_i),
+						RawPlaintext::from(self.gamma_i.clone()),
 					),
 					RawCiphertext::from(encrypt_minus_beta_i_j),
 				)
 				.into();
 
-				D_j.insert(*j, D_j_i);
+				D_j.insert(*j, D_j_i.clone());
 
 				// F_j_i = enc_i(beta_i_j, r_i_j)
-				let F_j_i = Paillier::encrypt_with_chosen_randomness(
+				let F_j_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 					&self.secrets.ek,
-					RawPlaintext::from(beta_i_j),
-					&Randomness::from(r_i_j),
+					RawPlaintext::from(beta_i_j.clone()),
+					&Randomness::from(r_i_j.clone()),
 				)
 				.into();
 
-				F_j.insert(*j, F_j_i);
+				F_j.insert(*j, F_j_i.clone());
 
 				// Compute D_hat_j_i
 				let encrypt_minus_beta_hat_i_j = Paillier::encrypt_with_chosen_randomness(
 					eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
 					RawPlaintext::from(BigInt::from(-1).mul(&beta_hat_i_j)),
-					&Randomness::from(s_hat_i_j),
+					&Randomness::from(s_hat_i_j.clone()),
 				);
 				// D_hat_j_i =  (x_i [.] K_j ) ⊕ enc_j(-beta_hat_i_j; s_hat_i_j) where [.] is
 				// Paillier multiplication
-				let D_hat_j_i = Paillier::add(
+				let D_hat_j_i: BigInt = Paillier::add(
 					eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
 					Paillier::mul(
 						eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
 						RawCiphertext::from(K.get(j).unwrap_or(&BigInt::zero())),
-						RawPlaintext::from(self.secrets.x_i),
+						RawPlaintext::from(self.secrets.x_i.clone()),
 					),
 					RawCiphertext::from(encrypt_minus_beta_hat_i_j),
 				)
 				.into();
 
-				D_hat_j.insert(*j, D_hat_j_i);
+				D_hat_j.insert(*j, D_hat_j_i.clone());
 
 				// F_hat_j_i = enc_i(beta_hat_i_j, r_hat_i_j)
-				let F_hat_j_i = Paillier::encrypt_with_chosen_randomness(
+				let F_hat_j_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 					&self.secrets.ek,
-					RawPlaintext::from(beta_hat_i_j),
-					&Randomness::from(r_hat_i_j),
+					RawPlaintext::from(beta_hat_i_j.clone()),
+					&Randomness::from(r_hat_i_j.clone()),
 				)
 				.into();
 
-				F_hat_j.insert(*j, F_hat_j_i);
+				F_hat_j.insert(*j, F_hat_j_i.clone());
 
 				// psi_j_i
 				let witness_psi_j_i = PaillierAffineOpWithGroupComInRangeWitness {
-					x: self.gamma_i,
-					y: beta_i_j,
-					rho: s_i_j,
-					rho_y: r_i_j,
+					x: self.gamma_i.clone(),
+					y: beta_i_j.clone(),
+					rho: s_i_j.clone(),
+					rho_y: r_i_j.clone(),
 					phantom: PhantomData,
 				};
 				let statement_psi_j_i = PaillierAffineOpWithGroupComInRangeStatement {
-					S: *self.S.get(j).unwrap_or(&BigInt::zero()),
-					T: *self.T.get(j).unwrap_or(&BigInt::zero()),
-					N_hat: *self.N_hats.get(j).unwrap_or(&BigInt::zero()),
-					N0: self.secrets.ek.n,
-					N1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n,
-					NN0: self.secrets.ek.nn,
-					NN1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).nn,
-					C: D_j_i,
-					D: *K.get(j).unwrap_or(&BigInt::zero()),
-					Y: F_j_i,
-					X: Gamma_i,
-					ek_prover: self.secrets.ek,
-					ek_verifier: *eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
+					S: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
+					T: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
+					N_hat: self.N_hats.get(j).unwrap_or(&BigInt::zero()).clone(),
+					N0: self.secrets.ek.n.clone(),
+					N1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n.clone(),
+					NN0: self.secrets.ek.nn.clone(),
+					NN1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).nn.clone(),
+					C: D_j_i.clone(),
+					D: K.get(j).unwrap_or(&BigInt::zero()).clone(),
+					Y: F_j_i.clone(),
+					X: Gamma_i.clone(),
+					ek_prover: self.secrets.ek.clone(),
+					ek_verifier: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).clone(),
 					phantom: PhantomData,
 				};
 				let psi_j_i = PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::prove(
@@ -330,27 +333,27 @@ impl Round1 {
 
 				// psi_hat_j_i
 				let witness_psi_hat_j_i = PaillierAffineOpWithGroupComInRangeWitness {
-					x: self.secrets.x_i,
-					y: beta_hat_i_j,
-					rho: s_hat_i_j,
-					rho_y: r_hat_i_j,
+					x: self.secrets.x_i.clone(),
+					y: beta_hat_i_j.clone(),
+					rho: s_hat_i_j.clone(),
+					rho_y: r_hat_i_j.clone(),
 					phantom: PhantomData,
 				};
 				let statement_psi_hat_j_i = PaillierAffineOpWithGroupComInRangeStatement {
-					S: *self.S.get(j).unwrap_or(&BigInt::zero()),
-					T: *self.T.get(j).unwrap_or(&BigInt::zero()),
-					N_hat: *self.N_hats.get(j).unwrap_or(&BigInt::zero()),
-					N0: self.secrets.ek.n,
-					N1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n,
-					NN0: self.secrets.ek.nn,
-					NN1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).nn,
-					C: D_hat_j_i,
-					D: *K.get(j).unwrap_or(&BigInt::zero()),
-					Y: F_hat_j_i,
+					S: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
+					T: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
+					N_hat: self.N_hats.get(j).unwrap_or(&BigInt::zero()).clone(),
+					N0: self.secrets.ek.n.clone(),
+					N1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n.clone(),
+					NN0: self.secrets.ek.nn.clone(),
+					NN1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).nn.clone(),
+					C: D_hat_j_i.clone(),
+					D: K.get(j).unwrap_or(&BigInt::zero()).clone(),
+					Y: F_hat_j_i.clone(),
 					X: Point::<Secp256k1>::generator().as_point() *
 						Scalar::from_bigint(&self.secrets.x_i),
-					ek_prover: self.secrets.ek,
-					ek_verifier: *eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
+					ek_prover: self.secrets.ek.clone(),
+					ek_verifier: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).clone(),
 					phantom: PhantomData,
 				};
 				let psi_hat_j_i =
@@ -361,18 +364,18 @@ impl Round1 {
 
 				// psi_prime_j_i
 				let witness_psi_prime_j_i = KnowledgeOfExponentPaillierEncryptionWitness {
-					x: self.gamma_i,
-					rho: self.nu_i,
+					x: self.gamma_i.clone(),
+					rho: self.nu_i.clone(),
 					phantom: PhantomData,
 				};
 				let statement_psi_prime_j_i = KnowledgeOfExponentPaillierEncryptionStatement {
-					N0: self.secrets.ek.n,
-					NN0: self.secrets.ek.nn,
-					C: self.K_i,
-					X: Gamma_i,
-					s: *self.S.get(j).unwrap_or(&BigInt::zero()),
-					t: *self.T.get(j).unwrap_or(&BigInt::zero()),
-					N_hat: *self.N_hats.get(j).unwrap_or(&BigInt::zero()),
+					N0: self.secrets.ek.n.clone(),
+					NN0: self.secrets.ek.nn.clone(),
+					C: self.K_i.clone(),
+					X: Gamma_i.clone(),
+					s: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
+					t: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
+					N_hat: self.N_hats.get(j).unwrap_or(&BigInt::zero()).clone(),
 					phantom: PhantomData,
 				};
 				let psi_prime_j_i =
@@ -383,14 +386,14 @@ impl Round1 {
 
 				// Send Message
 				let body = PreSigningP2PMessage2 {
-					ssid: self.ssid,
+					ssid: self.ssid.clone(),
 					i: self.ssid.X.i,
-					Gamma_i,
-					D_j_i,
-					F_j_i,
-					D_hat_j_i,
-					F_hat_j_i,
-					psi_j_i,
+					Gamma_i: Gamma_i.clone(),
+					D_j_i: D_j_i.clone(),
+					F_j_i: F_j_i.clone(),
+					D_hat_j_i: D_hat_j_i.clone(),
+					F_hat_j_i: F_hat_j_i.clone(),
+					psi_j_i: psi_j_i.clone(),
 					statement_psi_j_i,
 					psi_hat_j_i,
 					statement_psi_hat_j_i,
@@ -475,11 +478,11 @@ impl Round2 {
 	where
 		O: Push<Msg<PreSigningP2PMessage3<Secp256k1>>>,
 	{
-		let D_i: HashMap<u16, BigInt> = HashMap::new();
-		let D_hat_i: HashMap<u16, BigInt> = HashMap::new();
-		let F_i: HashMap<u16, BigInt> = HashMap::new();
-		let F_hat_i: HashMap<u16, BigInt> = HashMap::new();
-		let Gammas: HashMap<u16, Point<Secp256k1>> = HashMap::new();
+		let mut D_i: HashMap<u16, BigInt> = HashMap::new();
+		let mut D_hat_i: HashMap<u16, BigInt> = HashMap::new();
+		let mut F_i: HashMap<u16, BigInt> = HashMap::new();
+		let mut F_hat_i: HashMap<u16, BigInt> = HashMap::new();
+		let mut Gammas: HashMap<u16, Point<Secp256k1>> = HashMap::new();
 		for msg in input.into_vec() {
 			// j
 			let j = msg.i;
@@ -556,14 +559,14 @@ impl Round2 {
 		}
 
 		// Gamma = Prod_j (Gamma_j)
-		let Gamma = Gammas.values().into_iter().fold(self.Gamma_i, |acc, x| acc + x);
+		let Gamma = Gammas.values().into_iter().fold(self.Gamma_i.clone(), |acc, x| acc + x);
 
 		// Delta = Gamma^{k_i}
-		let Delta_i = Gamma * Scalar::from_bigint(&self.k_i);
+		let Delta_i = Gamma.clone() * Scalar::from_bigint(&self.k_i);
 
 		// {alpha, alpha_hat}_i will store mapping from j to {alpha, alpha_hat}_i_j
-		let alpha_i: HashMap<u16, BigInt> = HashMap::new();
-		let alpha_hat_i: HashMap<u16, BigInt> = HashMap::new();
+		let mut alpha_i: HashMap<u16, BigInt> = HashMap::new();
+		let mut alpha_hat_i: HashMap<u16, BigInt> = HashMap::new();
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
 				alpha_i.insert(
@@ -617,22 +620,22 @@ impl Round2 {
 		);
 
 		for j in self.ssid.P.iter() {
-			if j != &self.ssid.X.i {
+			if j != &self.ssid.X.i.clone() {
 				// Compute psi_prime_prime_j_i
 				let witness_psi_prime_prime_j_i = KnowledgeOfExponentPaillierEncryptionWitness {
-					x: self.k_i,
-					rho: self.rho_i,
+					x: self.k_i.clone(),
+					rho: self.rho_i.clone(),
 					phantom: PhantomData,
 				};
 				let statement_psi_prime_prime_j_i =
 					KnowledgeOfExponentPaillierEncryptionStatement {
-						N0: self.secrets.ek.n,
-						NN0: self.secrets.ek.nn,
-						C: self.K_i,
-						X: Delta_i,
-						s: *self.S.get(j).unwrap_or(&BigInt::zero()),
-						t: *self.T.get(j).unwrap_or(&BigInt::zero()),
-						N_hat: *self.N_hats.get(j).unwrap_or(&BigInt::zero()),
+						N0: self.secrets.ek.n.clone(),
+						NN0: self.secrets.ek.nn.clone(),
+						C: self.K_i.clone(),
+						X: Delta_i.clone(),
+						s: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
+						t: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
+						N_hat: self.N_hats.get(j).unwrap_or(&BigInt::zero()).clone(),
 						phantom: PhantomData,
 					};
 				let psi_prime_prime_j_i =
@@ -643,10 +646,10 @@ impl Round2 {
 
 				// Send Message
 				let body = PreSigningP2PMessage3 {
-					ssid: self.ssid,
+					ssid: self.ssid.clone(),
 					i: self.ssid.X.i,
-					delta_i,
-					Delta_i,
+					delta_i: delta_i.clone(),
+					Delta_i: Delta_i.clone(),
 					psi_prime_prime_j_i,
 					statement_psi_prime_prime_j_i,
 				};
@@ -750,9 +753,9 @@ impl Round3 {
 		O: Push<Msg<Option<IdentifiableAbortBroadcastMessage<Secp256k1>>>>,
 	{
 		// Mapping from j to delta_j
-		let deltas: HashMap<u16, BigInt> = HashMap::new();
+		let mut deltas: HashMap<u16, BigInt> = HashMap::new();
 		// Mapping from j to Delta_j
-		let Deltas: HashMap<u16, Point<Secp256k1>> = HashMap::new();
+		let mut Deltas: HashMap<u16, Point<Secp256k1>> = HashMap::new();
 		for msg in input.into_vec() {
 			// j
 			let j = msg.i;
@@ -761,13 +764,22 @@ impl Round3 {
 
 			let statement_psi_prime_prime_i_j = msg.statement_psi_prime_prime_j_i;
 
-			KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::verify(
+			if KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::verify(
 				&psi_prime_prime_i_j,
 				&statement_psi_prime_prime_i_j,
 			)
-			.map_err(|e| {
-				Err(format!("Party {} verification of log star psi prime prime failed", j))
-			});
+			.is_err()
+			{
+				let error_data = ProofVerificationErrorData {
+					proof_symbol: format!("psi_prime_prime_i_j"),
+					verifying_party: self.ssid.X.i,
+				};
+				return Err(PresignError::ProofVerificationError(ErrorType {
+					error_type: format!("log*"),
+					bad_actors: vec![j.into()],
+					data: bincode::serialize(&error_data).unwrap(),
+				}))
+			}
 
 			// Insert into deltas and Deltas
 			deltas.insert(j, msg.delta_i);
@@ -775,26 +787,27 @@ impl Round3 {
 		}
 
 		// delta = sum of delta_j's
-		let delta = deltas.values().into_iter().fold(self.delta_i, |acc, x| acc.add(x));
+		let delta = deltas.values().into_iter().fold(self.delta_i.clone(), |acc, x| acc.add(x));
 
 		// Compute product of Delta_j's
-		let product_of_Deltas = Deltas.values().into_iter().fold(self.Delta_i, |acc, x| acc + x);
+		let product_of_Deltas =
+			Deltas.values().into_iter().fold(self.Delta_i.clone(), |acc, x| acc + x);
 
 		if product_of_Deltas ==
 			Point::<Secp256k1>::generator().as_point() * Scalar::from_bigint(&delta)
 		{
 			// R = Gamma^{delta^{-1}}
-			let R =
-				self.Gamma * Scalar::from_bigint(&BigInt::mod_inv(&delta, &self.ssid.q).unwrap());
+			let R = self.Gamma.clone() *
+				Scalar::from_bigint(&BigInt::mod_inv(&delta, &self.ssid.q).unwrap());
 			let presigning_output = PresigningOutput {
-				ssid: self.ssid,
+				ssid: self.ssid.clone(),
 				R,
 				i: self.ssid.X.i,
-				k_i: self.k_i,
-				chi_i: self.chi_i,
+				k_i: self.k_i.clone(),
+				chi_i: self.chi_i.clone(),
 			};
 			let transcript = PresigningTranscript {
-				ssid: self.ssid,
+				ssid: self.ssid.clone(),
 				secrets: self.secrets,
 				eks: self.eks,
 				gamma_i: self.gamma_i,
@@ -814,9 +827,9 @@ impl Round3 {
 				r_hat_i: self.r_hat_i,
 				s_i: self.s_i,
 				s_hat_i: self.s_hat_i,
-				delta_i: self.delta_i,
-				chi_i: self.chi_i,
-				Delta_i: self.Delta_i,
+				delta_i: self.delta_i.clone(),
+				chi_i: self.chi_i.clone(),
+				Delta_i: self.Delta_i.clone(),
 				deltas,
 				Deltas,
 				delta,
@@ -844,47 +857,45 @@ impl Round3 {
 			})
 		} else {
 			// (l,j) to proof for D_j_i
-			let proofs_D_j_i: HashMap<
+			let mut proofs_D_j_i: HashMap<
 				(u16, u16),
 				PaillierAffineOpWithGroupComInRangeProof<Secp256k1, Sha256>,
 			> = HashMap::new();
 
 			// (l,j) to statement for D_j_i
-			let statements_D_j_i: HashMap<
+			let mut statements_D_j_i: HashMap<
 				(u16, u16),
 				PaillierAffineOpWithGroupComInRangeStatement<Secp256k1, Sha256>,
 			> = HashMap::new();
 
-			let D_j_i_map: HashMap<u16, BigInt> = HashMap::new();
-
-			(self.ssid.P, self.ssid.P).par_iter().map(|(j, l)| {
+			self.ssid.P.iter().zip(self.ssid.P.iter()).map(|(j, l)| {
 				if *j != self.ssid.X.i && j != l {
-					let D_j_i = *self.D_j.get(&self.ssid.X.i).unwrap();
+					let D_j_i = self.D_j.get(&self.ssid.X.i.clone()).unwrap();
 
 					// F_j_i = enc_i(beta_i_j, r_i_j)
-					let F_j_i = *self.F_j.get(&self.ssid.X.i).unwrap();
+					let F_j_i = self.F_j.get(&self.ssid.X.i).unwrap();
 
 					let witness_D_j_i = PaillierAffineOpWithGroupComInRangeWitness {
-						x: self.gamma_i,
-						y: *self.beta_i.get(j).unwrap_or(&BigInt::zero()),
-						rho: *self.s_i.get(j).unwrap_or(&BigInt::zero()),
-						rho_y: *self.r_i.get(j).unwrap_or(&BigInt::zero()),
+						x: self.gamma_i.clone(),
+						y: self.beta_i.get(j).unwrap_or(&BigInt::zero()).clone(),
+						rho: self.s_i.get(j).unwrap_or(&BigInt::zero()).clone(),
+						rho_y: self.r_i.get(j).unwrap_or(&BigInt::zero()).clone(),
 						phantom: PhantomData,
 					};
 					let statement_D_j_i = PaillierAffineOpWithGroupComInRangeStatement {
-						S: *self.S.get(l).unwrap_or(&BigInt::zero()),
-						T: *self.T.get(l).unwrap_or(&BigInt::zero()),
-						N_hat: *self.N_hats.get(l).unwrap_or(&BigInt::zero()),
-						N0: self.secrets.ek.n,
-						N1: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n,
-						NN0: self.secrets.ek.nn,
-						NN1: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).nn,
-						C: D_j_i,
-						D: *self.K.get(j).unwrap_or(&BigInt::zero()),
-						Y: F_j_i,
-						X: self.Gamma_i,
-						ek_prover: self.secrets.ek,
-						ek_verifier: *self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
+						S: self.S.get(l).unwrap_or(&BigInt::zero()).clone(),
+						T: self.T.get(l).unwrap_or(&BigInt::zero()).clone(),
+						N_hat: self.N_hats.get(l).unwrap_or(&BigInt::zero()).clone(),
+						N0: self.secrets.ek.n.clone(),
+						N1: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n.clone(),
+						NN0: self.secrets.ek.nn.clone(),
+						NN1: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).nn.clone(),
+						C: D_j_i.clone(),
+						D: self.K.get(j).unwrap_or(&BigInt::zero()).clone(),
+						Y: F_j_i.clone(),
+						X: self.Gamma_i.clone(),
+						ek_prover: self.secrets.ek.clone(),
+						ek_verifier: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).clone(),
 						phantom: PhantomData,
 					};
 					let D_j_i_proof =
@@ -898,28 +909,28 @@ impl Round3 {
 			});
 
 			// H_i proof
-			let H_i_randomness = sample_relatively_prime_integer(&self.secrets.ek.n);
-			let H_i = Paillier::encrypt_with_chosen_randomness(
+			let H_i_randomness: BigInt = sample_relatively_prime_integer(&self.secrets.ek.n);
+			let H_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 				&self.secrets.ek,
 				RawPlaintext::from(BigInt::mul(&self.k_i, &self.gamma_i)),
-				&Randomness::from(H_i_randomness),
+				&Randomness::from(H_i_randomness.clone()),
 			)
 			.into();
 
 			let witness_H_i = PaillierMulWitness {
 				x: self.k_i,
-				rho: self.nu_i,
+				rho: self.nu_i.clone(),
 				rho_x: self.nu_i.mul(&self.gamma_i),
 				phantom: PhantomData,
 			};
 
 			let statement_H_i = PaillierMulStatement {
-				N: self.secrets.ek.n,
-				NN: self.secrets.ek.nn,
+				N: self.secrets.ek.n.clone(),
+				NN: self.secrets.ek.nn.clone(),
 				C: self.G_i,
 				Y: self.K_i,
-				X: H_i,
-				ek_prover: self.secrets.ek,
+				X: H_i.clone(),
+				ek_prover: self.secrets.ek.clone(),
 				phantom: PhantomData,
 			};
 
@@ -927,8 +938,9 @@ impl Round3 {
 				PaillierMulProof::<Secp256k1, Sha256>::prove(&witness_H_i, &statement_H_i);
 
 			// delta_i proofs
+			let s_j_i = BigInt::zero();
 			let ciphertext_delta_i = H_i;
-			let delta_i_randomness = H_i_randomness;
+			let delta_i_randomness = H_i_randomness.clone();
 			self.ssid.P.iter().map(|j| {
 				if *j != self.ssid.X.i {
 					ciphertext_delta_i
@@ -936,43 +948,46 @@ impl Round3 {
 						.mul(self.F_j.get(&self.ssid.X.i).unwrap_or(&BigInt::zero()));
 					delta_i_randomness
 						.mul(&self.rho_i)
-						.mul(s_j_i)
+						.mul(&s_j_i)
 						.mul(self.r_i.get(j).unwrap_or(&BigInt::zero()));
 				}
 			});
 
 			let witness_delta_i = PaillierDecryptionModQWitness {
-				y: Paillier::decrypt(&self.secrets.dk, RawCiphertext::from(ciphertext_delta_i))
-					.into(),
-				rho: H_i_randomness,
+				y: Paillier::decrypt(
+					&self.secrets.dk,
+					RawCiphertext::from(ciphertext_delta_i.clone()),
+				)
+				.into(),
+				rho: H_i_randomness.clone(),
 				phantom: PhantomData,
 			};
 
 			// l to statement
-			let statement_delta_i: HashMap<
+			let mut statement_delta_i: HashMap<
 				u16,
 				PaillierDecryptionModQStatement<Secp256k1, Sha256>,
 			> = HashMap::new();
 
 			// l to proof
-			let proof_delta_i: HashMap<u16, PaillierDecryptionModQProof<Secp256k1, Sha256>> =
+			let mut proof_delta_i: HashMap<u16, PaillierDecryptionModQProof<Secp256k1, Sha256>> =
 				HashMap::new();
 
-			self.ssid.P.par_iter().map(|l| {
+			self.ssid.P.iter().map(|l| {
 				if *l != self.ssid.X.i {
 					let statement_delta_l_i = PaillierDecryptionModQStatement {
-						S: *self.S.get(l).unwrap_or(&BigInt::zero()),
-						T: *self.T.get(l).unwrap_or(&BigInt::zero()),
-						N_hat: *self.N_hats.get(l).unwrap_or(&BigInt::zero()),
-						N0: self.secrets.ek.n,
-						NN0: self.secrets.ek.nn,
-						C: ciphertext_delta_i,
-						x: self.delta_i,
-						ek_prover: self.secrets.ek,
+						S: self.S.get(l).unwrap_or(&BigInt::zero()).clone(),
+						T: self.T.get(l).unwrap_or(&BigInt::zero()).clone(),
+						N_hat: self.N_hats.get(l).unwrap_or(&BigInt::zero()).clone(),
+						N0: self.secrets.ek.n.clone(),
+						NN0: self.secrets.ek.nn.clone(),
+						C: ciphertext_delta_i.clone(),
+						x: self.delta_i.clone(),
+						ek_prover: self.secrets.ek.clone(),
 						phantom: PhantomData,
 					};
 
-					statement_delta_i.insert(*l, statement_delta_l_i);
+					statement_delta_i.insert(*l, statement_delta_l_i.clone());
 
 					proof_delta_i.insert(
 						*l,
@@ -1025,9 +1040,9 @@ impl Round4 {
 				let msg = msg.unwrap();
 				// si stands for sender index
 				let si = msg.i;
-				let vec_D_si_j_proof_bad_actors: Vec<usize> = vec![];
+				let mut vec_D_si_j_proof_bad_actors: Vec<usize> = vec![];
 				// Check D_i_j proofs
-				self.ssid.P.par_iter().map(|j| {
+				self.ssid.P.iter().map(|j| {
 					if *j != self.ssid.X.i {
 						let D_si_j_proof = msg.proofs_D_j_i.get(&(self.ssid.X.i, *j)).unwrap();
 
