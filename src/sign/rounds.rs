@@ -227,7 +227,7 @@ impl Round1 {
 				}
 			});
 
-			// mul* proof
+			// mul* H_hat_i proof
 			let H_hat_i_randomness = crate::utilities::sample_relatively_prime_integer(
 				&self.presigning_transcript.secrets.ek.n,
 			);
@@ -247,22 +247,39 @@ impl Round1 {
 
 			let X_i = Point::<Secp256k1>::generator() *
 				Scalar::from_bigint(&self.presigning_transcript.secrets.x_i);
-			let statement_H_hat_i = PaillierMultiplicationVersusGroupStatement {
-				N0: self.presigning_transcript.secrets.ek.n,
-				NN0: self.presigning_transcript.secrets.ek.nn,
-				C: self.presigning_transcript.K_i,
-				D: H_hat_i,
-				X: X_i,
-				N_hat: *self.presigning_transcript.N_hats.get(j).unwrap_or(&BigInt::zero()),
-				s: *self.presigning_transcript.S.get(j).unwrap_or(&BigInt::zero()),
-				t: *self.presigning_transcript.T.get(j).unwrap_or(&BigInt::zero()),
-				phantom: PhantomData,
-			};
 
-			let H_hat_i_proof = PaillierMultiplicationVersusGroupProof::<Secp256k1, Sha256>::prove(
-				&witness_H_hat_i,
-				&statement_H_hat_i,
-			);
+			let proof_H_hat_i: HashMap<u16, PaillierMultiplicationVersusGroupProof<E, Sha256>> =
+				HashMap::new();
+			let statement_H_hat_i: HashMap<
+				u16,
+				PaillierMultiplicationVersusGroupStatement<E, Sha256>,
+			> = HashMap::new();
+
+			self.ssid.P.par_iter().map(|l| {
+				if *l != self.ssid.X.i {
+					let statement_H_hat_l_i = PaillierMultiplicationVersusGroupStatement {
+						N0: self.presigning_transcript.secrets.ek.n,
+						NN0: self.presigning_transcript.secrets.ek.nn,
+						C: self.presigning_transcript.K_i,
+						D: H_hat_i,
+						X: X_i,
+						N_hat: *self.presigning_transcript.N_hats.get(l).unwrap_or(&BigInt::zero()),
+						s: *self.presigning_transcript.S.get(l).unwrap_or(&BigInt::zero()),
+						t: *self.presigning_transcript.T.get(l).unwrap_or(&BigInt::zero()),
+						phantom: PhantomData,
+					};
+
+					statement_H_hat_i.insert(*l, statement_H_hat_l_i);
+
+					proof_H_hat_i.insert(
+						*l,
+						PaillierMultiplicationVersusGroupProof::<Secp256k1, Sha256>::prove(
+							&witness_H_hat_i,
+							&statement_H_hat_i,
+						),
+					);
+				}
+			});
 
 			// dec proof
 			let ciphertext = H_hat_i;
@@ -344,7 +361,7 @@ impl Round1 {
 			let body = Some(SigningIdentifiableAbortMessage {
 				proofs_D_hat_j_i,
 				statements_D_hat_j_i,
-				H_hat_i_proof,
+				proof_H_hat_i,
 				statement_H_hat_i,
 				proof_sigma_i,
 				statement_sigma_i,

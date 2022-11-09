@@ -33,19 +33,19 @@ pub struct SigningBroadcastMessage1<E: Curve> {
 
 #[derive(Debug, Clone)]
 pub struct SigningOutput<E: Curve> {
-	ssid: SSID<E>,
-	m: BigInt,
-	r: BigInt,
-	sigma: BigInt,
+	pub ssid: SSID<E>,
+	pub m: BigInt,
+	pub r: BigInt,
+	pub sigma: BigInt,
 }
 
 #[derive(Debug, Clone)]
 pub struct SigningIdentifiableAbortMessage<E: Curve> {
-	proofs_D_hat_j_i: HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>,
-	statements_D_hat_j_i:
+	pub proofs_D_hat_j_i: HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>,
+	pub statements_D_hat_j_i:
 		HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>>,
-	H_hat_i_proof: PaillierMultiplicationVersusGroupProof<E, Sha256>,
-	statement_H_hat_i: PaillierMultiplicationVersusGroupStatement<E, Sha256>,
-	proof_sigma_i: HashMap<u16, PaillierDecryptionModQProof<E, Sha256>>,
-	statement_sigma_i: HashMap<u16, PaillierDecryptionModQStatement<E, Sha256>>,
+	pub proof_H_hat_i: HashMap<u16, PaillierMultiplicationVersusGroupProof<E, Sha256>>,
+	pub statement_H_hat_i: HashMap<u16, PaillierMultiplicationVersusGroupStatement<E, Sha256>>,
+	pub proof_sigma_i: HashMap<u16, PaillierDecryptionModQProof<E, Sha256>>,
+	pub statement_sigma_i: HashMap<u16, PaillierDecryptionModQStatement<E, Sha256>>,
 }
