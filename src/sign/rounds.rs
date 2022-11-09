@@ -38,6 +38,8 @@ use super::{SigningBroadcastMessage1, SigningIdentifiableAbortMessage, SigningOu
 
 use super::state_machine::{Round0Messages, Round1Messages};
 
+use rayon::prelude::*;
+
 pub struct Round0 {
 	pub ssid: SSID<Secp256k1>,
 	pub l: usize, // This is the number of presignings to run in parallel
@@ -124,19 +126,22 @@ impl Round1 {
 			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: None });
 			Ok(Round2 { output: Some(signing_output) })
 		} else {
-			// D_hat_j_i proofs
+			// (l,j) to proof for D_j_i
 			let proofs_D_hat_j_i: HashMap<
-				u16,
+				(u16, u16),
 				PaillierAffineOpWithGroupComInRangeProof<Secp256k1, Sha256>,
 			> = HashMap::new();
-			// D_hat_j_i statements
+
+			// (l,j) to statement for D_j_i
 			let statements_D_hat_j_i: HashMap<
-				u16,
+				(u16, u16),
 				PaillierAffineOpWithGroupComInRangeStatement<Secp256k1, Sha256>,
 			> = HashMap::new();
 
-			for j in self.ssid.P.iter() {
-				if *j != self.ssid.X.i {
+			let D_hat_j_i_map: HashMap<u16, BigInt> = HashMap::new();
+
+			(self.ssid.P, self.ssid.P).par_iter().map(|(j, l)| {
+				if *j != self.ssid.X.i && j != l {
 					// Compute D_hat_j_i
 					let encrypt_minus_beta_hat_i_j = Paillier::encrypt_with_chosen_randomness(
 						self.presigning_transcript.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
@@ -199,12 +204,12 @@ impl Round1 {
 						};
 					let statement_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-							S: *self.presigning_transcript.S.get(j).unwrap_or(&BigInt::zero()),
-							T: *self.presigning_transcript.T.get(j).unwrap_or(&BigInt::zero()),
+							S: *self.presigning_transcript.S.get(l).unwrap_or(&BigInt::zero()),
+							T: *self.presigning_transcript.T.get(l).unwrap_or(&BigInt::zero()),
 							N_hat: *self
 								.presigning_transcript
 								.N_hats
-								.get(j)
+								.get(l)
 								.unwrap_or(&BigInt::zero()),
 							N0: self.presigning_transcript.secrets.ek.n,
 							N1: self
@@ -238,10 +243,10 @@ impl Round1 {
 							Secp256k1,
 							Sha256,
 						>::prove(&witness_D_hat_j_i, &statement_D_hat_j_i);
-					proofs_D_hat_j_i.insert(*j, proof_D_hat_j_i);
-					statements_D_hat_j_i.insert(*j, statement_D_hat_j_i);
+					proofs_D_hat_j_i.insert((*l, *j), proof_D_hat_j_i);
+					statements_D_hat_j_i.insert((*l, *j), statement_D_hat_j_i);
 				}
-			}
+			});
 
 			// mul* proof
 			let H_hat_i_randomness = crate::utilities::sample_relatively_prime_integer(
@@ -283,8 +288,8 @@ impl Round1 {
 			// dec proof
 			let ciphertext = H_hat_i;
 			let ciphertext_randomness = H_hat_i_randomness;
-			for j in self.ssid.P.iter() {
-				if *j != self.i {
+			self.ssid.P.iter().map(|j| {
+				if *j != self.ssid.X.i {
 					ciphertext
 						.mul(&self.presigning_transcript.D_hat_i.get(j).unwrap_or(&BigInt::zero()))
 						.mul(&F_hat_j_i);
@@ -292,7 +297,7 @@ impl Round1 {
 						.mul(&s_hat_j_i)
 						.mul(&self.presigning_transcript.r_hat_i.get(j).unwrap_or(&BigInt::zero()));
 				}
-			}
+			});
 
 			ciphertext.pow(&self.r);
 			ciphertext.mul(&self.presigning_transcript.K_i.pow(&self.m));
