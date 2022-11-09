@@ -39,6 +39,8 @@ This is an implementation of the threshold ECDSA signature multi-party-computati
 
 For the key refresh protocol we opt for a fork of Zengo's [fs-dkr](https://github.com/webb-tools/fs-dkr) maintained by us. Together, these complete the key generation and key refreshing protocol. From here, we implement the pre-signing and signing protocols outlined in the aforementioned CGGMP paper. This implementation leverages the infrastructure built by Zengo, namely [round-based-protocol](https://github.com/ZenGo-X/round-based-protocol). We detail how this can be used in a blockchain's gossip network environment such as Substrate, as that motivates this work.
 
+Particularly, we have implemented the **4-round $O(n^2)$ identifiable abort** version of CGGMP. The **remaining work to be done is testing** our implementation. 
+
 ## Prerequisites
 
 This guide uses <https://rustup.rs> installer and the `rustup` tool to manage the Rust toolchain.
