@@ -788,18 +788,25 @@ impl Round3 {
 
 			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: None });
 
-			Ok(Round4 { output: Some(presigning_output), transcript: Some(transcript) })
+			Ok(Round4 {
+				ssid: self.ssid,
+				output: Some(presigning_output),
+				transcript: Some(transcript),
+			})
 		} else {
-			// D_j_i proofs
+			// (l,j) to proof for D_j_i
 			let proofs_D_j_i: HashMap<
-				u16,
+				(u16, u16),
 				PaillierAffineOpWithGroupComInRangeProof<Secp256k1, Sha256>,
 			> = HashMap::new();
 
+			// (l,j) to statement for D_j_i
 			let statements_D_j_i: HashMap<
-				u16,
+				(u16, u16),
 				PaillierAffineOpWithGroupComInRangeStatement<Secp256k1, Sha256>,
 			> = HashMap::new();
+
+			let D_j_i_map: HashMap<u16, BigInt> = HashMap::new();
 
 			(self.ssid.P, self.ssid.P).par_iter().map(|(j, l)| {
 				if *j != self.ssid.X.i && j != l {
@@ -822,6 +829,8 @@ impl Round3 {
 						RawCiphertext::from(encrypt_minus_beta_i_j),
 					)
 					.into();
+
+					D_j_i_map.insert(*j, D_j_i);
 
 					// F_j_i = enc_i(beta_i_j, r_i_j)
 					let F_j_i = Paillier::encrypt_with_chosen_randomness(
@@ -858,8 +867,8 @@ impl Round3 {
 							&witness_D_j_i,
 							&statement_D_j_i,
 						);
-					proofs_D_j_i.insert(*j, D_j_i_proof);
-					statements_D_j_i.insert(*j, statement_D_j_i);
+					proofs_D_j_i.insert((*l, *j), D_j_i_proof);
+					statements_D_j_i.insert((*l, *j), statement_D_j_i);
 				}
 			});
 
@@ -893,11 +902,13 @@ impl Round3 {
 				PaillierMulProof::<Secp256k1, Sha256>::prove(&witness_H_i, &statement_H_i);
 
 			// delta_i proofs
-			let ciphertext_delta_i = BigInt::one();
-			let delta_i_randomness = BigInt::one();
+			let ciphertext_delta_i = H_i;
+			let delta_i_randomness = H_i_randomness;
 			self.ssid.P.iter().map(|j| {
 				if *j != self.ssid.X.i {
-					ciphertext_delta_i.mul(&D_j_i).mul(self.F_i.get(j).unwrap_or(&BigInt::zero()));
+					ciphertext_delta_i
+						.mul(&D_j_i_map.get(j).unwrap())
+						.mul(self.F_i.get(j).unwrap_or(&BigInt::zero()));
 					delta_i_randomness
 						.mul(&self.rho_i)
 						.mul(s_j_i)
@@ -905,15 +916,17 @@ impl Round3 {
 				}
 			});
 
+			// l to statement
 			let statement_delta_i: HashMap<
 				u16,
 				PaillierDecryptionModQStatement<Secp256k1, Sha256>,
 			> = HashMap::new();
 
+			// l to proof
 			let proof_delta_i: HashMap<u16, PaillierDecryptionModQProof<Secp256k1, Sha256>> =
 				HashMap::new();
 
-			self.ssid.P.iter().map(|l| {
+			self.ssid.P.par_iter().map(|l| {
 				if *l != self.ssid.X.i {
 					let witness_delta_i = PaillierDecryptionModQWitness {
 						y: Paillier::decrypt(
@@ -959,7 +972,7 @@ impl Round3 {
 			});
 
 			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
-			Ok(Round4 { output: None, transcript: None })
+			Ok(Round4 { ssid: self.ssid, output: None, transcript: None })
 		}
 	}
 
@@ -972,6 +985,7 @@ impl Round3 {
 }
 
 pub struct Round4 {
+	ssid: SSID<Secp256k1>,
 	output: Option<PresigningOutput<Secp256k1>>,
 	transcript: Option<PresigningTranscript<Secp256k1>>,
 }
@@ -985,54 +999,58 @@ impl Round4 {
 			Ok(Some((self.output.unwrap(), self.transcript.unwrap())))
 		} else {
 			for msg in input.into_vec() {
-				// Check D_i_j proofs
 				let msg = msg.unwrap();
-				let j = msg.i;
-				for i in msg.proofs_D_j_i.keys() {
-					let D_i_j_proof = msg.proofs_D_j_i.get(i).unwrap();
 
-					let statement_D_i_j = msg.statements_D_j_i.get(i).unwrap();
+				// Check D_i_j proofs
+				self.ssid.P.par_iter().map(|j| {
+					if *j != self.ssid.X.i {
+						let D_i_j_proof = msg.proofs_D_j_i.get(&(self.ssid.X.i, *j)).unwrap();
 
-					if PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
-						D_i_j_proof,
-						statement_D_i_j,
-					)
-					.is_err()
-					{
-						return Err(PresignError::ProofVerificationError {
-							proof_type: format!("aff-g"),
-							proof_symbol: format!("D_i_j"),
-							verifying_party: i,
-							faulty_party: j,
-						})
+						let statement_D_i_j =
+							msg.statements_D_j_i.get(&(self.ssid.X.i, *j)).unwrap();
+
+						if PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
+							D_i_j_proof,
+							statement_D_i_j,
+						)
+						.is_err()
+						{
+							Err(PresignError::ProofVerificationError {
+								proof_type: format!("aff-g"),
+								proof_symbol: format!("D_i_j"),
+								verifying_party: self.ssid.X.i,
+								faulty_party: *j,
+							})
+						}
+
+						// Check H_j proofs
+						let proof_H_i = msg.proof_H_i;
+						let statement_H_i = msg.statement_H_i;
+
+						if PaillierMulProof::verify(&proof_H_i, &statement_H_i).is_err() {
+							return Err(PresignError::ProofVerificationError {
+								proof_type: format!("mul"),
+								proof_symbol: format!("H_i"),
+								verifying_party: self.ssid.X.i,
+								faulty_party: j,
+							})
+						}
+						// Check delta_j_proof
+						let proof_delta_i = msg.proof_delta_i;
+						let statement_delta_i = msg.statement_delta_i;
+
+						if PaillierDecryptionModQProof::verify(&proof_delta_i, &statement_delta_i)
+							.is_err()
+						{
+							return Err(PresignError::ProofVerificationError {
+								proof_type: format!("dec_q"),
+								proof_symbol: format!("delta_i"),
+								verifying_party: i,
+								faulty_party: j,
+							})
+						}
 					}
-				}
-
-				// Check H_j proofs
-				let proof_H_i = msg.proof_H_i;
-				let statement_H_i = msg.statement_H_i;
-
-				if PaillierMulProof::verify(&proof_H_i, &statement_H_i).is_err() {
-					return Err(PresignError::ProofVerificationError {
-						proof_type: format!("mul"),
-						proof_symbol: format!("H_i"),
-						verifying_party: i,
-						faulty_party: j,
-					})
-				}
-				// Check delta_j_proof
-				let proof_delta_i = msg.proof_delta_i;
-				let statement_delta_i = msg.statement_delta_i;
-
-				if PaillierDecryptionModQProof::verify(&proof_delta_i, &statement_delta_i).is_err()
-				{
-					return Err(PresignError::ProofVerificationError {
-						proof_type: format!("dec_q"),
-						proof_symbol: format!("delta_i"),
-						verifying_party: i,
-						faulty_party: j,
-					})
-				}
+				});
 			}
 			Ok(None)
 		}
