@@ -154,33 +154,12 @@ impl Round1 {
 					);
 					// D_hat_j_i =  (x_i [.] K_j ) ⊕ enc_j(-beta_hat_i_j; s_hat_i_j) where [.] is
 					// Paillier multiplication
-					let D_hat_j_i = Paillier::add(
-						self.presigning_transcript.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
-						Paillier::mul(
-							self.presigning_transcript
-								.eks
-								.get(j)
-								.unwrap_or(&DEFAULT_ENCRYPTION_KEY),
-							RawCiphertext::from(
-								self.presigning_transcript.K.get(j).unwrap_or(&BigInt::zero()),
-							),
-							RawPlaintext::from(self.presigning_transcript.secrets.x_i),
-						),
-						RawCiphertext::from(encrypt_minus_beta_hat_i_j),
-					)
-					.into();
+					let D_hat_j_i =
+						*self.presigning_transcript.D_hat_j.get(&self.ssid.X.i).unwrap();
 
 					// F_hat_j_i = enc_i(beta_hat_i_j, r_hat_i_j)
-					let F_hat_j_i = Paillier::encrypt_with_chosen_randomness(
-						&self.presigning_transcript.secrets.ek,
-						RawPlaintext::from(
-							self.presigning_transcript.beta_hat_i.get(j).unwrap_or(&BigInt::zero()),
-						),
-						&Randomness::from(
-							self.presigning_transcript.r_hat_i.get(j).unwrap_or(&BigInt::zero()),
-						),
-					)
-					.into();
+					let F_hat_j_i =
+						*self.presigning_transcript.F_hat_j.get(&self.ssid.X.i).unwrap();
 
 					let witness_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
@@ -292,18 +271,29 @@ impl Round1 {
 				if *j != self.ssid.X.i {
 					ciphertext
 						.mul(&self.presigning_transcript.D_hat_i.get(j).unwrap_or(&BigInt::zero()))
-						.mul(&F_hat_j_i);
+						.mul(self.presigning_transcript.F_hat_j.get(&self.ssid.X.i).unwrap());
 					ciphertext_randomness
 						.mul(&s_hat_j_i)
 						.mul(&self.presigning_transcript.r_hat_i.get(j).unwrap_or(&BigInt::zero()));
 				}
 			});
 
-			ciphertext.pow(&self.r);
-			ciphertext.mul(&self.presigning_transcript.K_i.pow(&self.m));
-			ciphertext_randomness
-				.pow(&self.r)
-				.mul(&self.presigning_transcript.k_i.pow(&self.m));
+			BigInt::mod_pow(&ciphertext, &self.r, &self.presigning_transcript.secrets.ek.nn);
+			ciphertext.mul(&BigInt::mod_pow(
+				&self.presigning_transcript.K_i,
+				&self.m,
+				&self.presigning_transcript.secrets.ek.nn,
+			));
+			BigInt::mod_pow(
+				&ciphertext_randomness,
+				&self.r,
+				&self.presigning_transcript.secrets.ek.nn,
+			);
+			ciphertext_randomness.mul(&BigInt::mod_pow(
+				&self.presigning_transcript.K_i,
+				&self.m,
+				&self.presigning_transcript.secrets.ek.nn,
+			));
 
 			let witness_sigma_i = PaillierDecryptionModQWitness {
 				y: Paillier::decrypt(
