@@ -29,7 +29,7 @@ use crate::{
 			PaillierMultiplicationVersusGroupWitness,
 		},
 	},
-	ErrorType,
+	ErrorType, ProofVerificationErrorData,
 };
 use thiserror::Error;
 
@@ -402,6 +402,7 @@ impl Round2 {
 				// si stands for sender index
 				let si = msg.i;
 				// Check D_hat_i_j proofs
+				let vec_D_hat_si_j_proof_bad_actors: Vec<usize> = vec![];
 				self.ssid.P.par_iter().map(|j| {
 					if *j != self.ssid.X.i {
 						let D_hat_si_j_proof =
@@ -416,15 +417,22 @@ impl Round2 {
 						)
 						.is_err()
 						{
-							return Err(SignError::ProofVerificationError {
-								proof_type: format!("aff-g"),
-								proof_symbol: format!("D_hat_si_j"),
-								verifying_party: self.ssid.X.i,
-								faulty_party: *j,
-							})
+							vec_D_hat_si_j_proof_bad_actors.push(*j as usize);
 						}
 					}
 				});
+
+				if !vec_D_hat_si_j_proof_bad_actors.is_empty() {
+					let error_data = ProofVerificationErrorData {
+						proof_symbol: format!("D_hat_si_j"),
+						verifying_party: self.ssid.X.i,
+					};
+					return Err(SignError::ProofVerificationError(ErrorType {
+						error_type: format!("aff-g"),
+						bad_actors: vec_D_hat_si_j_proof_bad_actors,
+						data: bincode::serialize(&error_data).unwrap(),
+					}))
+				}
 				// Check H_j proofs
 				let proof_H_hat_si = msg.proof_H_hat_i.get(&self.ssid.X.i).unwrap();
 				let statement_H_hat_si = msg.statement_H_hat_i.get(&self.ssid.X.i).unwrap();
@@ -435,12 +443,15 @@ impl Round2 {
 				)
 				.is_err()
 				{
-					return Err(SignError::ProofVerificationError {
-						proof_type: format!("mul"),
+					let error_data = ProofVerificationErrorData {
 						proof_symbol: format!("H_hat_si"),
 						verifying_party: self.ssid.X.i,
-						faulty_party: si,
-					})
+					};
+					return Err(SignError::ProofVerificationError(ErrorType {
+						error_type: format!("mul"),
+						bad_actors: vec![si.into()],
+						data: bincode::serialize(&error_data).unwrap(),
+					}))
 				}
 				// Check delta_si_proof
 				let proof_sigma_si = msg.proof_sigma_i.get(&self.ssid.X.i).unwrap();
@@ -448,12 +459,15 @@ impl Round2 {
 
 				if PaillierDecryptionModQProof::verify(proof_sigma_si, statement_sigma_si).is_err()
 				{
-					return Err(SignError::ProofVerificationError {
-						proof_type: format!("dec_q"),
-						proof_symbol: format!("sigma_i"),
+					let error_data = ProofVerificationErrorData {
+						proof_symbol: format!("sigma_si"),
 						verifying_party: self.ssid.X.i,
-						faulty_party: si,
-					})
+					};
+					return Err(SignError::ProofVerificationError(ErrorType {
+						error_type: format!("dec-q"),
+						bad_actors: vec![si.into()],
+						data: bincode::serialize(&error_data).unwrap(),
+					}))
 				}
 			}
 			Ok(None)
