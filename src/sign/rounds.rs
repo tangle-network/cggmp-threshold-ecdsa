@@ -208,7 +208,7 @@ impl Round1 {
 								.presigning_transcript
 								.eks
 								.get(j)
-								.unwrap_or(&DEFAULT_ENCRYPTION_KEY)
+								.unwrap_or(&DEFAULT_ENCRYPTION_KEY())
 								.n
 								.clone(),
 							NN0: self.presigning_transcript.secrets.ek.nn.clone(),
@@ -216,7 +216,7 @@ impl Round1 {
 								.presigning_transcript
 								.eks
 								.get(j)
-								.unwrap_or(&DEFAULT_ENCRYPTION_KEY)
+								.unwrap_or(&DEFAULT_ENCRYPTION_KEY())
 								.nn
 								.clone(),
 							C: D_hat_j_i.clone(),
@@ -235,7 +235,7 @@ impl Round1 {
 								.presigning_transcript
 								.eks
 								.get(j)
-								.unwrap_or(&DEFAULT_ENCRYPTION_KEY)
+								.unwrap_or(&DEFAULT_ENCRYPTION_KEY())
 								.clone(),
 							phantom: PhantomData,
 						};

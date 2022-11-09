@@ -2,7 +2,7 @@ use std::{collections::HashMap, default};
 
 use curv::{
 	arithmetic::Zero,
-	elliptic::curves::{Curve, ECPoint, Point},
+	elliptic::curves::{Curve, Point, ECPoint},
 	BigInt,
 };
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
@@ -26,8 +26,11 @@ use zeroize::Zeroize;
 pub mod rounds;
 pub mod state_machine;
 
-pub const DEFAULT_ENCRYPTION_KEY: EncryptionKey =
-	EncryptionKey { n: BigInt::zero(), nn: BigInt::zero() };
+pub fn DEFAULT_ENCRYPTION_KEY() -> EncryptionKey {
+	EncryptionKey { n: BigInt::zero(), nn: BigInt::zero() }
+}
+
+
 
 #[derive(Debug, Clone)]
 pub struct SSID<E: Curve> {

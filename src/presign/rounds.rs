@@ -219,18 +219,18 @@ impl Round1 {
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
 				// r_i_j <- Z_{N_j}
-				let r_i_j = BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n);
+				let r_i_j = BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).n);
 				r_i.insert(*j, r_i_j.clone());
 				// s_i_j <- Z_{N_j}
-				let s_i_j = BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n);
+				let s_i_j = BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).n);
 				s_i.insert(*j, s_i_j.clone());
 				// r_hat_i_j <- Z_{N_j}
 				let r_hat_i_j =
-					BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n);
+					BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).n);
 				r_hat_i.insert(*j, r_hat_i_j.clone());
 				// s_hat_i_j <- Z_{N_j}
 				let s_hat_i_j =
-					BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n);
+					BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).n);
 				s_hat_i.insert(*j, s_hat_i_j.clone());
 				let upper = BigInt::pow(&BigInt::from(2), L_PRIME as u32);
 				let lower = BigInt::from(-1).mul(&upper);
@@ -242,16 +242,16 @@ impl Round1 {
 				beta_hat_i.insert(*j, beta_hat_i_j.clone());
 
 				let encrypt_minus_beta_i_j = Paillier::encrypt_with_chosen_randomness(
-					eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
+					eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()),
 					RawPlaintext::from(BigInt::from(-1).mul(&beta_i_j.clone())),
 					&Randomness::from(s_i_j.clone()),
 				);
 				// D_j_i =  (gamma_i [.] K_j ) ⊕ enc_j(-beta_i_j; s_i_j) where [.] is Paillier
 				// multiplication
 				let D_j_i: BigInt = Paillier::add(
-					eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
+					eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()),
 					Paillier::mul(
-						eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
+						eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()),
 						RawCiphertext::from(K.get(j).unwrap_or(&BigInt::zero())),
 						RawPlaintext::from(self.gamma_i.clone()),
 					),
@@ -273,16 +273,16 @@ impl Round1 {
 
 				// Compute D_hat_j_i
 				let encrypt_minus_beta_hat_i_j = Paillier::encrypt_with_chosen_randomness(
-					eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
+					eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()),
 					RawPlaintext::from(BigInt::from(-1).mul(&beta_hat_i_j)),
 					&Randomness::from(s_hat_i_j.clone()),
 				);
 				// D_hat_j_i =  (x_i [.] K_j ) ⊕ enc_j(-beta_hat_i_j; s_hat_i_j) where [.] is
 				// Paillier multiplication
 				let D_hat_j_i: BigInt = Paillier::add(
-					eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
+					eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()),
 					Paillier::mul(
-						eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY),
+						eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()),
 						RawCiphertext::from(K.get(j).unwrap_or(&BigInt::zero())),
 						RawPlaintext::from(self.secrets.x_i.clone()),
 					),
@@ -315,15 +315,15 @@ impl Round1 {
 					T: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
 					N_hat: self.N_hats.get(j).unwrap_or(&BigInt::zero()).clone(),
 					N0: self.secrets.ek.n.clone(),
-					N1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n.clone(),
+					N1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).n.clone(),
 					NN0: self.secrets.ek.nn.clone(),
-					NN1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).nn.clone(),
+					NN1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).nn.clone(),
 					C: D_j_i.clone(),
 					D: K.get(j).unwrap_or(&BigInt::zero()).clone(),
 					Y: F_j_i.clone(),
 					X: Gamma_i.clone(),
 					ek_prover: self.secrets.ek.clone(),
-					ek_verifier: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).clone(),
+					ek_verifier: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).clone(),
 					phantom: PhantomData,
 				};
 				let psi_j_i = PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::prove(
@@ -344,16 +344,16 @@ impl Round1 {
 					T: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
 					N_hat: self.N_hats.get(j).unwrap_or(&BigInt::zero()).clone(),
 					N0: self.secrets.ek.n.clone(),
-					N1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n.clone(),
+					N1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).n.clone(),
 					NN0: self.secrets.ek.nn.clone(),
-					NN1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).nn.clone(),
+					NN1: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).nn.clone(),
 					C: D_hat_j_i.clone(),
 					D: K.get(j).unwrap_or(&BigInt::zero()).clone(),
 					Y: F_hat_j_i.clone(),
 					X: Point::<Secp256k1>::generator().as_point() *
 						Scalar::from_bigint(&self.secrets.x_i),
 					ek_prover: self.secrets.ek.clone(),
-					ek_verifier: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).clone(),
+					ek_verifier: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).clone(),
 					phantom: PhantomData,
 				};
 				let psi_hat_j_i =
@@ -887,15 +887,15 @@ impl Round3 {
 						T: self.T.get(l).unwrap_or(&BigInt::zero()).clone(),
 						N_hat: self.N_hats.get(l).unwrap_or(&BigInt::zero()).clone(),
 						N0: self.secrets.ek.n.clone(),
-						N1: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).n.clone(),
+						N1: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).n.clone(),
 						NN0: self.secrets.ek.nn.clone(),
-						NN1: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).nn.clone(),
+						NN1: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).nn.clone(),
 						C: D_j_i.clone(),
 						D: self.K.get(j).unwrap_or(&BigInt::zero()).clone(),
 						Y: F_j_i.clone(),
 						X: self.Gamma_i.clone(),
 						ek_prover: self.secrets.ek.clone(),
-						ek_verifier: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY).clone(),
+						ek_verifier: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).clone(),
 						phantom: PhantomData,
 					};
 					let D_j_i_proof =
