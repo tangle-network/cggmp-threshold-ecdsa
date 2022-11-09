@@ -1,6 +1,6 @@
 use std::{collections::HashMap, io::Error, marker::PhantomData};
 
-use crate::utilities::{
+use crate::{utilities::{
 	aff_g::{
 		PaillierAffineOpWithGroupComInRangeProof, PaillierAffineOpWithGroupComInRangeStatement,
 		PaillierAffineOpWithGroupComInRangeWitness,
@@ -18,7 +18,7 @@ use crate::utilities::{
 	},
 	mul::{PaillierMulProof, PaillierMulStatement, PaillierMulWitness},
 	sample_relatively_prime_integer, L_PRIME,
-};
+}, ErrorType};
 
 use super::{
 	IdentifiableAbortBroadcastMessage, PreSigningP2PMessage1, PreSigningP2PMessage2,
@@ -1073,11 +1073,6 @@ type Result<T> = std::result::Result<T, PresignError>;
 
 #[derive(Error, Debug, Clone)]
 pub enum PresignError {
-	#[error("Proof Verification Error: Type of Proof {proof_type:?}, Symbol of Proof {proof_symbol:?}, Verifying Party {verifying_party:?}, Party at Fault {faulty_party:?}")]
-	ProofVerificationError {
-		proof_type: String,
-		proof_symbol: String,
-		verifying_party: u16,
-		faulty_party: u16,
-	},
+	#[error("Proof Verification Error")]
+	ProofVerificationError(ErrorType),
 }

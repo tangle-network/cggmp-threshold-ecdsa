@@ -28,7 +28,7 @@ use crate::{
 			PaillierMultiplicationVersusGroupProof, PaillierMultiplicationVersusGroupStatement,
 			PaillierMultiplicationVersusGroupWitness,
 		},
-	},
+	}, ErrorType,
 };
 use thiserror::Error;
 
@@ -471,14 +471,9 @@ type Result<T> = std::result::Result<T, SignError>;
 
 #[derive(Error, Debug, Clone)]
 pub enum SignError {
-	#[error("Proof Verification Error: Type of Proof {proof_type:?}, Symbol of Proof {proof_symbol:?}, Verifying Party {verifying_party:?}, Party at Fault {faulty_party:?}")]
-	ProofVerificationError {
-		proof_type: String,
-		proof_symbol: String,
-		verifying_party: u16,
-		faulty_party: u16,
-	},
+	#[error("Proof Verification Error")]
+	ProofVerificationError(ErrorType),
 
-	#[error("Offline Stage number {l:?} Does Not Exist")]
-	NoOfflineStageError { l: usize },
+	#[error("No Offline Stage Error")]
+	NoOfflineStageError(ErrorType),
 }
