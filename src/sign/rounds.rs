@@ -28,7 +28,8 @@ use crate::{
 			PaillierMultiplicationVersusGroupProof, PaillierMultiplicationVersusGroupStatement,
 			PaillierMultiplicationVersusGroupWitness,
 		},
-	}, ErrorType,
+	},
+	ErrorType,
 };
 use thiserror::Error;
 

@@ -1,24 +1,29 @@
 use std::{collections::HashMap, io::Error, marker::PhantomData};
 
-use crate::{utilities::{
-	aff_g::{
-		PaillierAffineOpWithGroupComInRangeProof, PaillierAffineOpWithGroupComInRangeStatement,
-		PaillierAffineOpWithGroupComInRangeWitness,
+use crate::{
+	utilities::{
+		aff_g::{
+			PaillierAffineOpWithGroupComInRangeProof, PaillierAffineOpWithGroupComInRangeStatement,
+			PaillierAffineOpWithGroupComInRangeWitness,
+		},
+		dec_q::{
+			PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
+			PaillierDecryptionModQWitness,
+		},
+		enc::{
+			PaillierEncryptionInRangeProof, PaillierEncryptionInRangeStatement,
+			PaillierEncryptionInRangeWitness,
+		},
+		log_star::{
+			KnowledgeOfExponentPaillierEncryptionProof,
+			KnowledgeOfExponentPaillierEncryptionStatement,
+			KnowledgeOfExponentPaillierEncryptionWitness,
+		},
+		mul::{PaillierMulProof, PaillierMulStatement, PaillierMulWitness},
+		sample_relatively_prime_integer, L_PRIME,
 	},
-	dec_q::{
-		PaillierDecryptionModQProof, PaillierDecryptionModQStatement, PaillierDecryptionModQWitness,
-	},
-	enc::{
-		PaillierEncryptionInRangeProof, PaillierEncryptionInRangeStatement,
-		PaillierEncryptionInRangeWitness,
-	},
-	log_star::{
-		KnowledgeOfExponentPaillierEncryptionProof, KnowledgeOfExponentPaillierEncryptionStatement,
-		KnowledgeOfExponentPaillierEncryptionWitness,
-	},
-	mul::{PaillierMulProof, PaillierMulStatement, PaillierMulWitness},
-	sample_relatively_prime_integer, L_PRIME,
-}, ErrorType};
+	ErrorType,
+};
 
 use super::{
 	IdentifiableAbortBroadcastMessage, PreSigningP2PMessage1, PreSigningP2PMessage2,
