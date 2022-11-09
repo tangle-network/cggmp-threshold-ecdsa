@@ -963,6 +963,7 @@ impl Round3 {
 			});
 
 			let body = Some(IdentifiableAbortBroadcastMessage {
+				i: self.ssid.X.i,
 				statements_D_j_i,
 				proofs_D_j_i,
 				statement_H_i,
@@ -1000,39 +1001,40 @@ impl Round4 {
 		} else {
 			for msg in input.into_vec() {
 				let msg = msg.unwrap();
-
+				// si stands for sender index
+				let si = msg.i;
 				// Check D_i_j proofs
 				self.ssid.P.par_iter().map(|j| {
 					if *j != self.ssid.X.i {
-						let D_i_j_proof = msg.proofs_D_j_i.get(&(self.ssid.X.i, *j)).unwrap();
+						let D_si_j_proof = msg.proofs_D_j_i.get(&(self.ssid.X.i, *j)).unwrap();
 
-						let statement_D_i_j =
+						let statement_D_si_j =
 							msg.statements_D_j_i.get(&(self.ssid.X.i, *j)).unwrap();
 
 						if PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
-							D_i_j_proof,
-							statement_D_i_j,
+							D_si_j_proof,
+							statement_D_si_j,
 						)
 						.is_err()
 						{
-							Err(PresignError::ProofVerificationError {
+							return Err(PresignError::ProofVerificationError {
 								proof_type: format!("aff-g"),
-								proof_symbol: format!("D_i_j"),
+								proof_symbol: format!("D_si_j"),
 								verifying_party: self.ssid.X.i,
 								faulty_party: *j,
 							})
 						}
 
 						// Check H_j proofs
-						let proof_H_i = msg.proof_H_i;
-						let statement_H_i = msg.statement_H_i;
+						let proof_H_si = msg.proof_H_i;
+						let statement_H_si = msg.statement_H_i;
 
-						if PaillierMulProof::verify(&proof_H_i, &statement_H_i).is_err() {
+						if PaillierMulProof::verify(&proof_H_si, &statement_H_si).is_err() {
 							return Err(PresignError::ProofVerificationError {
 								proof_type: format!("mul"),
-								proof_symbol: format!("H_i"),
+								proof_symbol: format!("H_si"),
 								verifying_party: self.ssid.X.i,
-								faulty_party: j,
+								faulty_party: *j,
 							})
 						}
 						// Check delta_j_proof
