@@ -22,7 +22,7 @@ use crate::{
 		mul::{PaillierMulProof, PaillierMulStatement, PaillierMulWitness},
 		sample_relatively_prime_integer, L_PRIME,
 	},
-	ErrorType,
+	ErrorType, ProofVerificationErrorData,
 };
 
 use super::{
@@ -185,12 +185,15 @@ impl Round1 {
 			)
 			.is_err()
 			{
-				return Err(PresignError::ProofVerificationError {
-					proof_type: format!("enc"),
+				let error_data = ProofVerificationErrorData {
 					proof_symbol: format!("psi_0_i_j"),
 					verifying_party: self.ssid.X.i,
-					faulty_party: j,
-				})
+				};
+				return Err(PresignError::ProofVerificationError(ErrorType {
+					error_type: format!("enc"),
+					bad_actors: vec![j.into()],
+					data: bincode::serialize(&error_data).unwrap(),
+				}))
 			}
 		}
 
@@ -500,12 +503,15 @@ impl Round2 {
 			)
 			.is_err()
 			{
-				return Err(PresignError::ProofVerificationError {
-					proof_type: format!("aff-g"),
+				let error_data = ProofVerificationErrorData {
 					proof_symbol: format!("psi_i_j"),
 					verifying_party: self.ssid.X.i,
-					faulty_party: j,
-				})
+				};
+				return Err(PresignError::ProofVerificationError(ErrorType {
+					error_type: format!("aff-g"),
+					bad_actors: vec![j.into()],
+					data: bincode::serialize(&error_data).unwrap(),
+				}))
 			}
 
 			// Verify psi_hat_i_j
@@ -517,12 +523,15 @@ impl Round2 {
 			)
 			.is_err()
 			{
-				return Err(PresignError::ProofVerificationError {
-					proof_type: format!("aff-g"),
+				let error_data = ProofVerificationErrorData {
 					proof_symbol: format!("psi_hat_i_j"),
 					verifying_party: self.ssid.X.i,
-					faulty_party: j,
-				})
+				};
+				return Err(PresignError::ProofVerificationError(ErrorType {
+					error_type: format!("aff-g"),
+					bad_actors: vec![j.into()],
+					data: bincode::serialize(&error_data).unwrap(),
+				}))
 			}
 
 			// Verify psi_prime_i_j
@@ -534,12 +543,15 @@ impl Round2 {
 			)
 			.is_err()
 			{
-				return Err(PresignError::ProofVerificationError {
-					proof_type: format!("log*"),
+				let error_data = ProofVerificationErrorData {
 					proof_symbol: format!("psi_prime_i_j"),
 					verifying_party: self.ssid.X.i,
-					faulty_party: j,
-				})
+				};
+				return Err(PresignError::ProofVerificationError(ErrorType {
+					error_type: format!("log*"),
+					bad_actors: vec![j.into()],
+					data: bincode::serialize(&error_data).unwrap(),
+				}))
 			}
 		}
 
@@ -1013,6 +1025,7 @@ impl Round4 {
 				let msg = msg.unwrap();
 				// si stands for sender index
 				let si = msg.i;
+				let vec_D_si_j_proof_bad_actors: Vec<usize> = vec![];
 				// Check D_i_j proofs
 				self.ssid.P.par_iter().map(|j| {
 					if *j != self.ssid.X.i {
@@ -1027,26 +1040,36 @@ impl Round4 {
 						)
 						.is_err()
 						{
-							return Err(PresignError::ProofVerificationError {
-								proof_type: format!("aff-g"),
-								proof_symbol: format!("D_si_j"),
-								verifying_party: self.ssid.X.i,
-								faulty_party: *j,
-							})
+							vec_D_si_j_proof_bad_actors.push(*j as usize);
 						}
 					}
 				});
+
+				if !vec_D_si_j_proof_bad_actors.is_empty() {
+					let error_data = ProofVerificationErrorData {
+						proof_symbol: format!("D_si_j"),
+						verifying_party: self.ssid.X.i,
+					};
+					return Err(PresignError::ProofVerificationError(ErrorType {
+						error_type: format!("mul"),
+						bad_actors: vec_D_si_j_proof_bad_actors,
+						data: bincode::serialize(&error_data).unwrap(),
+					}))
+				}
 				// Check H_j proofs
 				let proof_H_si = msg.proof_H_i;
 				let statement_H_si = msg.statement_H_i;
 
 				if PaillierMulProof::verify(&proof_H_si, &statement_H_si).is_err() {
-					return Err(PresignError::ProofVerificationError {
-						proof_type: format!("mul"),
+					let error_data = ProofVerificationErrorData {
 						proof_symbol: format!("H_si"),
 						verifying_party: self.ssid.X.i,
-						faulty_party: si,
-					})
+					};
+					return Err(PresignError::ProofVerificationError(ErrorType {
+						error_type: format!("mul"),
+						bad_actors: vec![si.into()],
+						data: bincode::serialize(&error_data).unwrap(),
+					}))
 				}
 				// Check delta_si_proof
 				let proof_delta_si = msg.proof_delta_i.get(&self.ssid.X.i).unwrap();
@@ -1054,12 +1077,15 @@ impl Round4 {
 
 				if PaillierDecryptionModQProof::verify(proof_delta_si, statement_delta_si).is_err()
 				{
-					return Err(PresignError::ProofVerificationError {
-						proof_type: format!("dec_q"),
-						proof_symbol: format!("delta_i"),
+					let error_data = ProofVerificationErrorData {
+						proof_symbol: format!("delta_si"),
 						verifying_party: self.ssid.X.i,
-						faulty_party: si,
-					})
+					};
+					return Err(PresignError::ProofVerificationError(ErrorType {
+						error_type: format!("dec-q"),
+						bad_actors: vec![si.into()],
+						data: bincode::serialize(&error_data).unwrap(),
+					}))
 				}
 			}
 			Ok(None)

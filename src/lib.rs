@@ -19,6 +19,8 @@
 
 #![feature(box_patterns)]
 
+use serde::{Deserialize, Serialize};
+
 pub mod party_i;
 pub mod presign;
 pub mod refresh;
@@ -42,4 +44,10 @@ pub struct ErrorType {
 	pub error_type: String,
 	pub bad_actors: Vec<usize>,
 	pub data: Vec<u8>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ProofVerificationErrorData {
+	proof_symbol: String,
+	verifying_party: u16,
 }
