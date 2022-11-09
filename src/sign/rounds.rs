@@ -51,13 +51,13 @@ pub struct Round0 {
 }
 
 impl Round0 {
-	pub fn proceed<O>(self, mut output: O) -> Result<Round1>
+	pub fn proceed<O>(mut self, mut output: O) -> Result<Round1>
 	where
 		O: Push<Msg<SigningBroadcastMessage1<Secp256k1>>>,
 	{
 		// If there is a record for (l,...)
 		if let Some((presigning_output, presigning_transcript)) =
-			self.presigning_data.get(&(self.l as u16))
+			self.presigning_data.get_mut(&(self.l as u16))
 		{
 			// r = R projected onto x axis
 			let r = presigning_output.R.x_coord().unwrap_or(BigInt::zero());
@@ -70,7 +70,7 @@ impl Round0 {
 			};
 			output.push(Msg { sender: self.ssid.X.i.clone(), receiver: None, body });
 			// Erase output from memory
-			(*presigning_output).zeroize();
+			presigning_output.zeroize();
 			Ok(Round1 {
 				ssid: self.ssid.clone(),
 				i: self.ssid.X.i.clone(),
