@@ -924,6 +924,13 @@ impl Round3 {
 				}
 			});
 
+			let witness_delta_i = PaillierDecryptionModQWitness {
+				y: Paillier::decrypt(&self.secrets.dk, RawCiphertext::from(ciphertext_delta_i))
+					.into(),
+				rho: H_i_randomness,
+				phantom: PhantomData,
+			};
+
 			// l to statement
 			let statement_delta_i: HashMap<
 				u16,
@@ -936,16 +943,6 @@ impl Round3 {
 
 			self.ssid.P.par_iter().map(|l| {
 				if *l != self.ssid.X.i {
-					let witness_delta_i = PaillierDecryptionModQWitness {
-						y: Paillier::decrypt(
-							&self.secrets.dk,
-							RawCiphertext::from(ciphertext_delta_i),
-						)
-						.into(),
-						rho: H_i_randomness,
-						phantom: PhantomData,
-					};
-
 					let statement_delta_l_i = PaillierDecryptionModQStatement {
 						S: *self.S.get(l).unwrap_or(&BigInt::zero()),
 						T: *self.T.get(l).unwrap_or(&BigInt::zero()),

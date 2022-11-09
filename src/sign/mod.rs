@@ -41,10 +41,11 @@ pub struct SigningOutput<E: Curve> {
 
 #[derive(Debug, Clone)]
 pub struct SigningIdentifiableAbortMessage<E: Curve> {
-	proofs_D_hat_j_i: HashMap<u16, PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>,
-	statements_D_hat_j_i: HashMap<u16, PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>>,
+	proofs_D_hat_j_i: HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>,
+	statements_D_hat_j_i:
+		HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>>,
 	H_hat_i_proof: PaillierMultiplicationVersusGroupProof<E, Sha256>,
 	statement_H_hat_i: PaillierMultiplicationVersusGroupStatement<E, Sha256>,
-	sigma_i_proof: PaillierDecryptionModQProof<E, Sha256>,
-	statement_sigma_i: PaillierDecryptionModQStatement<E, Sha256>,
+	proof_sigma_i: HashMap<u16, PaillierDecryptionModQProof<E, Sha256>>,
+	statement_sigma_i: HashMap<u16, PaillierDecryptionModQStatement<E, Sha256>>,
 }

@@ -305,29 +305,48 @@ impl Round1 {
 				phantom: PhantomData,
 			};
 
-			let statement_sigma_i = PaillierDecryptionModQStatement {
-				S: *self.presigning_transcript.S.get(j).unwrap_or(&BigInt::zero()),
-				T: *self.presigning_transcript.T.get(j).unwrap_or(&BigInt::zero()),
-				N_hat: *self.presigning_transcript.N_hats.get(j).unwrap_or(&BigInt::zero()),
-				N0: self.presigning_transcript.secrets.ek.n,
-				NN0: self.presigning_transcript.secrets.ek.nn,
-				C: ciphertext,
-				x: self.sigma_i,
-				ek_prover: self.presigning_transcript.secrets.ek,
-				phantom: PhantomData,
-			};
+			// l to statement
+			let statement_sigma_i: HashMap<
+				u16,
+				PaillierDecryptionModQStatement<Secp256k1, Sha256>,
+			> = HashMap::new();
 
-			let sigma_i_proof = PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
-				&witness_sigma_i,
-				&statement_sigma_i,
-			);
+			// l to proof
+			let proof_sigma_i: HashMap<u16, PaillierDecryptionModQProof<Secp256k1, Sha256>> =
+				HashMap::new();
+
+			self.ssid.P.par_iter().map(|l| {
+				if *l != self.ssid.X.i {
+					let statement_sigma_l_i = PaillierDecryptionModQStatement {
+						S: *self.presigning_transcript.S.get(l).unwrap_or(&BigInt::zero()),
+						T: *self.presigning_transcript.T.get(l).unwrap_or(&BigInt::zero()),
+						N_hat: *self.presigning_transcript.N_hats.get(l).unwrap_or(&BigInt::zero()),
+						N0: self.presigning_transcript.secrets.ek.n,
+						NN0: self.presigning_transcript.secrets.ek.nn,
+						C: ciphertext,
+						x: self.sigma_i,
+						ek_prover: self.presigning_transcript.secrets.ek,
+						phantom: PhantomData,
+					};
+
+					statement_sigma_i.insert(*l, statement_sigma_l_i);
+
+					proof_sigma_i.insert(
+						*l,
+						PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
+							&witness_sigma_i,
+							&statement_sigma_l_i,
+						),
+					);
+				}
+			});
 
 			let body = Some(SigningIdentifiableAbortMessage {
 				proofs_D_hat_j_i,
 				statements_D_hat_j_i,
 				H_hat_i_proof,
 				statement_H_hat_i,
-				sigma_i_proof,
+				proof_sigma_i,
 				statement_sigma_i,
 			});
 			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
