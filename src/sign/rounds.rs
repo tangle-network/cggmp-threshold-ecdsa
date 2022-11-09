@@ -124,7 +124,7 @@ impl Round1 {
 		if self.r == x_projection {
 			let signing_output = SigningOutput { ssid: self.ssid, m: self.m, r: self.r, sigma };
 			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: None });
-			Ok(Round2 { output: Some(signing_output) })
+			Ok(Round2 { ssid: self.ssid, output: Some(signing_output) })
 		} else {
 			// (l,j) to proof for D_j_i
 			let proofs_D_hat_j_i: HashMap<
@@ -248,11 +248,13 @@ impl Round1 {
 			let X_i = Point::<Secp256k1>::generator() *
 				Scalar::from_bigint(&self.presigning_transcript.secrets.x_i);
 
-			let proof_H_hat_i: HashMap<u16, PaillierMultiplicationVersusGroupProof<E, Sha256>> =
-				HashMap::new();
+			let proof_H_hat_i: HashMap<
+				u16,
+				PaillierMultiplicationVersusGroupProof<Secp256k1, Sha256>,
+			> = HashMap::new();
 			let statement_H_hat_i: HashMap<
 				u16,
-				PaillierMultiplicationVersusGroupStatement<E, Sha256>,
+				PaillierMultiplicationVersusGroupStatement<Secp256k1, Sha256>,
 			> = HashMap::new();
 
 			self.ssid.P.par_iter().map(|l| {
@@ -275,7 +277,7 @@ impl Round1 {
 						*l,
 						PaillierMultiplicationVersusGroupProof::<Secp256k1, Sha256>::prove(
 							&witness_H_hat_i,
-							&statement_H_hat_i,
+							&statement_H_hat_l_i,
 						),
 					);
 				}
@@ -359,6 +361,7 @@ impl Round1 {
 			});
 
 			let body = Some(SigningIdentifiableAbortMessage {
+				i: self.ssid.X.i,
 				proofs_D_hat_j_i,
 				statements_D_hat_j_i,
 				proof_H_hat_i,
@@ -367,7 +370,7 @@ impl Round1 {
 				statement_sigma_i,
 			});
 			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
-			Ok(Round2 { output: None })
+			Ok(Round2 { ssid: self.ssid, output: None })
 		}
 	}
 
@@ -381,6 +384,7 @@ impl Round1 {
 }
 
 pub struct Round2 {
+	ssid: SSID<Secp256k1>,
 	output: Option<SigningOutput<Secp256k1>>,
 }
 
@@ -394,56 +398,60 @@ impl Round2 {
 		} else {
 			for msg in input.into_vec() {
 				let msg = msg.unwrap();
-				// Check D_i_j proofs
-				for i in msg.proofs_D_hat_j_i.keys() {
-					let D_hat_i_j_proof = msg.proofs_D_hat_j_i.get(i).unwrap();
+				// si stands for sender index
+				let si = msg.i;
+				// Check D_hat_i_j proofs
+				self.ssid.P.par_iter().map(|j| {
+					if *j != self.ssid.X.i {
+						let D_hat_si_j_proof =
+							msg.proofs_D_hat_j_i.get(&(self.ssid.X.i, *j)).unwrap();
 
-					let statement_D_i_j = msg.statements_D_hat_j_i.get(i).unwrap();
+						let statement_D_hat_si_j =
+							msg.statements_D_hat_j_i.get(&(self.ssid.X.i, *j)).unwrap();
 
-					if PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
-						D_hat_i_j_proof,
-						statement_D_i_j,
-					)
-					.is_err()
-					{
-						return Err(SignError::ProofVerificationError {
-							proof_type: format!("aff-g"),
-							proof_symbol: format!("D_hat_i_j"),
-							verifying_party: i,
-							faulty_party: j,
-						})
+						if PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
+							D_hat_si_j_proof,
+							statement_D_hat_si_j,
+						)
+						.is_err()
+						{
+							return Err(SignError::ProofVerificationError {
+								proof_type: format!("aff-g"),
+								proof_symbol: format!("D_hat_si_j"),
+								verifying_party: self.ssid.X.i,
+								faulty_party: *j,
+							})
+						}
 					}
-				}
-
+				});
 				// Check H_j proofs
-				let H_hat_i_proof = msg.H_hat_i_proof;
-				let statement_H_hat_i = msg.statement_H_hat_i;
+				let proof_H_hat_si = msg.proof_H_hat_i.get(&self.ssid.X.i).unwrap();
+				let statement_H_hat_si = msg.statement_H_hat_i.get(&self.ssid.X.i).unwrap();
 
 				if PaillierMultiplicationVersusGroupProof::verify(
-					&H_hat_i_proof,
-					&statement_H_hat_i,
+					proof_H_hat_si,
+					statement_H_hat_si,
 				)
 				.is_err()
 				{
 					return Err(SignError::ProofVerificationError {
-						proof_type: format!("mul*"),
-						proof_symbol: format!("H_hat_i"),
-						verifying_party: i,
-						faulty_party: j,
+						proof_type: format!("mul"),
+						proof_symbol: format!("H_hat_si"),
+						verifying_party: self.ssid.X.i,
+						faulty_party: si,
 					})
 				}
+				// Check delta_si_proof
+				let proof_sigma_si = msg.proof_sigma_i.get(&self.ssid.X.i).unwrap();
+				let statement_sigma_si = msg.statement_sigma_i.get(&self.ssid.X.i).unwrap();
 
-				// Check delta_j_proof
-				let sigma_i_proof = msg.sigma_i_proof;
-				let statement_sigma_i = msg.statement_sigma_i;
-
-				if PaillierDecryptionModQProof::verify(&sigma_i_proof, &statement_sigma_i).is_err()
+				if PaillierDecryptionModQProof::verify(proof_sigma_si, statement_sigma_si).is_err()
 				{
 					return Err(SignError::ProofVerificationError {
 						proof_type: format!("dec_q"),
 						proof_symbol: format!("sigma_i"),
-						verifying_party: i,
-						faulty_party: j,
+						verifying_party: self.ssid.X.i,
+						faulty_party: si,
 					})
 				}
 			}
