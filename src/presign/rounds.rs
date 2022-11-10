@@ -219,10 +219,12 @@ impl Round1 {
 		for j in self.ssid.P.iter() {
 			if j != &self.ssid.X.i {
 				// r_i_j <- Z_{N_j}
-				let r_i_j = BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).n);
+				let r_i_j =
+					BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).n);
 				r_i.insert(*j, r_i_j.clone());
 				// s_i_j <- Z_{N_j}
-				let s_i_j = BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).n);
+				let s_i_j =
+					BigInt::sample_below(&eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).n);
 				s_i.insert(*j, s_i_j.clone());
 				// r_hat_i_j <- Z_{N_j}
 				let r_hat_i_j =

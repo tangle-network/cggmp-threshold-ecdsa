@@ -1,8 +1,10 @@
+#![allow(non_snake_case)]
+
 use std::{collections::HashMap, default};
 
 use curv::{
 	arithmetic::Zero,
-	elliptic::curves::{Curve, Point, ECPoint},
+	elliptic::curves::{Curve, ECPoint, Point},
 	BigInt,
 };
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
@@ -30,8 +32,6 @@ pub fn DEFAULT_ENCRYPTION_KEY() -> EncryptionKey {
 	EncryptionKey { n: BigInt::zero(), nn: BigInt::zero() }
 }
 
-
-
 #[derive(Debug, Clone)]
 pub struct SSID<E: Curve> {
 	// Group generator and order
@@ -50,21 +50,22 @@ pub struct SSID<E: Curve> {
 
 impl<E: Curve> Zeroize for SSID<E> {
 	fn zeroize(&mut self) {
-		self.g.as_raw().zeroize();
 		self.q.zeroize();
 		self.P.zeroize();
 		self.rid.zeroize();
 		// X zeroize
 		self.X.paillier_dk.p.zeroize();
 		self.X.paillier_dk.q.zeroize();
-		for pk in self.X.pk_vec.iter() {
-			(*pk).as_raw().zeroize();
-		}
+		// TODO: Ensure this clears memory or zeroize directly
+		// FIXME: This is a hack in the meantime until we are sure the memory is cleared.
+		self.X.pk_vec = vec![];
+
 		for encryption_key in self.X.paillier_key_vec.iter_mut() {
 			(*encryption_key).n.zeroize();
 			(*encryption_key).nn.zeroize();
 		}
-		self.X.y_sum_s.as_raw().zeroize();
+		// TODO: Zeroize directly if this is insufficient
+		self.X.y_sum_s = Point::zero();
 		for dlog_statement in self.X.h1_h2_n_tilde_vec.iter_mut() {
 			(*dlog_statement).N.zeroize();
 			(*dlog_statement).g.zeroize();
@@ -72,16 +73,14 @@ impl<E: Curve> Zeroize for SSID<E> {
 		}
 		self.X.vss_scheme.parameters.threshold.zeroize();
 		self.X.vss_scheme.parameters.share_count.zeroize();
-		for commitment in self.X.vss_scheme.commitments.iter() {
-			(*commitment).as_raw().zeroize();
-		}
+		// TODO: Zeroize directly if this is insufficient
+		self.X.vss_scheme.commitments = vec![];
 		self.X.i.zeroize();
 		self.X.t.zeroize();
 		self.X.n.zeroize();
 		// Y zeroize
-		if let Some(Y) = &self.Y {
-			(*Y).as_raw().zeroize();
-		}
+		// TODO: Zeroize directly if this is insufficient
+		self.Y = None;
 		self.N.zeroize();
 		self.S.zeroize();
 		self.T.zeroize();
@@ -146,7 +145,8 @@ pub struct PresigningOutput<E: Curve> {
 impl<E: Curve> Zeroize for PresigningOutput<E> {
 	fn zeroize(&mut self) {
 		self.ssid.zeroize();
-		self.R.as_raw().zeroize();
+		// TODO: zeroize R
+		self.R = Point::zero();
 		self.i.zeroize();
 		self.k_i.zeroize();
 		self.chi_i.zeroize();
