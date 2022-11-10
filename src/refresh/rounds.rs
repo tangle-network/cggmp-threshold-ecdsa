@@ -13,7 +13,7 @@ use round_based::{
 use sha2::Sha256;
 
 pub enum PartyType {
-	Existing(LocalKey<Secp256k1>),
+	Existing(Box<LocalKey<Secp256k1>>),
 	New(Box<(JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>, Keys, u16)>),
 }
 
@@ -37,7 +37,7 @@ impl Round0 {
 				output.push(Msg { sender: local_key.i, receiver: None, body: None });
 				match self.new_party_index_option {
 					None => Ok(Round1 {
-						party_type: PartyType::Existing(local_key),
+						party_type: PartyType::Existing(Box::new(local_key)),
 						old_to_new_map: self.old_to_new_map,
 						t: self.t,
 						n: self.n,
@@ -207,7 +207,7 @@ impl Round2 {
 					self.new_paillier_decryption_key,
 					join_message_slice,
 				)?;
-				Ok(local_key)
+				Ok(*local_key)
 			},
 			PartyType::New(boxed_new) => {
 				let (join_message, paillier_keys, _new_party_index) = *boxed_new;
