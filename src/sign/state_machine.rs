@@ -227,7 +227,7 @@ impl StateMachine for Signing {
 		}
 
 		match replace(&mut self.round, R::Gone) {
-			R::Final(result) => Some(Ok(*result)),
+			R::Final(result) => Some(Ok(result)),
 			_ => unreachable!("guaranteed by match expression above"),
 		}
 	}
@@ -301,7 +301,7 @@ impl fmt::Debug for Signing {
 enum R {
 	Round0(Round0),
 	Round1(Round1),
-	Round2(Round2),
+	Round2(Box<Round2>),
 	Final(Option<SigningOutput<Secp256k1>>),
 	Gone,
 }
