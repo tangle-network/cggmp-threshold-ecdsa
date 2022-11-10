@@ -50,20 +50,20 @@ use std::marker::PhantomData;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierAffineOpWithGroupComInRangeStatement<E: Curve, H: Digest + Clone> {
-	S: BigInt,
-	T: BigInt,
-	N_hat: BigInt,
-	N0: BigInt,
-	N1: BigInt,
-	NN0: BigInt,
-	NN1: BigInt,
-	C: BigInt,
-	D: BigInt,
-	Y: BigInt,
-	X: Point<E>,
-	ek_prover: EncryptionKey,
-	ek_verifier: EncryptionKey,
-	phantom: PhantomData<(E, H)>,
+	pub S: BigInt,
+	pub T: BigInt,
+	pub N_hat: BigInt,
+	pub N0: BigInt,
+	pub N1: BigInt,
+	pub NN0: BigInt,
+	pub NN1: BigInt,
+	pub C: BigInt,
+	pub D: BigInt,
+	pub Y: BigInt,
+	pub X: Point<E>,
+	pub ek_prover: EncryptionKey,
+	pub ek_verifier: EncryptionKey,
+	pub phantom: PhantomData<(E, H)>,
 }
 
 pub struct PaillierAffineOpWithGroupComInRangeWitness<E: Curve, H: Digest + Clone> {
@@ -74,14 +74,20 @@ pub struct PaillierAffineOpWithGroupComInRangeWitness<E: Curve, H: Digest + Clon
 	phantom: PhantomData<(E, H)>,
 }
 
+impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeWitness<E, H> {
+	pub fn new(x: BigInt, y: BigInt, rho: BigInt, rho_y: BigInt) -> Self {
+		PaillierAffineOpWithGroupComInRangeWitness { x, y, rho, rho_y, phantom: PhantomData }
+	}
+}
+
 impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeStatement<E, H> {
 	#[allow(clippy::too_many_arguments)]
 	pub fn generate(
-		rho: BigInt,
-		rho_y: BigInt,
 		S: BigInt,
 		T: BigInt,
 		N_hat: BigInt,
+		rho: BigInt,
+		rho_y: BigInt,
 		prover: EncryptionKey,
 		verifier: EncryptionKey,
 		C: BigInt,
@@ -101,29 +107,21 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeStatement<E
 		let y = BigInt::sample_range(&BigInt::from(-1).mul(&lprime_exp), &lprime_exp);
 
 		let X = Point::<E>::generator().as_point() * Scalar::from(&x);
-		// // Compute Y
-		let temp_Y_1 = mod_pow_with_negative(&BigInt::from(1).add(&N1), &y, &NN1);
-		let temp_Y_2 = BigInt::mod_pow(&rho_y, &N1, &NN1);
-		let Y = BigInt::mod_mul(&temp_Y_1, &temp_Y_2, &NN1);
-		// let Y = Paillier::encrypt_with_chosen_randomness(
-		// 	&ek_prover,
-		// 	RawPlaintext::from(&y),
-		// 	&Randomness::from(&rho_y),
-		// );
+		// Y = (1 + N1)^{y} · ρ_y^{N1}
+		let Y = Paillier::encrypt_with_chosen_randomness(
+			&ek_prover,
+			RawPlaintext::from(&y),
+			&Randomness::from(&rho_y),
+		);
 		// (1 + N0)^y mod N0^2
-		let temp_D_1 = mod_pow_with_negative(&BigInt::from(1).add(&N0), &y, &NN0);
-		// rho^N0 mod N0^2
-		let temp_D_2 = BigInt::mod_pow(&rho, &N0, &NN0);
-		// (1 + N0)^y · rho^N0 mod N0^2
-		let temp_D_3 = BigInt::mod_mul(&temp_D_1, &temp_D_2, &NN0);
-		// D = C^x · (1 + N0)^y · rho^N0 mod N0^2
-		let D = BigInt::mod_mul(&mod_pow_with_negative(&C, &x, &NN0), &temp_D_3, &NN0.clone());
-		// let D_temp = Paillier::encrypt_with_chosen_randomness(
-		// 	&ek_verifier,
-		// 	RawPlaintext::from(&y),
-		// 	&Randomness::from(&rho),
-		// );
-		// let D = BigInt::mod_mul(&mod_pow_with_negative(&C, &x, &NN0), &D_temp.into(), &NN0);
+		let D = {
+			let D_temp = Paillier::encrypt_with_chosen_randomness(
+				&ek_verifier,
+				RawPlaintext::from(&y),
+				&Randomness::from(&rho),
+			);
+			BigInt::mod_mul(&mod_pow_with_negative(&C, &x, &NN0), &D_temp.into(), &NN0)
+		};
 
 		(
 			Self {
@@ -136,7 +134,7 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeStatement<E
 				NN1,
 				C,
 				D,
-				Y,
+				Y: Y.clone().into(),
 				X,
 				ek_prover,
 				ek_verifier,
@@ -183,7 +181,7 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 
 		// α ← ± 2^{l+ε}
 		let alpha = BigInt::sample_range(&BigInt::from(-1).mul(&lplus_exp), &lplus_exp);
-		// β ← ± 2^{Al'+ε}
+		// β ← ± 2^{l'+ε}
 		let beta = BigInt::sample_range(&BigInt::from(-1).mul(&lprimeplus_exp), &lprimeplus_exp);
 		// Sample r, ry as unit values from Z_N0, Z_N1
 		let r = sample_relatively_prime_integer(&statement.N0);
@@ -209,16 +207,18 @@ impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeProof<E, H>
 			&l_exp.mul(&statement.N_hat),
 		);
 		// A = C^α · (1 + N0)^β · r^N0 mod N0^2
-		let A_temp = Paillier::encrypt_with_chosen_randomness(
-			&statement.ek_verifier,
-			RawPlaintext::from(&beta),
-			&Randomness::from(&r),
-		);
-		let A = BigInt::mod_mul(
-			&mod_pow_with_negative(&statement.C, &alpha, &statement.NN0),
-			&A_temp.into(),
-			&statement.NN0,
-		);
+		let A = {
+			let A_temp = Paillier::encrypt_with_chosen_randomness(
+				&statement.ek_verifier,
+				RawPlaintext::from(&beta),
+				&Randomness::from(&r),
+			);
+			BigInt::mod_mul(
+				&mod_pow_with_negative(&statement.C, &alpha, &statement.NN0),
+				&A_temp.into(),
+				&statement.NN0,
+			)
+		};
 
 		let B_x: Point<E> = Point::<E>::generator().as_point() * Scalar::from_bigint(&alpha);
 		// By = (1 + N1)^β · ry^N1 mod N1^2
@@ -448,11 +448,11 @@ mod tests {
 		let C = Paillier::encrypt(&ek_verifier, RawPlaintext::from(BigInt::from(12)));
 		let (statement, witness) =
 			PaillierAffineOpWithGroupComInRangeStatement::<Secp256k1, Sha256>::generate(
-				rho,
-				rho_y,
 				ring_pedersen_statement.S,
 				ring_pedersen_statement.T,
 				ring_pedersen_statement.N,
+				rho,
+				rho_y,
 				ek_prover,
 				ek_verifier,
 				C.0.into_owned(),

@@ -35,9 +35,35 @@
 
 <h1 id="start"> Getting Started  🎉 </h1>
 
+**This repo is research-oriented software and should not be considered SAFE to use in production. It has not been audited and/or tested rigorously yet. Please use caution.**
+
 This is an implementation of the threshold ECDSA signature multi-party-computation from [UC Non-Interactive, Proactive, Threshold ECDSA with Identifiable Aborts](https://eprint.iacr.org/2021/060) with slight modifications. We implement this MPC using the key generation protocol originally from [GG20](https://eprint.iacr.org/2020/540) and implemented by [Zengo](https://github.com/ZenGo-X) in [multi-party-ecdsa](https://github.com/ZenGo-X/multi-party-ecdsa).
 
 For the key refresh protocol we opt for a fork of Zengo's [fs-dkr](https://github.com/webb-tools/fs-dkr) maintained by us. Together, these complete the key generation and key refreshing protocol. From here, we implement the pre-signing and signing protocols outlined in the aforementioned CGGMP paper. This implementation leverages the infrastructure built by Zengo, namely [round-based-protocol](https://github.com/ZenGo-X/round-based-protocol). We detail how this can be used in a blockchain's gossip network environment such as Substrate, as that motivates this work.
+
+Particularly, we have implemented the **4-round $O(n^2)$ identifiable abort** version of CGGMP. The **remaining work to be done is testing** our implementation, particularly the `presign` and `sign`. 
+
+Implementation checklist
+- [x] Key generation [multi-party-ecdsa](https://github.com/ZenGo-X/multi-party-ecdsa).
+- [x] Key generation tests
+- [x] Key refresh [fs-dkr](https://github.com/webb-tools/fs-dkr)
+- [x] Key refresh tests
+- [x] Adding Ring Pedersen parameters to `fs-dkr`.
+- [x] Implementing all ZKPs for **4-round $O(n^2)$ identifiable abort**
+- [ ] Implementing **4-round $O(n^2)$ identifiable abort** `presign` and `sign`.
+  - [ ] Properly zeroizing the `PresignOutput` [link to code](https://github.com/webb-tools/cggmp-threshold-ecdsa/blob/group/zkps/src/presign/mod.rs#L66).
+  - [ ] Properly implement identifiable abort proof 2c) in both `presign` and `sign` [link to presign code](https://github.com/webb-tools/cggmp-threshold-ecdsa/blob/group/zkps/src/presign/rounds.rs#L939) [link to sign code](https://github.com/webb-tools/cggmp-threshold-ecdsa/blob/group/zkps/src/sign/rounds.rs#L318).
+- [ ] Testing **4-round $O(n^2)$ identifiable abort** `presign` and `sign`.
+- [ ] Implementing all ZKPs for **7-round $O(n)$ identifiable abort**
+  - [ ] `aff-p`
+  - [ ] `enc-elg`
+  - [ ] `aff-p`
+  - [ ] `elog`
+  - [ ] `Nth`
+  - [ ] `log`
+- [ ] Implementing **7-round $O(n)$ identifiable abort** `presign` and `sign`.
+  - [ ] Entire protocol unimplemented (refer to CGGMP paper for details + taurus-group implementation)[taurus group code](https://github.com/taurusgroup/multi-party-sig/tree/main/protocols/cmp).
+- [ ] Testing **7-round $O(n)$ identifiable abort** `presign` and `sign`.
 
 ## Prerequisites
 

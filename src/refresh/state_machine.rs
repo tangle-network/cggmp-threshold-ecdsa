@@ -65,13 +65,13 @@ impl KeyRefresh {
 		};
 
 		let mut state = Self {
-			round: R::Round0(Round0 {
+			round: R::Round0(Box::new(Round0 {
 				local_key_option,
 				new_party_index_option,
 				old_to_new_map: old_to_new_map.clone(),
 				t,
 				n,
-			}),
+			})),
 
 			round0_msgs: Some(Round1::expects_messages(i, n)),
 			round1_msgs: Some(Round2::expects_messages(i, n)),
@@ -106,7 +106,7 @@ impl KeyRefresh {
 			R::Round0(round) if !round.is_expensive() || may_block => {
 				next_state = round
 					.proceed(self.gmap_queue(M::Round1))
-					.map(R::Round1)
+					.map(|msg| R::Round1(Box::new(msg)))
 					.map_err(Error::ProceedRound)?;
 				true
 			},
@@ -130,7 +130,10 @@ impl KeyRefresh {
 			R::Round2(round) if !store2_wants_more && (!round.is_expensive() || may_block) => {
 				let store = self.round1_msgs.take().ok_or(InternalError::StoreGone)?;
 				let msgs = store.finish().map_err(InternalError::RetrieveRoundMessages)?;
-				next_state = round.proceed(msgs).map(R::Final).map_err(Error::ProceedRound)?;
+				next_state = round
+					.proceed(msgs)
+					.map(|msg| R::Final(Box::new(msg)))
+					.map_err(Error::ProceedRound)?;
 				true
 			},
 			s @ R::Round2(_) => {
@@ -223,7 +226,7 @@ impl StateMachine for KeyRefresh {
 		}
 
 		match replace(&mut self.round, R::Gone) {
-			R::Final(result) => Some(Ok(result)),
+			R::Final(result) => Some(Ok(*result)),
 			_ => unreachable!("guaranteed by match expression above"),
 		}
 	}
@@ -295,10 +298,10 @@ impl fmt::Debug for KeyRefresh {
 
 // Rounds
 enum R {
-	Round0(Round0),
-	Round1(Round1),
+	Round0(Box<Round0>),
+	Round1(Box<Round1>),
 	Round2(Box<Round2>),
-	Final(LocalKey<Secp256k1>),
+	Final(Box<LocalKey<Secp256k1>>),
 	Gone,
 }
 
