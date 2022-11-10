@@ -1,3 +1,19 @@
+/*
+	CGGMP Threshold ECDSA
+
+	Copyright 2022 by Webb Technologies.
+
+	This file is part of cggmp library
+	(https://github.com/webb-tools/cggmp-threshold-ecdsa)
+
+	cggmp-threshold-ecdsa is free software: you can redistribute
+	it and/or modify it under the terms of the GNU General Public
+	License as published by the Free Software Foundation, either
+	version 3 of the License, or (at your option) any later version.
+
+	@license GPL-3.0+ <https://github.com/webb-tools/cggmp/blob/main/LICENSE>
+*/
+
 use super::{
 	rounds::{Round0, Round1, Round2, Round3, Round4},
 	IdentifiableAbortBroadcastMessage, PreSigningP2PMessage1, PreSigningP2PMessage2,
@@ -5,16 +21,14 @@ use super::{
 };
 
 use curv::{
-	arithmetic::{traits::*, Modulo},
-	cryptographic_primitives::hashing::{Digest, DigestExt},
-	elliptic::curves::{Curve, Point, Scalar, Secp256k1},
+	elliptic::curves::{Secp256k1},
 	BigInt,
 };
 use private::InternalError;
 use round_based::{
 	containers::{
 		push::{Push, PushExt},
-		BroadcastMsgs, MessageContainer, MessageStore, P2PMsgs, Store, StoreErr,
+		BroadcastMsgs, MessageStore, P2PMsgs, Store, StoreErr,
 	},
 	IsCritical, Msg, StateMachine,
 };

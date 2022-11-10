@@ -1,14 +1,28 @@
-#![allow(non_snake_case)]
+/*
+	CGGMP Threshold ECDSA
 
-use std::{collections::HashMap, default};
+	Copyright 2022 by Webb Technologies.
+
+	This file is part of cggmp library
+	(https://github.com/webb-tools/cggmp-threshold-ecdsa)
+
+	cggmp-threshold-ecdsa is free software: you can redistribute
+	it and/or modify it under the terms of the GNU General Public
+	License as published by the Free Software Foundation, either
+	version 3 of the License, or (at your option) any later version.
+
+	@license GPL-3.0+ <https://github.com/webb-tools/cggmp/blob/main/LICENSE>
+*/
+
+use std::{collections::HashMap};
 
 use curv::{
 	arithmetic::Zero,
-	elliptic::curves::{Curve, ECPoint, Point},
+	elliptic::curves::{Curve, Point},
 	BigInt,
 };
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
-use paillier::{DecryptionKey, EncryptionKey, RawCiphertext};
+use paillier::{DecryptionKey, EncryptionKey};
 use sha2::Sha256;
 
 use crate::utilities::{

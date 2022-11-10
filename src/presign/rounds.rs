@@ -1,3 +1,19 @@
+/*
+	CGGMP Threshold ECDSA
+
+	Copyright 2022 by Webb Technologies.
+
+	This file is part of cggmp library
+	(https://github.com/webb-tools/cggmp-threshold-ecdsa)
+
+	cggmp-threshold-ecdsa is free software: you can redistribute
+	it and/or modify it under the terms of the GNU General Public
+	License as published by the Free Software Foundation, either
+	version 3 of the License, or (at your option) any later version.
+
+	@license GPL-3.0+ <https://github.com/webb-tools/cggmp/blob/main/LICENSE>
+*/
+
 use std::{collections::HashMap, io::Error, marker::PhantomData};
 
 use crate::{
@@ -365,11 +381,10 @@ impl Round1 {
 					);
 
 				// psi_prime_j_i
-				let witness_psi_prime_j_i = KnowledgeOfExponentPaillierEncryptionWitness {
-					x: self.gamma_i.clone(),
-					rho: self.nu_i.clone(),
-					phantom: PhantomData,
-				};
+				let witness_psi_prime_j_i = KnowledgeOfExponentPaillierEncryptionWitness::new(
+					self.gamma_i.clone(),
+					self.nu_i.clone(),
+				);
 				let statement_psi_prime_j_i = KnowledgeOfExponentPaillierEncryptionStatement {
 					N0: self.secrets.ek.n.clone(),
 					NN0: self.secrets.ek.nn.clone(),

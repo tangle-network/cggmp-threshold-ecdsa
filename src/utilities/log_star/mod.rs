@@ -36,20 +36,30 @@ use zk_paillier::zkproofs::IncorrectProof;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct KnowledgeOfExponentPaillierEncryptionStatement<E: Curve, H: Digest + Clone> {
-	N0: BigInt,
-	NN0: BigInt,
-	C: BigInt,
-	X: Point<E>,
-	N_hat: BigInt,
-	s: BigInt,
-	t: BigInt,
-	phantom: PhantomData<(E, H)>,
+	pub N0: BigInt,
+	pub NN0: BigInt,
+	pub C: BigInt,
+	pub X: Point<E>,
+	pub N_hat: BigInt,
+	pub s: BigInt,
+	pub t: BigInt,
+	pub phantom: PhantomData<(E, H)>,
 }
 
 pub struct KnowledgeOfExponentPaillierEncryptionWitness<E: Curve, H: Digest + Clone> {
 	x: BigInt,
 	rho: BigInt,
 	phantom: PhantomData<(E, H)>,
+}
+
+impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncryptionWitness<E, H> {
+	pub fn new(x: BigInt, rho: BigInt) -> Self {
+		KnowledgeOfExponentPaillierEncryptionWitness {
+			x,
+			rho,
+			phantom: PhantomData,
+		}
+	}
 }
 
 impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncryptionStatement<E, H> {
