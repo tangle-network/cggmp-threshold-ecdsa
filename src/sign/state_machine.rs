@@ -106,7 +106,7 @@ impl Signing {
 			R::Round0(round) if !round.is_expensive() || may_block => {
 				next_state = round
 					.proceed(self.gmap_queue(M::Round1))
-					.map(R::Round1)
+					.map(|msg| R::Round1(Box::new(msg)))
 					.map_err(|_e| Error::ProceedRound { msg_round: 0 })?;
 				true
 			},
@@ -132,7 +132,7 @@ impl Signing {
 				let msgs = store.finish().map_err(InternalError::RetrieveRoundMessages)?;
 				next_state = round
 					.proceed(msgs)
-					.map(R::Final)
+					.map(|msg| R::Final(Box::new(msg)))
 					.map_err(|_e| Error::ProceedRound { msg_round: 2 })?;
 				true
 			},
@@ -227,7 +227,7 @@ impl StateMachine for Signing {
 		}
 
 		match replace(&mut self.round, R::Gone) {
-			R::Final(result) => Some(Ok(result)),
+			R::Final(result) => Some(Ok(*result)),
 			_ => unreachable!("guaranteed by match expression above"),
 		}
 	}
@@ -300,9 +300,9 @@ impl fmt::Debug for Signing {
 // Rounds
 enum R {
 	Round0(Round0),
-	Round1(Round1),
+	Round1(Box<Round1>),
 	Round2(Box<Round2>),
-	Final(Option<SigningOutput<Secp256k1>>),
+	Final(Box<Option<SigningOutput<Secp256k1>>>),
 	Gone,
 }
 

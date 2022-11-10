@@ -168,7 +168,7 @@ impl PreSigning {
 				let msgs = store.finish().map_err(InternalError::RetrieveRoundMessages)?;
 				next_state = round
 					.proceed(msgs)
-					.map(R::Final)
+					.map(|msg| R::Final(Box::new(msg)))
 					.map_err(|_e| Error::ProceedRound { msg_round: 4 })?;
 				true
 			},
@@ -286,7 +286,7 @@ impl StateMachine for PreSigning {
 		}
 
 		match replace(&mut self.round, R::Gone) {
-			R::Final(result) => Some(Ok(result)),
+			R::Final(result) => Some(Ok(*result)),
 			_ => unreachable!("guaranteed by match expression above"),
 		}
 	}
@@ -379,7 +379,7 @@ enum R {
 	Round2(Box<Round2>),
 	Round3(Box<Round3>),
 	Round4(Box<Round4>),
-	Final(Option<(PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)>),
+	Final(Box<Option<(PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)>>),
 	Gone,
 }
 
