@@ -72,7 +72,7 @@ impl Signing {
 		}
 
 		let mut state = Self {
-			round: R::Round0(Round0 { ssid, l, m, presigning_data }),
+			round: R::Round0(Box::new(Round0 { ssid, l, m, presigning_data })),
 
 			round0_msgs: Some(Round1::expects_messages(i, n)),
 			round1_msgs: Some(Round2::expects_messages(i, n)),
@@ -299,7 +299,7 @@ impl fmt::Debug for Signing {
 
 // Rounds
 enum R {
-	Round0(Round0),
+	Round0(Box<Round0>),
 	Round1(Box<Round1>),
 	Round2(Box<Round2>),
 	Final(Box<Option<SigningOutput<Secp256k1>>>),
