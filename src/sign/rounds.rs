@@ -73,7 +73,7 @@ impl Round0 {
 			self.presigning_data.get_mut(&(self.l as u16))
 		{
 			// r = R projected onto x axis
-			let r = presigning_output.R.x_coord().unwrap_or(BigInt::zero());
+			let r = presigning_output.R.x_coord().unwrap_or_else(BigInt::zero);
 			// sigma_i = k*m + r*chi
 			let sigma_i = presigning_output.k_i.mul(&self.m).add(&r.mul(&presigning_output.chi_i));
 			let body = SigningBroadcastMessage1 {
@@ -144,7 +144,7 @@ impl Round1 {
 		let x_projection = ((g * Scalar::from_bigint(&m_sigma_inv)) +
 			(X * Scalar::from_bigint(&r_sigma_inv)))
 		.x_coord()
-		.unwrap_or(BigInt::zero());
+		.unwrap_or_else(BigInt::zero);
 
 		if self.r == x_projection {
 			let signing_output =
