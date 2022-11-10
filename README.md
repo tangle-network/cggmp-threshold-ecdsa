@@ -51,8 +51,8 @@ Implementation checklist
 - [x] Adding Ring Pedersen parameters to `fs-dkr`.
 - [x] Implementing all ZKPs for **4-round $O(n^2)$ identifiable abort**
 - [ ] Implementing **4-round $O(n^2)$ identifiable abort** `presign` and `sign`.
-  - [ ] Properly zeroizing the `PresignOutput`.
-  - [ ] Properly implement identifiable abort proof 2c) in both `presign` and `sign`.
+  - [ ] Properly zeroizing the `PresignOutput` [link to code](https://github.com/webb-tools/cggmp-threshold-ecdsa/blob/group/zkps/src/presign/mod.rs#L66).
+  - [ ] Properly implement identifiable abort proof 2c) in both `presign` and `sign` [link to presign code](https://github.com/webb-tools/cggmp-threshold-ecdsa/blob/group/zkps/src/presign/rounds.rs#L939) [link to sign code](https://github.com/webb-tools/cggmp-threshold-ecdsa/blob/group/zkps/src/sign/rounds.rs#L318).
 - [ ] Testing **4-round $O(n^2)$ identifiable abort** `presign` and `sign`.
 - [ ] Implementing all ZKPs for **7-round $O(n)$ identifiable abort**
   - [ ] `aff-p`
