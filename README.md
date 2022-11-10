@@ -35,6 +35,8 @@
 
 <h1 id="start"> Getting Started  🎉 </h1>
 
+**This repo is research-oriented software and should not be considered SAFE to use in production. It has not been audited and/or tested rigorously yet. Please use caution.**
+
 This is an implementation of the threshold ECDSA signature multi-party-computation from [UC Non-Interactive, Proactive, Threshold ECDSA with Identifiable Aborts](https://eprint.iacr.org/2021/060) with slight modifications. We implement this MPC using the key generation protocol originally from [GG20](https://eprint.iacr.org/2020/540) and implemented by [Zengo](https://github.com/ZenGo-X) in [multi-party-ecdsa](https://github.com/ZenGo-X/multi-party-ecdsa).
 
 For the key refresh protocol we opt for a fork of Zengo's [fs-dkr](https://github.com/webb-tools/fs-dkr) maintained by us. Together, these complete the key generation and key refreshing protocol. From here, we implement the pre-signing and signing protocols outlined in the aforementioned CGGMP paper. This implementation leverages the infrastructure built by Zengo, namely [round-based-protocol](https://github.com/ZenGo-X/round-based-protocol). We detail how this can be used in a blockchain's gossip network environment such as Substrate, as that motivates this work.
