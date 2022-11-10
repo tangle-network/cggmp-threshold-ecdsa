@@ -62,7 +62,7 @@ Implementation checklist
   - [ ] `Nth`
   - [ ] `log`
 - [ ] Implementing **7-round $O(n)$ identifiable abort** `presign` and `sign`.
-  - [ ] Entire protocol unimplemented (refer to CGGMP paper for details + taurus-group implementation).
+  - [ ] Entire protocol unimplemented (refer to CGGMP paper for details + taurus-group implementation)[taurus group code](https://github.com/taurusgroup/multi-party-sig/tree/main/protocols/cmp).
 - [ ] Testing **7-round $O(n)$ identifiable abort** `presign` and `sign`.
 
 ## Prerequisites
