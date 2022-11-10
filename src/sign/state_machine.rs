@@ -5,7 +5,7 @@ use super::{
 	SigningBroadcastMessage1, SigningIdentifiableAbortMessage, SigningOutput,
 };
 
-use curv::{cryptographic_primitives::hashing::Digest, elliptic::curves::Secp256k1, BigInt};
+use curv::{elliptic::curves::Secp256k1, BigInt};
 
 use private::InternalError;
 use round_based::{
