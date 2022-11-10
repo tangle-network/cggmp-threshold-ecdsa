@@ -117,7 +117,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(self.gmap_queue(M::Round1))
 					.map(R::Round1)
-					.map_err(|e| Error::ProceedRound { msg_round: 0 })?;
+					.map_err(|_e| Error::ProceedRound { msg_round: 0 })?;
 				true
 			},
 			s @ R::Round0(_) => {
@@ -130,7 +130,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(msgs, self.gmap_queue(M::Round2))
 					.map(|msg| R::Round2(Box::new(msg)))
-					.map_err(|e| Error::ProceedRound { msg_round: 1 })?;
+					.map_err(|_e| Error::ProceedRound { msg_round: 1 })?;
 				true
 			},
 			s @ R::Round1(_) => {
@@ -143,7 +143,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(msgs, self.gmap_queue(M::Round3))
 					.map(|msg| R::Round3(Box::new(msg)))
-					.map_err(|e| Error::ProceedRound { msg_round: 2 })?;
+					.map_err(|_e| Error::ProceedRound { msg_round: 2 })?;
 				true
 			},
 			s @ R::Round2(_) => {
@@ -156,7 +156,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(msgs, self.gmap_queue(M::Round4))
 					.map(|msg| R::Round4(Box::new(msg)))
-					.map_err(|e| Error::ProceedRound { msg_round: 3 })?;
+					.map_err(|_e| Error::ProceedRound { msg_round: 3 })?;
 				true
 			},
 			s @ R::Round3(_) => {
@@ -169,7 +169,7 @@ impl PreSigning {
 				next_state = round
 					.proceed(msgs)
 					.map(R::Final)
-					.map_err(|e| Error::ProceedRound { msg_round: 4 })?;
+					.map_err(|_e| Error::ProceedRound { msg_round: 4 })?;
 				true
 			},
 			s @ R::Round4(_) => {
@@ -353,11 +353,11 @@ impl fmt::Debug for PreSigning {
 			Some(msgs) => format!("[{}/{}]", msgs.messages_received(), msgs.messages_total()),
 			None => "[None]".into(),
 		};
-		let round2_msgs = match self.round2_msgs.as_ref() {
+		let _round2_msgs = match self.round2_msgs.as_ref() {
 			Some(msgs) => format!("[{}/{}]", msgs.messages_received(), msgs.messages_total()),
 			None => "[None]".into(),
 		};
-		let round3_msgs = match self.round3_msgs.as_ref() {
+		let _round3_msgs = match self.round3_msgs.as_ref() {
 			Some(msgs) => format!("[{}/{}]", msgs.messages_received(), msgs.messages_total()),
 			None => "[None]".into(),
 		};

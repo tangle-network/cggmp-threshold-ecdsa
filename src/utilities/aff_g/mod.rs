@@ -76,7 +76,7 @@ pub struct PaillierAffineOpWithGroupComInRangeWitness<E: Curve, H: Digest + Clon
 
 impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeWitness<E, H> {
 	pub fn new(x: BigInt, y: BigInt, rho: BigInt, rho_y: BigInt) -> Self {
-		PaillierAffineOpWithGroupComInRangeWitness { x, y, rho,rho_y, phantom: PhantomData }
+		PaillierAffineOpWithGroupComInRangeWitness { x, y, rho, rho_y, phantom: PhantomData }
 	}
 }
 

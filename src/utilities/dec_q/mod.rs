@@ -223,12 +223,12 @@ impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQProof<E, H> {
 			z1 = γ + e * x mod q
 		*/
 		// Compute the left hand side
-		let left_2 = proof.z1.clone().mod_floor(&Scalar::<E>::group_order());
+		let left_2 = proof.z1.clone().mod_floor(Scalar::<E>::group_order());
 		// Compute the right hand side
 		let right_2 = BigInt::mod_add(
 			&proof.commitment.gamma,
-			&BigInt::mod_mul(&e, &statement.x, &Scalar::<E>::group_order()),
-			&Scalar::<E>::group_order(),
+			&BigInt::mod_mul(&e, &statement.x, Scalar::<E>::group_order()),
+			Scalar::<E>::group_order(),
 		);
 		// Check the equality
 		assert!(left_2 == right_2);

@@ -21,13 +21,11 @@
 //!             k ∈ ± 2l, and K = (1 + N0)^k · ρ^N0 mod N0^2.
 
 use super::sample_relatively_prime_integer;
-use crate::utilities::{
-	mod_pow_with_negative, mta::range_proofs::SampleFromMultiplicativeGroup, L,
-};
+use crate::utilities::{mod_pow_with_negative, L};
 use curv::{
 	arithmetic::{traits::*, Modulo},
 	cryptographic_primitives::hashing::{Digest, DigestExt},
-	elliptic::curves::{Curve, Point, Scalar},
+	elliptic::curves::{Curve, Scalar},
 	BigInt,
 };
 use paillier::{EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext};
@@ -59,7 +57,6 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeWitness<E, H> {
 	}
 }
 
-
 impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeStatement<E, H> {
 	#[allow(clippy::too_many_arguments)]
 	pub fn generate(
@@ -70,7 +67,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeStatement<E, H> {
 		paillier_key: EncryptionKey,
 	) -> (Self, PaillierEncryptionInRangeWitness<E, H>) {
 		// Set up exponents
-		let l_exp = BigInt::pow(&BigInt::from(2), L as u32);
+		let _l_exp = BigInt::pow(&BigInt::from(2), L as u32);
 		// Set up moduli
 		let N0 = paillier_key.clone().n;
 		let NN0 = paillier_key.clone().nn;
@@ -241,10 +238,9 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
 
 #[cfg(test)]
 mod tests {
-	use crate::utilities::BITS_PAILLIER;
-
 	use super::*;
-	use curv::elliptic::curves::{secp256_k1::Secp256k1, Scalar};
+	use crate::utilities::{mta::range_proofs::SampleFromMultiplicativeGroup, BITS_PAILLIER};
+	use curv::elliptic::curves::secp256_k1::Secp256k1;
 	use fs_dkr::ring_pedersen_proof::RingPedersenStatement;
 	use paillier::{KeyGeneration, Paillier};
 	use sha2::Sha256;

@@ -29,9 +29,7 @@ use curv::{
 	elliptic::curves::{Curve, Point, Scalar},
 	BigInt,
 };
-use paillier::{
-	Encrypt, EncryptWithChosenRandomness, EncryptionKey, Paillier, Randomness, RawPlaintext,
-};
+use paillier::EncryptionKey;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use zk_paillier::zkproofs::IncorrectProof;
@@ -56,8 +54,8 @@ pub struct PaillierMultiplicationVersusGroupWitness<E: Curve, H: Digest + Clone>
 }
 
 impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupWitness<E, H> {
-	pub fn new(x: BigInt, rho: BigInt,) -> Self {
-		PaillierMultiplicationVersusGroupWitness{ x, rho, phantom: PhantomData }
+	pub fn new(x: BigInt, rho: BigInt) -> Self {
+		PaillierMultiplicationVersusGroupWitness { x, rho, phantom: PhantomData }
 	}
 }
 
@@ -65,7 +63,7 @@ impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupStatement<E, 
 	#[allow(clippy::too_many_arguments)]
 	pub fn generate(
 		rho: BigInt,
-		C: BigInt,
+		_C: BigInt,
 		s: BigInt,
 		t: BigInt,
 		N_hat: BigInt,
@@ -75,7 +73,7 @@ impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupStatement<E, 
 		let l_exp = BigInt::pow(&BigInt::from(2), L as u32);
 		// Set up moduli
 		let N0 = paillier_key.clone().n;
-		let NN0 = paillier_key.clone().nn;
+		let NN0 = paillier_key.nn;
 		let x = BigInt::sample_range(&BigInt::from(-1).mul(&l_exp), &l_exp);
 		let X = Point::<E>::generator().as_point() * Scalar::from(&x);
 		let C: BigInt = BigInt::zero();
@@ -181,12 +179,7 @@ impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupProof<E, H> {
 			&mod_pow_with_negative(&witness.rho, &e, &statement.N0),
 			&statement.N0,
 		);
-		let commitment = PaillierMultiplicationVersusGroupCommitment {
-			A: A.clone(),
-			B_x: B_x.clone(),
-			E: E.clone(),
-			S: S.clone(),
-		};
+		let commitment = PaillierMultiplicationVersusGroupCommitment { A, B_x, E, S };
 		Self { z_1, z_2, w, commitment, phantom: PhantomData }
 	}
 
@@ -260,7 +253,7 @@ mod tests {
 	use crate::utilities::{mta::range_proofs::SampleFromMultiplicativeGroup, BITS_PAILLIER};
 	use curv::elliptic::curves::secp256_k1::Secp256k1;
 	use fs_dkr::ring_pedersen_proof::RingPedersenStatement;
-	use paillier::{KeyGeneration, Paillier};
+	use paillier::{Encrypt, KeyGeneration, Paillier, RawPlaintext};
 	use sha2::Sha256;
 
 	#[test]

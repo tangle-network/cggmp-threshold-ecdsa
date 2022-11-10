@@ -49,7 +49,7 @@ pub struct PaillierMulWitness<E: Curve, H: Digest + Clone> {
 
 impl<E: Curve, H: Digest + Clone> PaillierMulWitness<E, H> {
 	pub fn new(x: BigInt, rho: BigInt, rho_x: BigInt) -> Self {
-		PaillierMulWitness{ x, rho, rho_x, phantom: PhantomData }
+		PaillierMulWitness { x, rho, rho_x, phantom: PhantomData }
 	}
 }
 

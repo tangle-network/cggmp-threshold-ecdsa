@@ -14,7 +14,7 @@
 	@license GPL-3.0+ <https://github.com/webb-tools/cggmp/blob/main/LICENSE>
 */
 
-use std::{collections::HashMap, io::Error, marker::PhantomData};
+use std::{collections::HashMap, marker::PhantomData};
 
 use crate::{
 	utilities::{
@@ -48,16 +48,13 @@ use super::{
 };
 use curv::{
 	arithmetic::{traits::*, Modulo, Samplable},
-	cryptographic_primitives::hashing::{Digest, DigestExt},
-	elliptic::curves::{Curve, Point, Scalar, Secp256k1},
+	elliptic::curves::{Point, Scalar, Secp256k1},
 	BigInt,
 };
-use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
-	party_i::Keys, state_machine::keygen::*,
-};
+
 use paillier::{
-	Add, Decrypt, DecryptionKey, Encrypt, EncryptWithChosenRandomness, EncryptionKey, Mul,
-	Paillier, Randomness, RawCiphertext, RawPlaintext,
+	Add, Decrypt, EncryptWithChosenRandomness, EncryptionKey, Mul, Paillier, Randomness,
+	RawCiphertext, RawPlaintext,
 };
 use round_based::{
 	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore, P2PMsgs, P2PMsgsStore},
@@ -68,7 +65,6 @@ use sha2::Sha256;
 use thiserror::Error;
 
 use super::state_machine::{Round0Messages, Round1Messages, Round2Messages, Round3Messages};
-use rayon::prelude::*;
 
 pub struct Round0 {
 	pub ssid: SSID<Secp256k1>,
@@ -106,10 +102,7 @@ impl Round0 {
 			&Randomness(rho_i.clone()),
 		)
 		.into();
-		let witness_psi_0_j_i = PaillierEncryptionInRangeWitness::new(
-			k_i.clone(),
-			rho_i.clone(),
-		);
+		let witness_psi_0_j_i = PaillierEncryptionInRangeWitness::new(k_i.clone(), rho_i.clone());
 
 		for j in self.ssid.P.iter() {
 			if *j != self.ssid.X.i {
@@ -204,11 +197,11 @@ impl Round1 {
 			.is_err()
 			{
 				let error_data = ProofVerificationErrorData {
-					proof_symbol: format!("psi_0_i_j"),
+					proof_symbol: "psi_0_i_j".to_string(),
 					verifying_party: self.ssid.X.i,
 				};
 				return Err(PresignError::ProofVerificationError(ErrorType {
-					error_type: format!("enc"),
+					error_type: "enc".to_string(),
 					bad_actors: vec![j.into()],
 					data: bincode::serialize(&error_data).unwrap(),
 				}))
@@ -272,7 +265,7 @@ impl Round1 {
 						RawCiphertext::from(K.get(j).unwrap_or(&BigInt::zero())),
 						RawPlaintext::from(self.gamma_i.clone()),
 					),
-					RawCiphertext::from(encrypt_minus_beta_i_j),
+					encrypt_minus_beta_i_j,
 				)
 				.into();
 
@@ -303,7 +296,7 @@ impl Round1 {
 						RawCiphertext::from(K.get(j).unwrap_or(&BigInt::zero())),
 						RawPlaintext::from(self.secrets.x_i.clone()),
 					),
-					RawCiphertext::from(encrypt_minus_beta_hat_i_j),
+					encrypt_minus_beta_hat_i_j,
 				)
 				.into();
 
@@ -353,7 +346,7 @@ impl Round1 {
 					beta_hat_i_j.clone(),
 					s_hat_i_j.clone(),
 					r_hat_i_j.clone(),
-				); 
+				);
 				let statement_psi_hat_j_i = PaillierAffineOpWithGroupComInRangeStatement {
 					S: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
 					T: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
@@ -521,11 +514,11 @@ impl Round2 {
 			.is_err()
 			{
 				let error_data = ProofVerificationErrorData {
-					proof_symbol: format!("psi_i_j"),
+					proof_symbol: "psi_i_j".to_string(),
 					verifying_party: self.ssid.X.i,
 				};
 				return Err(PresignError::ProofVerificationError(ErrorType {
-					error_type: format!("aff-g"),
+					error_type: "aff-g".to_string(),
 					bad_actors: vec![j.into()],
 					data: bincode::serialize(&error_data).unwrap(),
 				}))
@@ -541,11 +534,11 @@ impl Round2 {
 			.is_err()
 			{
 				let error_data = ProofVerificationErrorData {
-					proof_symbol: format!("psi_hat_i_j"),
+					proof_symbol: "psi_hat_i_j".to_string(),
 					verifying_party: self.ssid.X.i,
 				};
 				return Err(PresignError::ProofVerificationError(ErrorType {
-					error_type: format!("aff-g"),
+					error_type: "aff-g".to_string(),
 					bad_actors: vec![j.into()],
 					data: bincode::serialize(&error_data).unwrap(),
 				}))
@@ -561,11 +554,11 @@ impl Round2 {
 			.is_err()
 			{
 				let error_data = ProofVerificationErrorData {
-					proof_symbol: format!("psi_prime_i_j"),
+					proof_symbol: "psi_prime_i_j".to_string(),
 					verifying_party: self.ssid.X.i,
 				};
 				return Err(PresignError::ProofVerificationError(ErrorType {
-					error_type: format!("log*"),
+					error_type: "log*".to_string(),
 					bad_actors: vec![j.into()],
 					data: bincode::serialize(&error_data).unwrap(),
 				}))
@@ -587,9 +580,7 @@ impl Round2 {
 					*j,
 					Paillier::decrypt(
 						&self.secrets.dk,
-						RawCiphertext::from(RawCiphertext::from(
-							D_i.get(j).unwrap_or(&BigInt::zero()),
-						)),
+						RawCiphertext::from(D_i.get(j).unwrap_or(&BigInt::zero())),
 					)
 					.into(),
 				);
@@ -785,11 +776,11 @@ impl Round3 {
 			.is_err()
 			{
 				let error_data = ProofVerificationErrorData {
-					proof_symbol: format!("psi_prime_prime_i_j"),
+					proof_symbol: "psi_prime_prime_i_j".to_string(),
 					verifying_party: self.ssid.X.i,
 				};
 				return Err(PresignError::ProofVerificationError(ErrorType {
-					error_type: format!("log*"),
+					error_type: "log*".to_string(),
 					bad_actors: vec![j.into()],
 					data: bincode::serialize(&error_data).unwrap(),
 				}))
@@ -930,11 +921,8 @@ impl Round3 {
 			)
 			.into();
 
-			let witness_H_i = PaillierMulWitness::new(
-				self.k_i,
-				self.nu_i.clone(),
-				self.nu_i.mul(&self.gamma_i),
-			);
+			let witness_H_i =
+				PaillierMulWitness::new(self.k_i, self.nu_i.clone(), self.nu_i.mul(&self.gamma_i));
 			let statement_H_i = PaillierMulStatement {
 				N: self.secrets.ek.n.clone(),
 				NN: self.secrets.ek.nn.clone(),
@@ -970,10 +958,8 @@ impl Round3 {
 					RawCiphertext::from(ciphertext_delta_i.clone()),
 				)
 				.into(),
-				H_i_randomness.clone(),
+				H_i_randomness,
 			);
-
-
 
 			// l to statement
 			let mut statement_delta_i: HashMap<
@@ -1074,11 +1060,11 @@ impl Round4 {
 
 				if !vec_D_si_j_proof_bad_actors.is_empty() {
 					let error_data = ProofVerificationErrorData {
-						proof_symbol: format!("D_si_j"),
+						proof_symbol: "D_si_j".to_string(),
 						verifying_party: self.ssid.X.i,
 					};
 					return Err(PresignError::ProofVerificationError(ErrorType {
-						error_type: format!("mul"),
+						error_type: "mul".to_string(),
 						bad_actors: vec_D_si_j_proof_bad_actors,
 						data: bincode::serialize(&error_data).unwrap(),
 					}))
@@ -1089,11 +1075,11 @@ impl Round4 {
 
 				if PaillierMulProof::verify(&proof_H_si, &statement_H_si).is_err() {
 					let error_data = ProofVerificationErrorData {
-						proof_symbol: format!("H_si"),
+						proof_symbol: "H_si".to_string(),
 						verifying_party: self.ssid.X.i,
 					};
 					return Err(PresignError::ProofVerificationError(ErrorType {
-						error_type: format!("mul"),
+						error_type: "mul".to_string(),
 						bad_actors: vec![si.into()],
 						data: bincode::serialize(&error_data).unwrap(),
 					}))
@@ -1105,11 +1091,11 @@ impl Round4 {
 				if PaillierDecryptionModQProof::verify(proof_delta_si, statement_delta_si).is_err()
 				{
 					let error_data = ProofVerificationErrorData {
-						proof_symbol: format!("delta_si"),
+						proof_symbol: "delta_si".to_string(),
 						verifying_party: self.ssid.X.i,
 					};
 					return Err(PresignError::ProofVerificationError(ErrorType {
-						error_type: format!("dec-q"),
+						error_type: "dec-q".to_string(),
 						bad_actors: vec![si.into()],
 						data: bincode::serialize(&error_data).unwrap(),
 					}))

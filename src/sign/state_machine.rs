@@ -5,18 +5,13 @@ use super::{
 	SigningBroadcastMessage1, SigningIdentifiableAbortMessage, SigningOutput,
 };
 
-use curv::{
-	arithmetic::{traits::*, Modulo, Samplable},
-	cryptographic_primitives::hashing::{Digest, DigestExt},
-	elliptic::curves::{Curve, Point, Scalar, Secp256k1},
-	BigInt,
-};
-use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
+use curv::{cryptographic_primitives::hashing::Digest, elliptic::curves::Secp256k1, BigInt};
+
 use private::InternalError;
 use round_based::{
 	containers::{
 		push::{Push, PushExt},
-		BroadcastMsgs, MessageContainer, MessageStore, P2PMsgs, Store, StoreErr,
+		BroadcastMsgs, MessageStore, Store, StoreErr,
 	},
 	IsCritical, Msg, StateMachine,
 };
@@ -97,7 +92,7 @@ impl Signing {
 				next_state = round
 					.proceed(self.gmap_queue(M::Round1))
 					.map(R::Round1)
-					.map_err(|e| Error::ProceedRound { msg_round: 0 })?;
+					.map_err(|_e| Error::ProceedRound { msg_round: 0 })?;
 				true
 			},
 			s @ R::Round0(_) => {
@@ -110,7 +105,7 @@ impl Signing {
 				next_state = round
 					.proceed(msgs, self.gmap_queue(M::Round2))
 					.map(|msg| R::Round2(Box::new(msg)))
-					.map_err(|e| Error::ProceedRound { msg_round: 1 })?;
+					.map_err(|_e| Error::ProceedRound { msg_round: 1 })?;
 				true
 			},
 			s @ R::Round1(_) => {
@@ -123,7 +118,7 @@ impl Signing {
 				next_state = round
 					.proceed(msgs)
 					.map(R::Final)
-					.map_err(|e| Error::ProceedRound { msg_round: 2 })?;
+					.map_err(|_e| Error::ProceedRound { msg_round: 2 })?;
 				true
 			},
 			s @ R::Round2(_) => {
