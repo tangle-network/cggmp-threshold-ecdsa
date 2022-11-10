@@ -41,8 +41,22 @@ For the key refresh protocol we opt for a fork of Zengo's [fs-dkr](https://githu
 
 Particularly, we have implemented the **4-round $O(n^2)$ identifiable abort** version of CGGMP. The **remaining work to be done is testing** our implementation, particularly the `presign` and `sign`. 
 
-Other details to be checked out:
-- Identifiable abort proof 2c) in both `presign` and `sign`.
+Implementation checklist
+- [x] Key generation [multi-party-ecdsa](https://github.com/ZenGo-X/multi-party-ecdsa).
+- [x] Key generation tests
+- [x] Key refresh [fs-dkr](https://github.com/webb-tools/fs-dkr)
+- [x] Key refresh tests
+- [x] Adding Ring Pedersen parameters to `fs-dkr`.
+- [x] Implementing all ZKPs for **4-round $O(n^2)$ identifiable abort**
+- [ ] Implementing **4-round $O(n^2)$ identifiable abort** `presign` and `sign`.
+  - [ ] Properly zeroizing the `PresignOutput`.
+  - [ ] Properly implement identifiable abort proof 2c) in both `presign` and `sign`.
+- [ ] Testing **4-round $O(n^2)$ identifiable abort** `presign` and `sign`.
+- [ ] Implementing all ZKPs for **7-round $O(n)$ identifiable abort**
+  - [ ] `aff-p`
+- [ ] Implementing **7-round $O(n)$ identifiable abort** `presign` and `sign`.
+  - [ ] Entire protocol unimplemented (refer to CGGMP paper for details + taurus-group implementation).
+- [ ] Testing **7-round $O(n)$ identifiable abort** `presign` and `sign`.
 
 ## Prerequisites
 
