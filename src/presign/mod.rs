@@ -14,7 +14,7 @@
 	@license GPL-3.0+ <https://github.com/webb-tools/cggmp/blob/main/LICENSE>
 */
 
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use curv::{
 	arithmetic::Zero,

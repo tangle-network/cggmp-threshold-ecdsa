@@ -54,11 +54,7 @@ pub struct KnowledgeOfExponentPaillierEncryptionWitness<E: Curve, H: Digest + Cl
 
 impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncryptionWitness<E, H> {
 	pub fn new(x: BigInt, rho: BigInt) -> Self {
-		KnowledgeOfExponentPaillierEncryptionWitness {
-			x,
-			rho,
-			phantom: PhantomData,
-		}
+		KnowledgeOfExponentPaillierEncryptionWitness { x, rho, phantom: PhantomData }
 	}
 }
 
