@@ -79,7 +79,7 @@ impl PreSigning {
 		let i = ssid.X.i;
 
 		let mut state = Self {
-			round: R::Round0(Round0 { ssid, secrets, S, T, N_hats, l }),
+			round: R::Round0(Box::new(Round0 { ssid, secrets, S, T, N_hats, l })),
 
 			round0_msgs: Some(Round1::expects_messages(i, n as u16)),
 			round1_msgs: Some(Round2::expects_messages(i, n as u16)),
@@ -374,7 +374,7 @@ impl fmt::Debug for PreSigning {
 
 // Rounds
 enum R {
-	Round0(Round0),
+	Round0(Box<Round0>),
 	Round1(Box<Round1>),
 	Round2(Box<Round2>),
 	Round3(Box<Round3>),
