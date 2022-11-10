@@ -116,7 +116,7 @@ impl PreSigning {
 			R::Round0(round) if !round.is_expensive() || may_block => {
 				next_state = round
 					.proceed(self.gmap_queue(M::Round1))
-					.map(R::Round1)
+					.map(|msg| R::Round1(Box::new(msg)))
 					.map_err(|_e| Error::ProceedRound { msg_round: 0 })?;
 				true
 			},
@@ -205,7 +205,7 @@ impl StateMachine for PreSigning {
 					.as_mut()
 					.ok_or(Error::ReceivedOutOfOrderMessage { current_round, msg_round: 1 })?;
 				store
-					.push_msg(Msg { sender: msg.sender, receiver: msg.receiver, body: m })
+					.push_msg(Msg { sender: msg.sender, receiver: msg.receiver, body: *m })
 					.map_err(Error::HandleMessage)?;
 				self.proceed_round(false)
 			},
@@ -215,7 +215,7 @@ impl StateMachine for PreSigning {
 					.as_mut()
 					.ok_or(Error::ReceivedOutOfOrderMessage { current_round, msg_round: 2 })?;
 				store
-					.push_msg(Msg { sender: msg.sender, receiver: msg.receiver, body: m })
+					.push_msg(Msg { sender: msg.sender, receiver: msg.receiver, body: *m })
 					.map_err(Error::HandleMessage)?;
 				self.proceed_round(false)
 			},
@@ -225,7 +225,7 @@ impl StateMachine for PreSigning {
 					.as_mut()
 					.ok_or(Error::ReceivedOutOfOrderMessage { current_round, msg_round: 2 })?;
 				store
-					.push_msg(Msg { sender: msg.sender, receiver: msg.receiver, body: m })
+					.push_msg(Msg { sender: msg.sender, receiver: msg.receiver, body: *m })
 					.map_err(Error::HandleMessage)?;
 				self.proceed_round(false)
 			},
@@ -235,7 +235,7 @@ impl StateMachine for PreSigning {
 					.as_mut()
 					.ok_or(Error::ReceivedOutOfOrderMessage { current_round, msg_round: 2 })?;
 				store
-					.push_msg(Msg { sender: msg.sender, receiver: msg.receiver, body: m })
+					.push_msg(Msg { sender: msg.sender, receiver: msg.receiver, body: *m })
 					.map_err(Error::HandleMessage)?;
 				self.proceed_round(false)
 			},
@@ -375,7 +375,7 @@ impl fmt::Debug for PreSigning {
 // Rounds
 enum R {
 	Round0(Round0),
-	Round1(Round1),
+	Round1(Box<Round1>),
 	Round2(Box<Round2>),
 	Round3(Box<Round3>),
 	Round4(Box<Round4>),
@@ -393,10 +393,10 @@ pub struct ProtocolMessage(M);
 
 #[derive(Debug, Clone)]
 enum M {
-	Round1(PreSigningP2PMessage1<Secp256k1>),
-	Round2(PreSigningP2PMessage2<Secp256k1>),
-	Round3(PreSigningP2PMessage3<Secp256k1>),
-	Round4(Option<IdentifiableAbortBroadcastMessage<Secp256k1>>),
+	Round1(Box<PreSigningP2PMessage1<Secp256k1>>),
+	Round2(Box<PreSigningP2PMessage2<Secp256k1>>),
+	Round3(Box<PreSigningP2PMessage3<Secp256k1>>),
+	Round4(Box<Option<IdentifiableAbortBroadcastMessage<Secp256k1>>>),
 }
 
 // Error

@@ -66,7 +66,7 @@ pub struct Round0 {
 impl Round0 {
 	pub fn proceed<O>(mut self, mut output: O) -> Result<Round1>
 	where
-		O: Push<Msg<SigningBroadcastMessage1<Secp256k1>>>,
+		O: Push<Msg<Box<SigningBroadcastMessage1<Secp256k1>>>>,
 	{
 		// If there is a record for (l,...)
 		if let Some((presigning_output, presigning_transcript)) =
@@ -81,7 +81,7 @@ impl Round0 {
 				i: self.ssid.X.i,
 				sigma_i: sigma_i.clone(),
 			};
-			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
+			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: Box::new(body) });
 			// Erase output from memory
 			presigning_output.zeroize();
 			Ok(Round1 {
@@ -122,7 +122,7 @@ impl Round1 {
 		mut output: O,
 	) -> Result<Round2>
 	where
-		O: Push<Msg<Option<SigningIdentifiableAbortMessage<Secp256k1>>>>,
+		O: Push<Msg<Box<Option<SigningIdentifiableAbortMessage<Secp256k1>>>>>,
 	{
 		// Mapping from j to sigma_j
 		let mut sigmas: HashMap<u16, BigInt> = HashMap::new();
@@ -149,7 +149,7 @@ impl Round1 {
 		if self.r == x_projection {
 			let signing_output =
 				SigningOutput { ssid: self.ssid.clone(), m: self.m, r: self.r, sigma };
-			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: None });
+			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: Box::new(None) });
 			Ok(Round2 { ssid: self.ssid, output: Some(signing_output) })
 		} else {
 			// (l,j) to proof for D_j_i
@@ -406,7 +406,7 @@ impl Round1 {
 				proof_sigma_i,
 				statement_sigma_i,
 			});
-			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
+			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: Box::new(body) });
 			Ok(Round2 { ssid: self.ssid, output: None })
 		}
 	}

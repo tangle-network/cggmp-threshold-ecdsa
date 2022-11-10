@@ -78,7 +78,7 @@ pub struct Round0 {
 impl Round0 {
 	pub fn proceed<O>(self, mut output: O) -> Result<Round1>
 	where
-		O: Push<Msg<PreSigningP2PMessage1<Secp256k1>>>,
+		O: Push<Msg<Box<PreSigningP2PMessage1<Secp256k1>>>>,
 	{
 		// k_i <- F_q
 		let k_i = BigInt::sample_below(&self.ssid.q);
@@ -129,7 +129,11 @@ impl Round0 {
 					enc_j_statement: statement_psi_0_j_i,
 					ek: self.secrets.ek.clone(),
 				};
-				output.push(Msg { sender: self.ssid.X.i, receiver: Some(*j), body });
+				output.push(Msg {
+					sender: self.ssid.X.i,
+					receiver: Some(*j),
+					body: Box::new(body),
+				});
 			}
 		}
 		Ok(Round1 {
@@ -172,7 +176,7 @@ impl Round1 {
 		mut output: O,
 	) -> Result<Round2>
 	where
-		O: Push<Msg<PreSigningP2PMessage2<Secp256k1>>>,
+		O: Push<Msg<Box<PreSigningP2PMessage2<Secp256k1>>>>,
 	{
 		let mut K: HashMap<u16, BigInt> = HashMap::new();
 		let mut G: HashMap<u16, BigInt> = HashMap::new();
@@ -407,7 +411,11 @@ impl Round1 {
 					psi_prime_j_i,
 					statement_psi_prime_j_i,
 				};
-				output.push(Msg { sender: self.ssid.X.i, receiver: Some(*j), body });
+				output.push(Msg {
+					sender: self.ssid.X.i,
+					receiver: Some(*j),
+					body: Box::new(body),
+				});
 			}
 		}
 		Ok(Round2 {
@@ -483,7 +491,7 @@ impl Round2 {
 		mut output: O,
 	) -> Result<Round3>
 	where
-		O: Push<Msg<PreSigningP2PMessage3<Secp256k1>>>,
+		O: Push<Msg<Box<PreSigningP2PMessage3<Secp256k1>>>>,
 	{
 		let mut D_i: HashMap<u16, BigInt> = HashMap::new();
 		let mut D_hat_i: HashMap<u16, BigInt> = HashMap::new();
@@ -658,7 +666,11 @@ impl Round2 {
 					psi_prime_prime_j_i,
 					statement_psi_prime_prime_j_i,
 				};
-				output.push(Msg { sender: self.ssid.X.i, receiver: Some(*j), body });
+				output.push(Msg {
+					sender: self.ssid.X.i,
+					receiver: Some(*j),
+					body: Box::new(body),
+				});
 			}
 		}
 		Ok(Round3 {
@@ -755,7 +767,7 @@ impl Round3 {
 		mut output: O,
 	) -> Result<Round4>
 	where
-		O: Push<Msg<Option<IdentifiableAbortBroadcastMessage<Secp256k1>>>>,
+		O: Push<Msg<Box<Option<IdentifiableAbortBroadcastMessage<Secp256k1>>>>>,
 	{
 		// Mapping from j to delta_j
 		let mut deltas: HashMap<u16, BigInt> = HashMap::new();
@@ -853,7 +865,7 @@ impl Round3 {
 				N_hats: self.N_hats,
 			};
 
-			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: None });
+			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: Box::new(None) });
 
 			Ok(Round4 {
 				ssid: self.ssid,
@@ -1007,7 +1019,7 @@ impl Round3 {
 				proof_delta_i,
 			});
 
-			output.push(Msg { sender: self.ssid.X.i, receiver: None, body });
+			output.push(Msg { sender: self.ssid.X.i, receiver: None, body: Box::new(body) });
 			Ok(Round4 { ssid: self.ssid, output: None, transcript: None })
 		}
 	}
