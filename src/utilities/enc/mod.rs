@@ -48,10 +48,17 @@ pub struct PaillierEncryptionInRangeStatement<E: Curve, H: Digest + Clone> {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierEncryptionInRangeWitness<E: Curve, H: Digest + Clone> {
-	pub k: BigInt,
-	pub rho: BigInt,
-	pub phantom: PhantomData<(E, H)>,
+	k: BigInt,
+	rho: BigInt,
+	phantom: PhantomData<(E, H)>,
 }
+
+impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeWitness<E, H> {
+	pub fn new(k: BigInt, rho: BigInt) -> Self {
+		PaillierEncryptionInRangeWitness { k, rho, phantom: PhantomData }
+	}
+}
+
 
 impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeStatement<E, H> {
 	#[allow(clippy::too_many_arguments)]

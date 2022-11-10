@@ -31,21 +31,27 @@ use std::marker::PhantomData;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierDecryptionModQStatement<E: Curve, H: Digest + Clone> {
-	S: BigInt,
-	T: BigInt,
-	N_hat: BigInt,
-	N0: BigInt,
-	NN0: BigInt,
-	C: BigInt,
-	x: BigInt,
-	ek_prover: EncryptionKey,
-	phantom: PhantomData<(E, H)>,
+	pub S: BigInt,
+	pub T: BigInt,
+	pub N_hat: BigInt,
+	pub N0: BigInt,
+	pub NN0: BigInt,
+	pub C: BigInt,
+	pub x: BigInt,
+	pub ek_prover: EncryptionKey,
+	pub phantom: PhantomData<(E, H)>,
 }
 
 pub struct PaillierDecryptionModQWitness<E: Curve, H: Digest + Clone> {
 	y: BigInt,
 	rho: BigInt,
 	phantom: PhantomData<(E, H)>,
+}
+
+impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQWitness<E, H> {
+	pub fn new(y: BigInt, rho: BigInt) -> Self {
+		PaillierDecryptionModQWitness { y, rho, phantom: PhantomData }
+	}
 }
 
 impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQStatement<E, H> {

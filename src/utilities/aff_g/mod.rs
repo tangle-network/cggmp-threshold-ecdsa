@@ -67,11 +67,17 @@ pub struct PaillierAffineOpWithGroupComInRangeStatement<E: Curve, H: Digest + Cl
 }
 
 pub struct PaillierAffineOpWithGroupComInRangeWitness<E: Curve, H: Digest + Clone> {
-	pub x: BigInt,
-	pub y: BigInt,
-	pub rho: BigInt,
-	pub rho_y: BigInt,
-	pub phantom: PhantomData<(E, H)>,
+	x: BigInt,
+	y: BigInt,
+	rho: BigInt,
+	rho_y: BigInt,
+	phantom: PhantomData<(E, H)>,
+}
+
+impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeWitness<E, H> {
+	pub fn new(x: BigInt, y: BigInt, rho: BigInt, rho_y: BigInt) -> Self {
+		PaillierAffineOpWithGroupComInRangeWitness { x, y, rho,rho_y, phantom: PhantomData }
+	}
 }
 
 impl<E: Curve, H: Digest + Clone> PaillierAffineOpWithGroupComInRangeStatement<E, H> {

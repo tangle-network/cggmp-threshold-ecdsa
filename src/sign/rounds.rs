@@ -18,7 +18,7 @@ use crate::{
 	presign::{PresigningOutput, PresigningTranscript, DEFAULT_ENCRYPTION_KEY},
 	utilities::{
 		aff_g::{
-			PaillierAffineOpWithGroupComInRangeProof, PaillierAffineOpWithGroupComInRangeStatement,
+			PaillierAffineOpWithGroupComInRangeProof, PaillierAffineOpWithGroupComInRangeStatement, PaillierAffineOpWithGroupComInRangeWitness,
 		},
 		dec_q::{
 			PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
@@ -151,7 +151,7 @@ impl Round1 {
 				PaillierAffineOpWithGroupComInRangeStatement<Secp256k1, Sha256>,
 			> = HashMap::new();
 
-			self.ssid.P.iter().zip(self.ssid.P.iter()).map(|(j, l)| {
+			self.ssid.P.iter().zip(self.ssid.P.iter()).for_each(|(j, l)| {
 				if *j != self.ssid.X.i && j != l {
 					let D_hat_j_i =
 						self.presigning_transcript.D_hat_j.get(&self.ssid.X.i).unwrap().clone();
@@ -161,28 +161,27 @@ impl Round1 {
 						self.presigning_transcript.F_hat_j.get(&self.ssid.X.i).unwrap().clone();
 
 					let witness_D_hat_j_i =
-						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeWitness {
-							x: self.presigning_transcript.secrets.x_i.clone(),
-							y: self
+						PaillierAffineOpWithGroupComInRangeWitness::new(
+							self.presigning_transcript.secrets.x_i.clone(),
+							self
 								.presigning_transcript
 								.beta_hat_i
 								.get(j)
 								.unwrap_or(&BigInt::zero())
 								.clone(),
-							rho: self
+							self
 								.presigning_transcript
 								.s_hat_i
 								.get(j)
 								.unwrap_or(&BigInt::zero())
 								.clone(),
-							rho_y: self
+							self
 								.presigning_transcript
 								.r_hat_i
 								.get(j)
 								.unwrap_or(&BigInt::zero())
 								.clone(),
-							phantom: PhantomData,
-						};
+						);
 					let statement_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
 							S: self
@@ -260,11 +259,10 @@ impl Round1 {
 				&Randomness::from(H_hat_i_randomness.clone()),
 			)
 			.into();
-			let witness_H_hat_i = PaillierMultiplicationVersusGroupWitness {
-				x: self.presigning_transcript.secrets.x_i.clone(),
-				rho: self.presigning_transcript.rho_i.mul(&H_hat_i_randomness.clone()),
-				phantom: PhantomData,
-			};
+			let witness_H_hat_i = PaillierMultiplicationVersusGroupWitness::new(
+				 self.presigning_transcript.secrets.x_i.clone(),
+				 self.presigning_transcript.rho_i.mul(&H_hat_i_randomness.clone()),
+			);
 
 			let X_i = Point::<Secp256k1>::generator() *
 				Scalar::from_bigint(&self.presigning_transcript.secrets.x_i.clone());
@@ -278,7 +276,7 @@ impl Round1 {
 				PaillierMultiplicationVersusGroupStatement<Secp256k1, Sha256>,
 			> = HashMap::new();
 
-			self.ssid.P.iter().map(|l| {
+			self.ssid.P.iter().for_each(|l| {
 				if *l != self.ssid.X.i {
 					let statement_H_hat_l_i = PaillierMultiplicationVersusGroupStatement {
 						N0: self.presigning_transcript.secrets.ek.n.clone(),
@@ -313,7 +311,7 @@ impl Round1 {
 			let s_hat_j_i = BigInt::zero();
 			let ciphertext = H_hat_i;
 			let ciphertext_randomness = H_hat_i_randomness.clone();
-			self.ssid.P.iter().map(|j| {
+			self.ssid.P.iter().for_each(|j| {
 				if *j != self.ssid.X.i {
 					ciphertext
 						.mul(&self.presigning_transcript.D_hat_i.get(j).unwrap_or(&BigInt::zero()))
@@ -341,15 +339,14 @@ impl Round1 {
 				&self.presigning_transcript.secrets.ek.nn,
 			));
 
-			let witness_sigma_i = PaillierDecryptionModQWitness {
-				y: Paillier::decrypt(
+			let witness_sigma_i = PaillierDecryptionModQWitness::new(
+				Paillier::decrypt(
 					&self.presigning_transcript.secrets.dk,
 					RawCiphertext::from(ciphertext.clone()),
 				)
 				.into(),
-				rho: ciphertext_randomness,
-				phantom: PhantomData,
-			};
+				ciphertext_randomness,
+			);
 
 			// l to statement
 			let mut statement_sigma_i: HashMap<
@@ -361,7 +358,7 @@ impl Round1 {
 			let mut proof_sigma_i: HashMap<u16, PaillierDecryptionModQProof<Secp256k1, Sha256>> =
 				HashMap::new();
 
-			self.ssid.P.iter().map(|l| {
+			self.ssid.P.iter().for_each(|l| {
 				if *l != self.ssid.X.i {
 					let statement_sigma_l_i = PaillierDecryptionModQStatement {
 						S: self.presigning_transcript.S.get(l).unwrap_or(&BigInt::zero()).clone(),
@@ -434,7 +431,7 @@ impl Round2 {
 				let si = msg.i;
 				// Check D_hat_i_j proofs
 				let mut vec_D_hat_si_j_proof_bad_actors: Vec<usize> = vec![];
-				self.ssid.P.iter().map(|j| {
+				self.ssid.P.iter().for_each(|j| {
 					if *j != self.ssid.X.i {
 						let D_hat_si_j_proof =
 							msg.proofs_D_hat_j_i.get(&(self.ssid.X.i, *j)).unwrap();

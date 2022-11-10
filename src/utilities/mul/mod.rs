@@ -31,13 +31,13 @@ use std::marker::PhantomData;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierMulStatement<E: Curve, H: Digest + Clone> {
-	N: BigInt,
-	NN: BigInt,
-	C: BigInt,
-	Y: BigInt,
-	X: BigInt,
-	ek_prover: EncryptionKey,
-	phantom: PhantomData<(E, H)>,
+	pub N: BigInt,
+	pub NN: BigInt,
+	pub C: BigInt,
+	pub Y: BigInt,
+	pub X: BigInt,
+	pub ek_prover: EncryptionKey,
+	pub phantom: PhantomData<(E, H)>,
 }
 
 pub struct PaillierMulWitness<E: Curve, H: Digest + Clone> {
@@ -45,6 +45,12 @@ pub struct PaillierMulWitness<E: Curve, H: Digest + Clone> {
 	rho: BigInt,
 	rho_x: BigInt,
 	phantom: PhantomData<(E, H)>,
+}
+
+impl<E: Curve, H: Digest + Clone> PaillierMulWitness<E, H> {
+	pub fn new(x: BigInt, rho: BigInt, rho_x: BigInt) -> Self {
+		PaillierMulWitness{ x, rho, rho_x, phantom: PhantomData }
+	}
 }
 
 impl<E: Curve, H: Digest + Clone> PaillierMulStatement<E, H> {
