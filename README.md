@@ -56,6 +56,11 @@ Implementation checklist
 - [ ] Testing **4-round $O(n^2)$ identifiable abort** `presign` and `sign`.
 - [ ] Implementing all ZKPs for **7-round $O(n)$ identifiable abort**
   - [ ] `aff-p`
+  - [ ] `enc-elg`
+  - [ ] `aff-p`
+  - [ ] `elog`
+  - [ ] `Nth`
+  - [ ] `log`
 - [ ] Implementing **7-round $O(n)$ identifiable abort** `presign` and `sign`.
   - [ ] Entire protocol unimplemented (refer to CGGMP paper for details + taurus-group implementation).
 - [ ] Testing **7-round $O(n)$ identifiable abort** `presign` and `sign`.
