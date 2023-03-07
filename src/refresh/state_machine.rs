@@ -1,6 +1,7 @@
 use crate::refresh::rounds::{Round0, Round1, Round2};
 
 use curv::elliptic::curves::Secp256k1;
+
 use fs_dkr::{
 	add_party_message::JoinMessage,
 	error::{FsDkrError, FsDkrResult},
@@ -391,10 +392,13 @@ pub mod test {
 	use crate::refresh::state_machine::KeyRefresh;
 	#[allow(unused_imports)]
 	use curv::{
-		cryptographic_primitives::secret_sharing::feldman_vss::{
+		cryptographic_primitives::{
+                    proofs::sigma_dlog::DLogProof,
+                    secret_sharing::feldman_vss::{
 			ShamirSecretSharing, VerifiableSS,
-		},
-		elliptic::curves::Secp256k1,
+		    },
+                },
+		elliptic::curves::{Secp256k1, Scalar},
 	};
 	use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::*;
 	use round_based::dev::Simulation;
@@ -459,9 +463,11 @@ pub mod test {
 			.map(|i| new_local_keys[i].keys_linear.x_i.clone())
 			.collect();
 		let indices: Vec<_> = (0..(t + 1)).collect();
-		let vss = VerifiableSS::<Secp256k1> {
+		let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n },
 			commitments: Vec::new(),
+                        proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
+                            &Scalar::random()),
 		};
 
 		assert_eq!(
@@ -525,14 +531,18 @@ pub mod test {
 			.map(|i| new_local_keys[i].keys_linear.x_i.clone())
 			.collect();
 		let indices: Vec<_> = (0..(t + 1)).collect();
-		let vss = VerifiableSS::<Secp256k1> {
+		let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n },
 			commitments: Vec::new(),
+                        proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
+                            &Scalar::random()),
 		};
 
-		let new_vss = VerifiableSS::<Secp256k1> {
+		let new_vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n + 2 },
 			commitments: Vec::new(),
+                        proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
+                            &Scalar::random()),
 		};
 
 		assert_eq!(
@@ -613,9 +623,11 @@ pub mod test {
 			.map(|i| new_local_keys[i].keys_linear.x_i.clone())
 			.collect();
 		let indices: Vec<_> = (0..(t + 1)).collect();
-		let vss = VerifiableSS::<Secp256k1> {
+		let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n },
 			commitments: Vec::new(),
+                        proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
+                            &Scalar::random()),
 		};
 
 		assert_eq!(
@@ -683,14 +695,18 @@ pub mod test {
 
 		let old_indices = vec![0, 1, 2];
 		let new_indices = vec![0, 1, 2];
-		let vss = VerifiableSS::<Secp256k1> {
+		let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n },
 			commitments: Vec::new(),
+                        proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
+                            &Scalar::random()),
 		};
 
-		let new_vss = VerifiableSS::<Secp256k1> {
+		let new_vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n + 1 },
 			commitments: Vec::new(),
+                        proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
+                            &Scalar::random()),
 		};
 
 		assert_eq!(
