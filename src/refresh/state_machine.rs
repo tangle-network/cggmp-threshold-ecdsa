@@ -393,12 +393,10 @@ pub mod test {
 	#[allow(unused_imports)]
 	use curv::{
 		cryptographic_primitives::{
-                    proofs::sigma_dlog::DLogProof,
-                    secret_sharing::feldman_vss::{
-			ShamirSecretSharing, VerifiableSS,
-		    },
-                },
-		elliptic::curves::{Secp256k1, Scalar},
+			proofs::sigma_dlog::DLogProof,
+			secret_sharing::feldman_vss::{ShamirSecretSharing, VerifiableSS},
+		},
+		elliptic::curves::{Scalar, Secp256k1},
 	};
 	use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::*;
 	use round_based::dev::Simulation;
@@ -466,8 +464,7 @@ pub mod test {
 		let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n },
 			commitments: Vec::new(),
-                        proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
-                            &Scalar::random()),
+			proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(&Scalar::random()),
 		};
 
 		assert_eq!(
@@ -534,15 +531,13 @@ pub mod test {
 		let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n },
 			commitments: Vec::new(),
-                        proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
-                            &Scalar::random()),
+			proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(&Scalar::random()),
 		};
 
 		let new_vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n + 2 },
 			commitments: Vec::new(),
-                        proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
-                            &Scalar::random()),
+			proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(&Scalar::random()),
 		};
 
 		assert_eq!(
@@ -626,8 +621,7 @@ pub mod test {
 		let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n },
 			commitments: Vec::new(),
-                        proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
-                            &Scalar::random()),
+			proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(&Scalar::random()),
 		};
 
 		assert_eq!(
@@ -698,15 +692,13 @@ pub mod test {
 		let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n },
 			commitments: Vec::new(),
-                        proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
-                            &Scalar::random()),
+			proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(&Scalar::random()),
 		};
 
 		let new_vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
 			parameters: ShamirSecretSharing { threshold: t, share_count: n + 1 },
 			commitments: Vec::new(),
-                        proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
-                            &Scalar::random()),
+			proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(&Scalar::random()),
 		};
 
 		assert_eq!(
