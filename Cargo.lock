@@ -385,20 +385,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "centipede"
-version = "0.3.1"
-source = "git+https://github.com/zengo-x/centipede.git#491836c78b73a2d5c8a898b43be1762500006015"
-dependencies = [
- "bulletproof-kzen",
- "curv-kzen",
- "generic-array 0.14.6",
- "rayon",
- "serde",
- "serde_derive",
- "sha2 0.9.9",
-]
-
-[[package]]
 name = "cfg-if"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -417,7 +403,7 @@ dependencies = [
  "aes-gcm 0.9.4",
  "anyhow",
  "bincode",
- "centipede 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "centipede",
  "criterion",
  "curv-kzen",
  "fs-dkr",
@@ -777,6 +763,7 @@ dependencies = [
  "hmac 0.11.0",
  "lazy_static",
  "merkle-cbt",
+ "num-bigint 0.4.3",
  "num-integer",
  "num-traits",
  "p256",
@@ -1010,7 +997,7 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b24d4059bc0d0a0bf26b740aa21af1f96a984f0ab7a21356d00b32475388b53a"
 dependencies = [
- "num-bigint",
+ "num-bigint 0.2.6",
  "num-integer",
  "num-traits",
  "proc-macro2",
@@ -1060,7 +1047,7 @@ dependencies = [
 [[package]]
 name = "fs-dkr"
 version = "0.1.0"
-source = "git+https://github.com/tmpfs/fs-dkr?branch=deps-update#1f9ceabaad1dc52503ddca9f7d76b744bfbb6c11"
+source = "git+https://github.com/tmpfs/fs-dkr?branch=repo-revert#80ea94aff2aedf146eb5a5c54ee1d2719e90fa52"
 dependencies = [
  "bitvec",
  "curv-kzen",
@@ -1842,9 +1829,9 @@ dependencies = [
 [[package]]
 name = "multi-party-ecdsa"
 version = "0.8.2"
-source = "git+https://github.com/tmpfs/multi-party-ecdsa?branch=deps-update#fbff36d4f4c192888c80431032f23acb6c0d4d27"
+source = "git+https://github.com/webb-tools/multi-party-ecdsa#facf26da1bee74f6bf10ebfba58bc8828d74c6a9"
 dependencies = [
- "centipede 0.3.1 (git+https://github.com/zengo-x/centipede.git)",
+ "centipede",
  "curv-kzen",
  "derivative",
  "kzen-paillier",
@@ -1888,6 +1875,18 @@ dependencies = [
  "autocfg 1.1.0",
  "num-integer",
  "num-traits",
+]
+
+[[package]]
+name = "num-bigint"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f93ab6289c7b344a8a9f60f88d80aa20032336fe78da341afc91c8a2341fc75f"
+dependencies = [
+ "autocfg 1.1.0",
+ "num-integer",
+ "num-traits",
+ "serde",
 ]
 
 [[package]]
