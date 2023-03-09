@@ -340,7 +340,7 @@ impl Keys {
 		let global_vss = VerifiableSS {
 			parameters: vss_scheme_vec[0].parameters.clone(),
 			commitments: global_coefficients,
-                        proof: vss_scheme_vec[0].proof.clone(),
+			proof: vss_scheme_vec[0].proof.clone(),
 		};
 		(1..=len)
 			.map(|i| global_vss.get_point_commitment(i.try_into().unwrap()))
