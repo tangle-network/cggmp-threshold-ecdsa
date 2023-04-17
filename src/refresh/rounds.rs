@@ -10,7 +10,8 @@ use round_based::{
 	containers::{push::Push, BroadcastMsgs, BroadcastMsgsStore},
 	Msg,
 };
-use sha2::Sha256;
+
+use crate::utilities::sha2::Sha256;
 
 pub enum PartyType {
 	Existing(Box<LocalKey<Secp256k1>>),

@@ -1,6 +1,7 @@
 use crate::refresh::rounds::{Round0, Round1, Round2};
 
 use curv::elliptic::curves::Secp256k1;
+use serde::{Serialize, Deserialize};
 
 use fs_dkr::{
 	add_party_message::JoinMessage,
@@ -17,7 +18,8 @@ use round_based::{
 	IsCritical, Msg, StateMachine,
 };
 
-use sha2::Sha256;
+//use sha2::Sha256;
+use crate::utilities::sha2::Sha256;
 use std::{collections::HashMap, fmt, mem::replace, time::Duration};
 use thiserror::Error;
 
@@ -311,14 +313,14 @@ enum R {
 /// Protocol message which parties send on wire
 ///
 /// Hides actual messages structure so it could be changed without breaking semver policy.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProtocolMessage(M);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 enum M {
 	Round1(Option<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>),
 	Round2(
-		Option<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
+	    Option<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
 	),
 }
 
