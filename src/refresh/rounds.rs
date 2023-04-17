@@ -95,9 +95,7 @@ impl Round1 {
 		O: Push<
 			Msg<
 				Option<
-					FsDkrResult<
-						RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
-					>,
+				    RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
 				>,
 			>,
 		>,
@@ -125,12 +123,12 @@ impl Round1 {
 				output.push(Msg {
 					sender: old_i,
 					receiver: None,
-					body: Some(Ok(refresh_message.clone().0)),
+					body: Some(refresh_message.clone().0),
 				});
 				Ok(Round2 {
 					party_type: PartyType::Existing(local_key),
 					join_messages: join_message_vec,
-					refresh_message: Some(Ok(refresh_message.0)),
+					refresh_message: Some(refresh_message.0),
 					new_paillier_decryption_key: new_paillier_dk,
 					t: self.t,
 					n: self.n,
@@ -174,7 +172,7 @@ pub struct Round2 {
 	pub party_type: PartyType,
 	pub join_messages: Vec<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
 	pub refresh_message:
-		Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>,
+		Option<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
 	pub new_paillier_decryption_key: DecryptionKey,
 	t: u16,
 	n: u16,
@@ -185,7 +183,7 @@ impl Round2 {
 		self,
 		input: BroadcastMsgs<
 			Option<
-				FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
+				RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
 			>,
 		>,
 	) -> Result<LocalKey<Secp256k1>> {
@@ -194,7 +192,7 @@ impl Round2 {
 			RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
 		> = Vec::new();
 		for refresh_message_option in refresh_message_option_vec.into_iter().flatten() {
-			refresh_message_vec.push(refresh_message_option.unwrap())
+			refresh_message_vec.push(refresh_message_option)
 		}
 
 		match self.party_type {

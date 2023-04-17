@@ -4,7 +4,7 @@ use curv::elliptic::curves::Secp256k1;
 
 use fs_dkr::{
 	add_party_message::JoinMessage,
-	error::{FsDkrError, FsDkrResult},
+	error::FsDkrError,
 	refresh_message::RefreshMessage,
 };
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
@@ -25,7 +25,7 @@ pub type Round0Messages =
 	Store<BroadcastMsgs<Option<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>>;
 pub type Round1Messages = Store<
 	BroadcastMsgs<
-		Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>,
+		Option<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
 	>,
 >;
 
@@ -318,7 +318,7 @@ pub struct ProtocolMessage(M);
 enum M {
 	Round1(Option<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>),
 	Round2(
-		Option<FsDkrResult<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>,
+		Option<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
 	),
 }
 
