@@ -110,7 +110,7 @@ pub struct PreSigningSecrets {
 	pub dk: DecryptionKey,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreSigningP2PMessage1<E: Curve> {
 	pub ssid: SSID<E>,
 	pub i: u16,
@@ -121,7 +121,7 @@ pub struct PreSigningP2PMessage1<E: Curve> {
 	pub enc_j_statement: PaillierEncryptionInRangeStatement<E, Sha256>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreSigningP2PMessage2<E: Curve> {
 	pub ssid: SSID<E>,
 	pub i: u16,
@@ -138,7 +138,7 @@ pub struct PreSigningP2PMessage2<E: Curve> {
 	pub statement_psi_prime_j_i: KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreSigningP2PMessage3<E: Curve> {
 	pub ssid: SSID<E>,
 	pub i: u16,
@@ -211,7 +211,7 @@ pub struct PresigningTranscript<E: Curve> {
 	pub N_hats: HashMap<u16, BigInt>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdentifiableAbortBroadcastMessage<E: Curve> {
 	pub i: u16,
 	pub statements_D_j_i:

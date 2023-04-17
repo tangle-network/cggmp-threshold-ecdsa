@@ -31,6 +31,7 @@ use round_based::{
 };
 
 use std::{collections::HashMap, fmt, mem::replace, time::Duration};
+use serde::{Serialize, Deserialize};
 use thiserror::Error;
 
 // NOTE: This is a hack since in the 1st round we will need to broadcast and send P2P
@@ -388,10 +389,10 @@ enum R {
 /// Protocol message which parties send on wire
 ///
 /// Hides actual messages structure so it could be changed without breaking semver policy.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProtocolMessage(M);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 enum M {
 	Round1(Box<PreSigningP2PMessage1<Secp256k1>>),
 	Round2(Box<PreSigningP2PMessage2<Secp256k1>>),
