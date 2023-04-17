@@ -38,6 +38,7 @@ use crate::utilities::{
 };
 
 use zeroize::Zeroize;
+use serde::{Serialize, Deserialize};
 
 pub mod rounds;
 pub mod state_machine;
@@ -46,7 +47,7 @@ pub fn DEFAULT_ENCRYPTION_KEY() -> EncryptionKey {
 	EncryptionKey { n: BigInt::zero(), nn: BigInt::zero() }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SSID<E: Curve> {
 	// Group generator and order
 	pub g: Point<E>,

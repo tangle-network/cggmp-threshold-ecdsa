@@ -16,6 +16,7 @@
 use std::collections::HashMap;
 
 use curv::{elliptic::curves::Curve, BigInt};
+use serde::{Serialize, Deserialize};
 
 use sha2::Sha256;
 
@@ -33,14 +34,14 @@ use crate::presign::SSID;
 pub mod rounds;
 pub mod state_machine;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SigningBroadcastMessage1<E: Curve> {
 	pub ssid: SSID<E>,
 	pub i: u16,
 	pub sigma_i: BigInt,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SigningOutput<E: Curve> {
 	pub ssid: SSID<E>,
 	pub m: BigInt,
@@ -48,7 +49,7 @@ pub struct SigningOutput<E: Curve> {
 	pub sigma: BigInt,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SigningIdentifiableAbortMessage<E: Curve> {
 	pub i: u16,
 	pub proofs_D_hat_j_i: HashMap<(u16, u16), PaillierAffineOpWithGroupComInRangeProof<E, Sha256>>,
