@@ -10,6 +10,7 @@ pub mod log_star;
 pub mod mta;
 pub mod mul;
 pub mod mul_star;
+pub mod sha2;
 pub mod zk_pdl;
 pub mod zk_pdl_with_slack;
 
