@@ -102,7 +102,7 @@ impl<E: Curve> Zeroize for SSID<E> {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreSigningSecrets {
 	pub x_i: BigInt,
 	pub y_i: Option<BigInt>,
@@ -148,7 +148,7 @@ pub struct PreSigningP2PMessage3<E: Curve> {
 	pub statement_psi_prime_prime_j_i: KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresigningOutput<E: Curve> {
 	pub ssid: SSID<E>,
 	pub R: Point<E>,
@@ -168,7 +168,7 @@ impl<E: Curve> Zeroize for PresigningOutput<E> {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PresigningTranscript<E: Curve> {
 	pub ssid: SSID<E>,
 	pub secrets: PreSigningSecrets,
