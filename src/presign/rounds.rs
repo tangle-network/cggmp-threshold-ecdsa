@@ -188,7 +188,7 @@ impl Round1 {
 		let lambda_i_s = VerifiableSS::<Secp256k1, Sha256>::map_share_to_new_params(
 			&self.ssid.X.vss_scheme.parameters,
 			self.ssid.X.i - 1,
-			&(0..self.ssid.X.n).collect::<Vec<u16>>()
+			&self.ssid.P.iter().map(|i| i - 1).collect::<Vec<u16>>(),
 		);
 		let omega_i = BigInt::mod_mul(
 			&lambda_i_s.to_bigint(),
