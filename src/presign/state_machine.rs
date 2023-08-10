@@ -620,7 +620,7 @@ pub mod test {
 					g: generator.clone(),
 					q: group_order.clone(),
 					P: party_indices.clone(),
-					rid: BigInt::sample(256).to_bytes().try_into().unwrap(),
+					rid: BigInt::strict_sample(256).to_bytes().try_into().unwrap(),
 					X: key.clone(),
 					Y: None, // Y is not needed for 4-round signing.
 					N: paillier_ek.n.clone(),
