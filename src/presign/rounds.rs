@@ -48,10 +48,10 @@ use super::{
 };
 use curv::{
 	arithmetic::{traits::*, Modulo, Samplable},
+	cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS,
 	elliptic::curves::{Point, Scalar, Secp256k1},
 	BigInt,
 };
-use curv::cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS;
 
 use paillier::{
 	Add, Decrypt, EncryptWithChosenRandomness, EncryptionKey, Mul, Paillier, Randomness,
@@ -190,11 +190,7 @@ impl Round1 {
 			self.ssid.X.i - 1,
 			&self.ssid.P.iter().map(|i| i - 1).collect::<Vec<u16>>(),
 		);
-		let omega_i = BigInt::mod_mul(
-			&lambda_i_s.to_bigint(),
-			&self.secrets.x_i,
-			&self.ssid.q
-		);
+		let omega_i = BigInt::mod_mul(&lambda_i_s.to_bigint(), &self.secrets.x_i, &self.ssid.q);
 
 		let mut K: HashMap<u16, BigInt> = HashMap::new();
 		let mut G: HashMap<u16, BigInt> = HashMap::new();
@@ -296,9 +292,10 @@ impl Round1 {
 				// F_j_i = enc_i(beta_i_j, r_i_j)
 				let F_j_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 					&self.secrets.ek,
-					// To compute F_j_i, beta_i_j is NOT multiplied by -1 in the paper (see Figure 7, Round 2 in the paper),
-					// but that makes Π^aff-g ZK proof verification fail (see Figure 15 in the paper).
-					// This is because Π^aff-g states:
+					// To compute F_j_i, beta_i_j is NOT multiplied by -1 in the paper
+					// (see Figure 7, Round 2 in the paper), but that makes Π^aff-g ZK proof
+					// verification fail (see Figure 15 in the paper). This is because Π^aff-g
+					// states:
 					// - Y = (1 + N_1)^y ρ_y ^ N_1
 					// - D = C^x (1 + N_0)^y ρ ^ N_0
 					// And from Figure 7, Round 2 we can see that:
@@ -312,16 +309,23 @@ impl Round1 {
 					// - D = D_j_i i.e K ^ {gamma_i} (1 + N_i)^{beta_i_j} s_i_j ^ {N_i}
 					// :- (2) D ≡ gamma_i ⊙ K_j ⊕ enc_i(beta_i_j, s_i_j)
 					//
-					// From (1) and (2) we can see the mismatch between Π^aff-g (see Figure 15) and pre-signing definitions (see Figure 7, Round 2)
-					// i.e the Π^aff-g verification will fail unless we apply (or don't apply) negation uniformly to beta_i_j before encrypting it to generate F_j_i and D_j_i.
+					// From (1) and (2) we can see the mismatch between Π^aff-g (see Figure 15) and
+					// pre-signing definitions (see Figure 7, Round 2) i.e the Π^aff-g verification
+					// will fail unless we apply (or don't apply) negation uniformly to beta_i_j
+					// before encrypting it to generate F_j_i and D_j_i.
 					//
 					// We have 2 options to solve the sign mismatch:
-					// - (A). We can redefine y as negative beta_i_j, update F_j_i to encrypt a negative beta_i_j, and leave D_j_i unchanged.
-					// - (B). We can redefine D_j_i to encrypt a positive beta_i_j, leave y and F_j_i unchanged, and modify Figure 7, Round 3 to subtract beta_i_j instead of adding it when computing delta_i.
+					// - (A). We can redefine y as negative beta_i_j, update F_j_i to encrypt a
+					//   negative beta_i_j, and leave D_j_i unchanged.
+					// - (B). We can redefine D_j_i to encrypt a positive beta_i_j, leave y and
+					//   F_j_i unchanged, and modify Figure 7, Round 3 to subtract beta_i_j instead
+					//   of adding it when computing delta_i.
 					//
-					// We choose option (A) since it entails less modifications to the overall protocol (i.e all changes are performed in Round 2).
-					// NOTE: A similar transformation has to be applied to the "hat" variants (i.e beta_hat_i_j, F_hat_j_i, D_hat_j_i)  as well.
-					// (see also https://en.wikipedia.org/wiki/Paillier_cryptosystem#Homomorphic_properties)
+					// We choose option (A) since it entails less modifications to the overall
+					// protocol (i.e all changes are performed in Round 2).
+					//
+					// NOTE: A similar transformation has to be applied to the "hat" variants (i.e
+					// beta_hat_i_j, F_hat_j_i, D_hat_j_i)  as well. (see also https://en.wikipedia.org/wiki/Paillier_cryptosystem#Homomorphic_properties)
 					RawPlaintext::from(BigInt::from(-1).mul(&beta_i_j.clone())),
 					&Randomness::from(r_i_j.clone()),
 				)
@@ -342,7 +346,8 @@ impl Round1 {
 					Paillier::mul(
 						eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()),
 						RawCiphertext::from(K.get(j).unwrap_or(&BigInt::zero())),
-						// We use omega_i in place of x_i, see doc on omega_i definition for explanation.
+						// We use omega_i in place of x_i, see doc on omega_i definition for
+						// explanation.
 						RawPlaintext::from(omega_i.clone()),
 					),
 					encrypt_minus_beta_hat_i_j,
@@ -354,7 +359,8 @@ impl Round1 {
 				// F_hat_j_i = enc_i(beta_hat_i_j, r_hat_i_j)
 				let F_hat_j_i: BigInt = Paillier::encrypt_with_chosen_randomness(
 					&self.secrets.ek,
-					// See reasoning documented under F_j_i for why we multiply beta_hat_i_j by -1 before encrypting it.
+					// See reasoning documented under F_j_i for why we multiply beta_hat_i_j by -1
+					// before encrypting it.
 					RawPlaintext::from(BigInt::from(-1).mul(&beta_hat_i_j.clone())),
 					&Randomness::from(r_hat_i_j.clone()),
 				)
@@ -393,7 +399,8 @@ impl Round1 {
 
 				// psi_hat_j_i
 				let witness_psi_hat_j_i = PaillierAffineOpWithGroupComInRangeWitness::new(
-					// We use omega_i in place of x_i, see doc on omega_i definition for explanation.
+					// We use omega_i in place of x_i, see doc on omega_i definition for
+					// explanation.
 					omega_i.clone(),
 					// See reasoning documented under F_j_i for why we multiply beta_hat_i_j by -1.
 					BigInt::from(-1).mul(&beta_hat_i_j.clone()),
@@ -411,9 +418,9 @@ impl Round1 {
 					C: K.get(j).unwrap_or(&BigInt::zero()).clone(),
 					D: D_hat_j_i.clone(),
 					Y: F_hat_j_i.clone(),
-					// We use omega_i in place of x_i, see doc on omega_i definition for explanation.
-					X: Point::<Secp256k1>::generator().as_point() *
-						Scalar::from_bigint(&omega_i),
+					// We use omega_i in place of x_i, see doc on omega_i definition for
+					// explanation.
+					X: Point::<Secp256k1>::generator().as_point() * Scalar::from_bigint(&omega_i),
 					ek_prover: self.secrets.ek.clone(),
 					ek_verifier: eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).clone(),
 					phantom: PhantomData,
@@ -435,7 +442,8 @@ impl Round1 {
 					C: self.G_i.clone(),
 					X: Gamma_i.clone(),
 					// g is not always the secp256k1 generator, so we have to pass it explicitly.
-					// See [`KnowledgeOfExponentPaillierEncryptionStatement`] inline doc for g field for details.
+					// See [`KnowledgeOfExponentPaillierEncryptionStatement`] inline doc for g field
+					// for details.
 					g: Point::generator().to_point(),
 					s: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
 					t: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
@@ -554,7 +562,8 @@ impl Round2 {
 		let mut F_hat_i: HashMap<u16, BigInt> = HashMap::new();
 		let mut Gammas: HashMap<u16, Point<Secp256k1>> = HashMap::new();
 
-		// Shift alpha_i_j to the interval {-N/2,...,N/2} (if necessary) as defined in Section 4.1 of the paper.
+		// Shift alpha_i_j to the interval {-N/2,...,N/2} (if necessary) as defined in Section 4.1
+		// of the paper.
 		let shift_into_plus_minus_n_by_2_interval = |mut value: BigInt| -> BigInt {
 			if value > self.secrets.ek.n.div_floor(&BigInt::from(2)) {
 				value -= &self.secrets.ek.n;
@@ -655,8 +664,9 @@ impl Round2 {
 							&self.secrets.dk,
 							RawCiphertext::from(D_i.get(j).unwrap_or(&BigInt::zero())),
 						)
-							.into()
-					).mod_floor(&self.ssid.q),
+						.into(),
+					)
+					.mod_floor(&self.ssid.q),
 				);
 				alpha_hat_i.insert(
 					*j,
@@ -665,8 +675,9 @@ impl Round2 {
 							&self.secrets.dk,
 							RawCiphertext::from(D_hat_i.get(j).unwrap_or(&BigInt::zero())),
 						)
-							.into()
-					).mod_floor(&self.ssid.q),
+						.into(),
+					)
+					.mod_floor(&self.ssid.q),
 				);
 			}
 		}
@@ -695,7 +706,8 @@ impl Round2 {
 
 		// chi_i = x_i * k_i + sum of alpha_hat_i_j's + sum of beta_hat_i_j's
 		let chi_i = BigInt::mod_add(
-			// We use omega_i in place of x_i, see doc on omega_i definition (in Round 1) for explanation.
+			// We use omega_i in place of x_i, see doc on omega_i definition (in Round 1) for
+			// explanation.
 			&BigInt::mod_mul(&self.omega_i, &self.k_i, &self.ssid.q),
 			&BigInt::mod_add(&sum_of_alpha_hats, &sum_of_beta_hats, &self.ssid.q),
 			&self.ssid.q,
@@ -878,7 +890,11 @@ impl Round3 {
 		}
 
 		// delta = sum of delta_j's
-		let delta = deltas.values().into_iter().fold(self.delta_i.clone(), |acc, x| acc.add(x)).mod_floor(&self.ssid.q);
+		let delta = deltas
+			.values()
+			.into_iter()
+			.fold(self.delta_i.clone(), |acc, x| acc.add(x))
+			.mod_floor(&self.ssid.q);
 
 		// Compute product of Delta_j's
 		let product_of_Deltas =
