@@ -464,4 +464,219 @@ mod private {
 	}
 }
 
-pub mod test {}
+#[cfg(test)]
+pub mod test {
+	use super::*;
+	use crate::utilities::sha2::Sha256;
+	use curv::{
+		arithmetic::{
+			traits::{Modulo, One, Samplable},
+			Converter,
+		},
+		cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS,
+		elliptic::curves::{Point, Scalar},
+	};
+	use fs_dkr::ring_pedersen_proof::RingPedersenStatement;
+	use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::{
+		Keygen, LocalKey,
+	};
+	use round_based::dev::Simulation;
+	use std::ops::Deref;
+
+	fn simulate_keygen(t: u16, n: u16) -> Vec<LocalKey<Secp256k1>> {
+		let mut simulation = Simulation::new();
+
+		for i in 1..=n {
+			simulation.add_party(Keygen::new(i, t, n).unwrap());
+		}
+
+		simulation.run().unwrap()
+	}
+
+	fn simulate_presign(
+		inputs: Vec<(
+			SSID<Secp256k1>,
+			PreSigningSecrets,
+			HashMap<u16, BigInt>, // S
+			HashMap<u16, BigInt>, // T
+			HashMap<u16, BigInt>, // N_hats
+		)>,
+		l: usize, // pre-signing index.
+	) -> Vec<Option<(PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)>> {
+		let mut simulation = Simulation::new();
+
+		for (ssid, secrets, S, T, N_hats) in inputs {
+			simulation.add_party(PreSigning::new(ssid, secrets, S, T, N_hats, l).unwrap());
+		}
+
+		simulation.run().unwrap()
+	}
+
+	pub fn extract_secret_key(local_keys: &[LocalKey<Secp256k1>]) -> Scalar<Secp256k1> {
+		let secret_shares: Vec<Scalar<Secp256k1>> =
+			local_keys.iter().map(|key| key.keys_linear.x_i.clone()).collect();
+		local_keys[0].vss_scheme.reconstruct(
+			&(0..local_keys.len() as u16).collect::<Vec<u16>>(),
+			&secret_shares.clone(),
+		)
+	}
+
+	pub fn extract_k(
+		presign_outputs: &[Option<(
+			PresigningOutput<Secp256k1>,
+			PresigningTranscript<Secp256k1>,
+		)>],
+	) -> Scalar<Secp256k1> {
+		let q = Scalar::<Secp256k1>::group_order();
+		Scalar::<Secp256k1>::from_bigint(
+			&presign_outputs
+				.iter()
+				.filter_map(|it| it.as_ref().map(|(output, _)| output.k_i.clone()))
+				.fold(BigInt::from(0), |acc, x| BigInt::mod_add(&acc, &x, q)),
+		)
+	}
+
+	// t = threshold, n = total number of parties, p = number of participants.
+	// NOTE: Quorum size = t + 1.
+	pub fn generate_parties_and_simulate_presign(
+		t: u16,
+		n: u16,
+		p: u16,
+	) -> (
+		Vec<LocalKey<Secp256k1>>,
+		Vec<SSID<Secp256k1>>,
+		Vec<Option<(PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)>>,
+	) {
+		// Runs keygen simulation for test parameters.
+		let keys = simulate_keygen(t, n);
+		assert_eq!(keys.len(), n as usize);
+
+		// Extracts and verifies the shared secret key.
+		let sec_key = extract_secret_key(&keys);
+		let pub_key = keys[0].public_key();
+		assert_eq!(Point::<Secp256k1>::generator() * &sec_key, pub_key);
+
+		// Verifies that transforming of x_i, which is a (t,n) share of x, into a (t,t+1) share
+		// omega_i using an appropriate lagrangian coefficient lambda_{i,S} as defined by GG18 and
+		// GG20 works.
+		// Ref: https://eprint.iacr.org/2021/060.pdf (Section 1.2.8)
+		// Ref: https://eprint.iacr.org/2019/114.pdf (Section 4.2)
+		// Ref: https://eprint.iacr.org/2020/540.pdf (Section 3.2)
+		let secret_shares: Vec<Scalar<Secp256k1>> =
+			keys.iter().map(|key| key.keys_linear.x_i.clone()).collect();
+		let omega_shares: Vec<Scalar<Secp256k1>> = keys[0..p as usize]
+			.iter()
+			.enumerate()
+			.map(|(idx, key)| {
+				let x_i = secret_shares[idx].clone();
+				let lambda_i_s = VerifiableSS::<Secp256k1, Sha256>::map_share_to_new_params(
+					&key.vss_scheme.parameters,
+					key.i - 1,
+					&(0..p).collect::<Vec<u16>>(),
+				);
+				lambda_i_s * x_i
+			})
+			.collect();
+		let omega_sec_key = omega_shares.iter().fold(Scalar::<Secp256k1>::zero(), |acc, x| acc + x);
+		assert_eq!(omega_sec_key, sec_key);
+
+		// Generates auxiliary "ring" Pedersen parameters for all participants.
+		let mut aux_ring_pedersen_n_hat_values = HashMap::with_capacity(keys.len());
+		let mut aux_ring_pedersen_s_values = HashMap::with_capacity(keys.len());
+		let mut aux_ring_pedersen_t_values = HashMap::with_capacity(keys.len());
+		for idx in 1..=p {
+			let (ring_pedersen_params, _) = RingPedersenStatement::<Secp256k1, Sha256>::generate();
+			aux_ring_pedersen_n_hat_values.insert(idx, ring_pedersen_params.N);
+			aux_ring_pedersen_s_values.insert(idx, ring_pedersen_params.S);
+			aux_ring_pedersen_t_values.insert(idx, ring_pedersen_params.T);
+		}
+
+		// Creates pre-signing inputs and auxiliary parameters for ZK proofs.
+		let generator = Point::<Secp256k1>::generator().to_point();
+		let group_order = Scalar::<Secp256k1>::group_order();
+		let party_indices: Vec<u16> = (1..=p).collect();
+		let inputs: Vec<(
+			SSID<Secp256k1>,
+			PreSigningSecrets,
+			HashMap<u16, BigInt>, // S
+			HashMap<u16, BigInt>, // T
+			HashMap<u16, BigInt>, // N_hats
+		)> = keys[0..p as usize]
+			.iter()
+			.map(|key| {
+				// Creates SSID and pre-signing secrets.
+				// We already have Paillier keys from GG20 keygen or FS-DKR so we just reuse them.
+				let paillier_ek = key.paillier_key_vec[key.i as usize - 1].clone();
+				let paillier_dk = key.paillier_dk.clone();
+				// Composes SSID.
+				// See Figure 6, Round 1.
+				// Ref: <https://eprint.iacr.org/2021/060.pdf>.
+				let phi = (&paillier_dk.p - BigInt::one()) * (&paillier_dk.q - BigInt::one());
+				let r = BigInt::sample_below(&paillier_ek.n);
+				let lambda = BigInt::sample_below(&phi);
+				let t = BigInt::mod_pow(&r, &BigInt::from(2), &paillier_ek.n);
+				let s = BigInt::mod_pow(&t, &lambda, &paillier_ek.n);
+				let ssid = SSID {
+					g: generator.clone(),
+					q: group_order.clone(),
+					P: party_indices.clone(),
+					rid: BigInt::sample(256).to_bytes().try_into().unwrap(),
+					X: key.clone(),
+					Y: None, // Y is not needed for 4-round signing.
+					N: paillier_ek.n.clone(),
+					S: s,
+					T: t,
+				};
+				// Composes pre-signing secrets.
+				let pre_sign_secrets = PreSigningSecrets {
+					x_i: BigInt::from_bytes(key.keys_linear.x_i.to_bytes().deref()),
+					y_i: None, // Y is not needed for 4-round signing.
+					ek: paillier_ek,
+					dk: paillier_dk,
+				};
+
+				(
+					ssid,
+					pre_sign_secrets,
+					aux_ring_pedersen_s_values.clone(),
+					aux_ring_pedersen_t_values.clone(),
+					aux_ring_pedersen_n_hat_values.clone(),
+				)
+			})
+			.collect();
+		let ssids = inputs.iter().map(|(ssid, ..)| ssid.clone()).collect();
+
+		// Runs pre-signing simulation for test parameters and verifies the outputs.
+		let outputs = simulate_presign(inputs, 1);
+		// Verifies that r, the x projection of R = g^k-1 is computed correctly.
+		let q = Scalar::<Secp256k1>::group_order();
+		let r_dist = outputs[0].as_ref().unwrap().0.R.x_coord().unwrap();
+		let k = extract_k(&outputs);
+		let r_direct = (Point::<Secp256k1>::generator() * k.invert().unwrap()).x_coord().unwrap();
+		assert_eq!(r_dist, r_direct);
+		// Verifies that chi_i are additive shares of kx.
+		let k_x = &k * &sec_key;
+		let chi_i_sum = Scalar::<Secp256k1>::from_bigint(
+			&outputs
+				.iter()
+				.filter_map(|it| it.as_ref().map(|(output, _)| output.chi_i.clone()))
+				.fold(BigInt::from(0), |acc, x| BigInt::mod_add(&acc, &x, q)),
+		);
+		assert_eq!(k_x, chi_i_sum);
+
+		// Returns generated local keys, SSIDs and pre-signing outputs.
+		(keys, ssids, outputs)
+	}
+
+	// All parties (2/2 pre-signing).
+	#[test]
+	fn presign_all_parties_works() {
+		generate_parties_and_simulate_presign(1, 2, 2);
+	}
+
+	// Threshold pre-signing (subset of parties) - (3/4 pre-signing).
+	#[test]
+	fn presign_threshold_works() {
+		generate_parties_and_simulate_presign(2, 4, 3);
+	}
+}
