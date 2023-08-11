@@ -75,7 +75,11 @@ impl Round0 {
 			// r = R projected onto x axis
 			let r = presigning_output.R.x_coord().unwrap_or_else(BigInt::zero);
 			// sigma_i = k*m + r*chi
-			let sigma_i = presigning_output.k_i.mul(&self.m).add(&r.mul(&presigning_output.chi_i));
+			let sigma_i = presigning_output
+				.k_i
+				.mul(&self.m)
+				.add(&r.mul(&presigning_output.chi_i))
+				.mod_floor(&self.ssid.q);
 			let body = SigningBroadcastMessage1 {
 				ssid: self.ssid.clone(),
 				i: self.ssid.X.i,
@@ -129,8 +133,11 @@ impl Round1 {
 		for msg in input.into_vec() {
 			sigmas.insert(msg.i, msg.sigma_i);
 		}
-		let sigma: BigInt =
-			sigmas.values().into_iter().fold(self.sigma_i.clone(), |acc, x| acc.add(x));
+		let sigma: BigInt = sigmas
+			.values()
+			.into_iter()
+			.fold(self.sigma_i.clone(), |acc, x| acc.add(x))
+			.mod_floor(&self.ssid.q);
 
 		// Verify (r, sigma) is a valid signature
 		// sigma^{-1}

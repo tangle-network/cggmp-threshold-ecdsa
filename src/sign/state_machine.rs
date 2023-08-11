@@ -385,4 +385,95 @@ mod private {
 	}
 }
 
-pub mod test {}
+#[cfg(test)]
+mod test {
+	use super::*;
+	use crate::presign::state_machine::test::{
+		extract_k, extract_secret_key, generate_parties_and_simulate_presign,
+	};
+	use curv::{
+		arithmetic::{Converter, Integer},
+		elliptic::curves::{Point, Scalar},
+	};
+	use round_based::dev::Simulation;
+
+	fn simulate_sign(
+		inputs: Vec<(
+			SSID<Secp256k1>,
+			HashMap<u16, (PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)>,
+		)>,
+		m: BigInt, // message digest.
+		l: usize,  // pre-signing index.
+	) -> Vec<Option<SigningOutput<Secp256k1>>> {
+		let mut simulation = Simulation::new();
+
+		for (ssid, presigning_data) in inputs {
+			simulation.add_party(Signing::new(ssid, l, m.clone(), presigning_data).unwrap());
+		}
+
+		simulation.run().unwrap()
+	}
+
+	// t = threshold, n = total number of parties, p = number of participants.
+	// NOTE: Quorum size = t + 1.
+	pub fn generate_parties_and_simulate_sign(t: u16, n: u16, p: u16) {
+		// Runs pre-sign simulation for test parameters.
+		let (keys, ssids, presigning_outputs) = generate_parties_and_simulate_presign(t, n, p);
+		assert_eq!(keys.len(), n as usize);
+		assert_eq!(ssids.len(), p as usize);
+
+		// Creates inputs for signing simulation based on test parameters and pre-signing outputs.
+		let pre_signing_output_idx = 1; // l in the CGGMP20 paper.
+								// Creates signing parameters.
+		let inputs: Vec<(
+			SSID<Secp256k1>,
+			HashMap<u16, (PresigningOutput<Secp256k1>, PresigningTranscript<Secp256k1>)>,
+		)> = presigning_outputs
+			.iter()
+			.filter_map(|it| {
+				it.as_ref().map(|(output, transcript)| {
+					let idx = output.i as usize - 1;
+					(
+						ssids[idx].clone(),
+						HashMap::from([(
+							pre_signing_output_idx as u16,
+							(output.clone(), transcript.clone()),
+						)]),
+					)
+				})
+			})
+			.collect();
+		// Create SHA256 message digest.
+		let message = b"Hello, world!";
+		use sha2::Digest;
+		let mut hasher = sha2::Sha256::new();
+		hasher.update(message);
+		let message_digest = BigInt::from_bytes(&hasher.finalize());
+
+		// Runs signing simulation for test parameters and verifies the output signature.
+		let results = simulate_sign(inputs, message_digest.clone(), pre_signing_output_idx);
+		// Extracts signature from results.
+		let signature = results[0].as_ref().map(|it| (it.r.clone(), it.sigma.clone())).unwrap();
+		// Verifies against expected signature.
+		let q = Scalar::<Secp256k1>::group_order();
+		let sec_key = extract_secret_key(&keys);
+		let k = extract_k(&presigning_outputs);
+		let r_direct = (Point::<Secp256k1>::generator() * k.invert().unwrap()).x_coord().unwrap();
+		let s_direct =
+			(k.to_bigint() * (message_digest + (&r_direct * &sec_key.to_bigint()))).mod_floor(q);
+		let expected_signature = (r_direct, s_direct);
+		assert_eq!(signature, expected_signature);
+	}
+
+	// All parties (2/2 signing).
+	#[test]
+	fn sign_all_parties_works() {
+		generate_parties_and_simulate_sign(1, 2, 2);
+	}
+
+	// Threshold signing (subset of parties) - (3/4 signing).
+	#[test]
+	fn sign_threshold_works() {
+		generate_parties_and_simulate_sign(2, 4, 3);
+	}
+}

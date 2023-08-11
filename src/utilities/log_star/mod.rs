@@ -40,6 +40,14 @@ pub struct KnowledgeOfExponentPaillierEncryptionStatement<E: Curve, H: Digest + 
 	pub NN0: BigInt,
 	pub C: BigInt,
 	pub X: Point<E>,
+	// Πlog∗ states X = g^x.
+	// This g is not allows the generator of secp256k1.
+	// An example is 3-Round Presigning (see Figure 7, Round 3 in the paper) where:
+	// - x = k_i
+	// - X = Delta_i
+	// - Delta_i = Gamma^{k_i}
+	// :- g = Gamma
+	pub g: Point<E>,
 	pub N_hat: BigInt,
 	pub s: BigInt,
 	pub t: BigInt,
@@ -62,6 +70,7 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncryptionStatement
 	#[allow(clippy::too_many_arguments)]
 	pub fn generate(
 		rho: BigInt,
+		g: Option<Point<E>>,
 		s: BigInt,
 		t: BigInt,
 		N_hat: BigInt,
@@ -73,7 +82,8 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncryptionStatement
 		let N0 = paillier_key.clone().n;
 		let NN0 = paillier_key.nn;
 		let x = BigInt::sample_range(&BigInt::from(-1).mul(&l_exp), &l_exp);
-		let X = Point::<E>::generator().as_point() * Scalar::from(&x);
+		let g = g.unwrap_or(Point::<E>::generator().to_point());
+		let X = &g * Scalar::from(&x);
 		let C: BigInt = Paillier::encrypt_with_chosen_randomness(
 			&EncryptionKey { n: N0.clone(), nn: NN0.clone() },
 			RawPlaintext::from(&x),
@@ -81,7 +91,7 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncryptionStatement
 		)
 		.into();
 		(
-			Self { N0, NN0, C, X, N_hat, s, t, phantom: PhantomData },
+			Self { N0, NN0, C, X, g, N_hat, s, t, phantom: PhantomData },
 			KnowledgeOfExponentPaillierEncryptionWitness { x, rho, phantom: PhantomData },
 		)
 	}
@@ -149,7 +159,7 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncryptionProof<E, 
 		.into();
 
 		// Y = g^alpha
-		let Y = Point::<E>::generator().as_point() * Scalar::from_bigint(&alpha);
+		let Y = &statement.g * Scalar::from_bigint(&alpha);
 		// D = s^alpha t^gamma mod N_hat
 		let D = BigInt::mod_mul(
 			&mod_pow_with_negative(&statement.s, &alpha, &statement.N_hat),
@@ -213,7 +223,7 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncryptionProof<E, 
 		);
 
 		// left_2 = g^z_1
-		let left_2 = Point::<E>::generator().as_point() * Scalar::from_bigint(&proof.z_1);
+		let left_2 = &statement.g * Scalar::from_bigint(&proof.z_1);
 		// right_2 = Y * X^e
 		let right_2 = proof.commitment.Y.clone() + (statement.X.clone() * Scalar::from_bigint(&e));
 
@@ -269,6 +279,7 @@ mod tests {
 		let (statement, witness) =
 			KnowledgeOfExponentPaillierEncryptionStatement::<Secp256k1, Sha256>::generate(
 				rho,
+				Some(Point::<Secp256k1>::generator().to_point()),
 				ring_pedersen_statement.S,
 				ring_pedersen_statement.T,
 				ring_pedersen_statement.N,
