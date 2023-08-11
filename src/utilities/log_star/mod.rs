@@ -43,8 +43,8 @@ pub struct KnowledgeOfExponentPaillierEncryptionStatement<E: Curve, H: Digest + 
 	// Πlog∗ states X = g^x.
 	// This g is not allows the generator of secp256k1.
 	// An example is 3-Round Presigning (see Figure 7, Round 3 in the paper) where:
-    // - x = k_i
-    // - X = Delta_i
+	// - x = k_i
+	// - X = Delta_i
 	// - Delta_i = Gamma^{k_i}
 	// :- g = Gamma
 	pub g: Point<E>,

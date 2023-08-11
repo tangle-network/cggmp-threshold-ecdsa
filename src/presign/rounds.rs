@@ -325,7 +325,8 @@ impl Round1 {
 					// protocol (i.e all changes are performed in Round 2).
 					//
 					// NOTE: A similar transformation has to be applied to the "hat" variants (i.e
-					// beta_hat_i_j, F_hat_j_i, D_hat_j_i)  as well. (see also https://en.wikipedia.org/wiki/Paillier_cryptosystem#Homomorphic_properties)
+					// beta_hat_i_j, F_hat_j_i, D_hat_j_i)  as well.
+					// (see also https://en.wikipedia.org/wiki/Paillier_cryptosystem#Homomorphic_properties)
 					RawPlaintext::from(BigInt::from(-1).mul(&beta_i_j.clone())),
 					&Randomness::from(r_i_j.clone()),
 				)
