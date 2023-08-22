@@ -52,19 +52,29 @@ impl KeyRefresh {
 		local_key_option: Option<LocalKey<Secp256k1>>,
 		new_party_index_option: Option<u16>,
 		old_to_new_map: &HashMap<u16, u16>,
-		t: u16,
-		n: u16,
+		new_t: u16,
+		new_n: u16,
+		current_t_option: Option<u16>,
 	) -> Result<Self> {
-		if n < 2 {
+		if new_n < 2 {
 			return Err(Error::TooFewParties)
 		}
-		if t == 0 || t >= n {
+		if new_t == 0 || new_t >= new_n {
 			return Err(Error::InvalidThreshold)
 		}
 
-		let i = match local_key_option {
-			None => new_party_index_option.unwrap(),
-			_ => local_key_option.clone().unwrap().i,
+		// Sets the party index either from the `local_key_option` or `new_party_index_option`,
+		// otherwise returns an error if neither is Some.
+		let i = match local_key_option.as_ref().map(|it| it.i).or(new_party_index_option) {
+			Some(it) => it,
+			None => return Err(Error::MissingPartyIndex),
+		};
+
+		// Sets the current/old threshold either from the `local_key_option` or `current_t_option`,
+		// otherwise returns an error if neither is Some.
+		let current_t = match local_key_option.as_ref().map(|it| it.t).or(current_t_option) {
+			Some(it) => it,
+			None => return Err(Error::UnknownCurrentThreshold),
 		};
 
 		let mut state = Self {
@@ -72,18 +82,19 @@ impl KeyRefresh {
 				local_key_option,
 				new_party_index_option,
 				old_to_new_map: old_to_new_map.clone(),
-				t,
-				n,
+				new_t,
+				new_n,
+				current_t,
 			})),
 
-			round0_msgs: Some(Round1::expects_messages(i, n)),
-			round1_msgs: Some(Round2::expects_messages(i, n)),
+			round0_msgs: Some(Round1::expects_messages(i, new_n)),
+			round1_msgs: Some(Round2::expects_messages(i, new_n)),
 
 			msgs_queue: vec![],
 
 			party_i: i,
 
-			party_n: n,
+			party_n: new_n,
 		};
 
 		state.proceed_round(false)?;
@@ -345,6 +356,12 @@ pub enum Error {
 	/// Party index `i` is not in range `[1; n]`
 	#[error("party index is not in range [1; n]")]
 	InvalidPartyIndex,
+	/// No index set for new party
+	#[error("no index set for party")]
+	MissingPartyIndex,
+	/// Party doesn't know the current threshold
+	#[error("party doesn't know the current threshold")]
+	UnknownCurrentThreshold,
 
 	/// Received message didn't pass pre-validation
 	#[error("received message didn't pass pre-validation: {0}")]
@@ -388,6 +405,7 @@ mod private {
 	}
 }
 
+#[cfg(test)]
 pub mod test {
 	use std::collections::HashMap;
 
@@ -430,8 +448,9 @@ pub mod test {
 					Some(old_local_key.clone()),
 					None,
 					old_to_new_map,
-					old_local_key.clone().t,
+					old_local_key.t,
 					old_local_key.n,
+					None,
 				)
 				.unwrap(),
 			);
@@ -495,14 +514,16 @@ pub mod test {
 					&old_to_new_map,
 					old_local_key.clone().t,
 					n,
+					None,
 				)
 				.unwrap(),
 			);
 		}
 
 		for index in new_party_indices {
-			simulation
-				.add_party(KeyRefresh::new(None, Some(index), &old_to_new_map, t, n).unwrap());
+			simulation.add_party(
+				KeyRefresh::new(None, Some(index), &old_to_new_map, t, n, Some(t)).unwrap(),
+			);
 		}
 		simulation.run().unwrap()
 	}
@@ -578,14 +599,16 @@ pub mod test {
 					&old_to_new_map,
 					non_removed_local_key.clone().t,
 					n,
+					None,
 				)
 				.unwrap(),
 			);
 		}
 
 		for index in new_party_indices {
-			simulation
-				.add_party(KeyRefresh::new(None, Some(index), &old_to_new_map, t, n).unwrap());
+			simulation.add_party(
+				KeyRefresh::new(None, Some(index), &old_to_new_map, t, n, Some(t)).unwrap(),
+			);
 		}
 
 		simulation.run().unwrap()
@@ -653,6 +676,7 @@ pub mod test {
 						&old_to_new_map,
 						old_local_key.clone().t,
 						n,
+						None,
 					)
 					.unwrap(),
 				);
@@ -661,8 +685,9 @@ pub mod test {
 		}
 
 		for index in new_party_indices {
-			simulation
-				.add_party(KeyRefresh::new(None, Some(index), &old_to_new_map, t, n).unwrap());
+			simulation.add_party(
+				KeyRefresh::new(None, Some(index), &old_to_new_map, t, n, Some(t)).unwrap(),
+			);
 		}
 		simulation.run().unwrap()
 	}
@@ -706,6 +731,78 @@ pub mod test {
 		assert_eq!(
 			vss.reconstruct(&old_indices[..], &old_linear_secret_key[0..(t + 1) as usize]),
 			new_vss.reconstruct(&new_indices[..], &new_linear_secret_key[0..(t + 1) as usize])
+		);
+		assert_ne!(old_linear_secret_key, new_linear_secret_key);
+	}
+
+	// Refresh Keys: New Threshold, Only Existing Parties (No New Parties).
+	pub fn simulate_dkr_with_new_threshold(
+		old_local_keys: Vec<LocalKey<Secp256k1>>,
+		old_to_new_map: &HashMap<u16, u16>,
+		new_t: u16,
+	) -> Vec<LocalKey<Secp256k1>> {
+		let mut simulation = Simulation::new();
+		simulation.enable_benchmarks(false);
+
+		for old_local_key in old_local_keys {
+			simulation.add_party(
+				KeyRefresh::new(
+					Some(old_local_key.clone()),
+					None,
+					old_to_new_map,
+					new_t,
+					old_local_key.n,
+					None,
+				)
+				.unwrap(),
+			);
+		}
+
+		simulation.run().unwrap()
+	}
+
+	#[test]
+	pub fn test_dkr_with_new_threshold() {
+		let init_t = 2; // initial threshold.
+		let new_t = 1; // new/final threshold.
+		let n = 5;
+		let local_keys = simulate_keygen(init_t, n);
+
+		let old_local_keys = local_keys.clone();
+		let mut old_to_new_map = HashMap::new();
+		old_to_new_map.insert(1, 2);
+		old_to_new_map.insert(2, 1);
+		old_to_new_map.insert(3, 4);
+		old_to_new_map.insert(4, 3);
+		old_to_new_map.insert(5, 5);
+		let mut new_local_keys =
+			simulate_dkr_with_new_threshold(local_keys, &old_to_new_map, new_t);
+		new_local_keys.sort_by(|a, b| a.i.cmp(&b.i));
+
+		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
+			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
+			.collect();
+		let new_linear_secret_key: Vec<_> = (0..new_local_keys.len())
+			.map(|i| new_local_keys[i].keys_linear.x_i.clone())
+			.collect();
+
+		let old_indices: Vec<_> = (0..(init_t + 1)).collect();
+		let new_indices: Vec<_> = (0..(new_t + 1)).collect();
+
+		let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
+			parameters: ShamirSecretSharing { threshold: init_t, share_count: n },
+			commitments: Vec::new(),
+			proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(&Scalar::random()),
+		};
+		let new_vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
+			parameters: ShamirSecretSharing { threshold: new_t, share_count: n },
+			commitments: Vec::new(),
+			proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(&Scalar::random()),
+		};
+
+		assert_eq!(
+			vss.reconstruct(&old_indices[..], &old_linear_secret_key[0..(init_t + 1) as usize]),
+			new_vss.reconstruct(&new_indices[..], &new_linear_secret_key[0..(new_t + 1) as usize])
 		);
 		assert_ne!(old_linear_secret_key, new_linear_secret_key);
 	}

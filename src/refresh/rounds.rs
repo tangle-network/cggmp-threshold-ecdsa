@@ -24,8 +24,9 @@ pub struct Round0 {
 	pub local_key_option: Option<LocalKey<Secp256k1>>,
 	pub new_party_index_option: Option<u16>,
 	pub old_to_new_map: HashMap<u16, u16>,
-	pub t: u16,
-	pub n: u16,
+	pub new_t: u16,
+	pub new_n: u16,
+	pub current_t: u16,
 }
 
 impl Round0 {
@@ -40,8 +41,9 @@ impl Round0 {
 					None => Ok(Round1 {
 						party_type: PartyType::Existing(Box::new(local_key)),
 						old_to_new_map: self.old_to_new_map,
-						t: self.t,
-						n: self.n,
+						new_t: self.new_t,
+						new_n: self.new_n,
+						current_t: self.current_t,
 					}),
 					_ => Err(FsDkrError::NewPartyUnassignedIndexError),
 				}
@@ -63,8 +65,9 @@ impl Round0 {
 								new_party_index,
 							))),
 							old_to_new_map: self.old_to_new_map,
-							t: self.t,
-							n: self.n,
+							new_t: self.new_t,
+							new_n: self.new_n,
+							current_t: self.current_t,
 						})
 					},
 					None => Err(FsDkrError::NewPartyUnassignedIndexError),
@@ -80,8 +83,9 @@ impl Round0 {
 pub struct Round1 {
 	pub party_type: PartyType,
 	pub old_to_new_map: HashMap<u16, u16>,
-	t: u16,
-	n: u16,
+	new_t: u16,
+	new_n: u16,
+	current_t: u16,
 }
 
 impl Round1 {
@@ -117,7 +121,8 @@ impl Round1 {
 					join_message_slice,
 					&mut local_key,
 					&self.old_to_new_map,
-					self.n,
+					self.new_t,
+					self.new_n,
 				);
 				let refresh_message = refresh_message_result.unwrap();
 				let new_paillier_dk = refresh_message.clone().1;
@@ -131,8 +136,9 @@ impl Round1 {
 					join_messages: join_message_vec,
 					refresh_message: Some(refresh_message.0),
 					new_paillier_decryption_key: new_paillier_dk,
-					t: self.t,
-					n: self.n,
+					new_t: self.new_t,
+					new_n: self.new_n,
+					current_t: self.current_t,
 				})
 			},
 
@@ -153,8 +159,9 @@ impl Round1 {
 					join_messages: join_message_vec,
 					new_paillier_decryption_key: paillier_keys.dk,
 					refresh_message: None,
-					t: self.t,
-					n: self.n,
+					new_t: self.new_t,
+					new_n: self.new_n,
+					current_t: self.current_t,
 				})
 			},
 		}
@@ -175,8 +182,9 @@ pub struct Round2 {
 	pub refresh_message:
 		Option<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
 	pub new_paillier_decryption_key: DecryptionKey,
-	t: u16,
-	n: u16,
+	new_t: u16,
+	new_n: u16,
+	current_t: u16,
 }
 
 impl Round2 {
@@ -205,6 +213,7 @@ impl Round2 {
 					&mut local_key,
 					self.new_paillier_decryption_key,
 					join_message_slice,
+					self.current_t,
 				)?;
 				Ok(*local_key)
 			},
@@ -217,8 +226,9 @@ impl Round2 {
 					refresh_message_slice,
 					paillier_keys,
 					join_message_slice,
-					self.t,
-					self.n,
+					self.new_t,
+					self.new_n,
+					self.current_t,
 				)
 			},
 		}
