@@ -450,7 +450,7 @@ pub mod test {
 					old_to_new_map,
 					old_local_key.t,
 					old_local_key.n,
-					None
+					None,
 				)
 				.unwrap(),
 			);
@@ -514,15 +514,16 @@ pub mod test {
 					&old_to_new_map,
 					old_local_key.clone().t,
 					n,
-					None
+					None,
 				)
 				.unwrap(),
 			);
 		}
 
 		for index in new_party_indices {
-			simulation
-				.add_party(KeyRefresh::new(None, Some(index), &old_to_new_map, t, n, Some(t)).unwrap());
+			simulation.add_party(
+				KeyRefresh::new(None, Some(index), &old_to_new_map, t, n, Some(t)).unwrap(),
+			);
 		}
 		simulation.run().unwrap()
 	}
@@ -598,15 +599,16 @@ pub mod test {
 					&old_to_new_map,
 					non_removed_local_key.clone().t,
 					n,
-					None
+					None,
 				)
 				.unwrap(),
 			);
 		}
 
 		for index in new_party_indices {
-			simulation
-				.add_party(KeyRefresh::new(None, Some(index), &old_to_new_map, t, n, Some(t)).unwrap());
+			simulation.add_party(
+				KeyRefresh::new(None, Some(index), &old_to_new_map, t, n, Some(t)).unwrap(),
+			);
 		}
 
 		simulation.run().unwrap()
@@ -674,7 +676,7 @@ pub mod test {
 						&old_to_new_map,
 						old_local_key.clone().t,
 						n,
-						None
+						None,
 					)
 					.unwrap(),
 				);
@@ -683,8 +685,9 @@ pub mod test {
 		}
 
 		for index in new_party_indices {
-			simulation
-				.add_party(KeyRefresh::new(None, Some(index), &old_to_new_map, t, n, Some(t)).unwrap());
+			simulation.add_party(
+				KeyRefresh::new(None, Some(index), &old_to_new_map, t, n, Some(t)).unwrap(),
+			);
 		}
 		simulation.run().unwrap()
 	}
@@ -749,9 +752,9 @@ pub mod test {
 					old_to_new_map,
 					new_t,
 					old_local_key.n,
-					None
+					None,
 				)
-					.unwrap(),
+				.unwrap(),
 			);
 		}
 
@@ -772,7 +775,8 @@ pub mod test {
 		old_to_new_map.insert(3, 4);
 		old_to_new_map.insert(4, 3);
 		old_to_new_map.insert(5, 5);
-		let mut new_local_keys = simulate_dkr_with_new_threshold(local_keys, &old_to_new_map, new_t);
+		let mut new_local_keys =
+			simulate_dkr_with_new_threshold(local_keys, &old_to_new_map, new_t);
 		new_local_keys.sort_by(|a, b| a.i.cmp(&b.i));
 
 		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
