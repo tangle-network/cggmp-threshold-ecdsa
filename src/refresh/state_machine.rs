@@ -731,4 +731,75 @@ pub mod test {
 		);
 		assert_ne!(old_linear_secret_key, new_linear_secret_key);
 	}
+
+	// Refresh Keys: New Threshold, Only Existing Parties (No New Parties).
+	pub fn simulate_dkr_with_new_threshold(
+		old_local_keys: Vec<LocalKey<Secp256k1>>,
+		old_to_new_map: &HashMap<u16, u16>,
+		new_t: u16,
+	) -> Vec<LocalKey<Secp256k1>> {
+		let mut simulation = Simulation::new();
+		simulation.enable_benchmarks(false);
+
+		for old_local_key in old_local_keys {
+			simulation.add_party(
+				KeyRefresh::new(
+					Some(old_local_key.clone()),
+					None,
+					old_to_new_map,
+					new_t,
+					old_local_key.n,
+					None
+				)
+					.unwrap(),
+			);
+		}
+
+		simulation.run().unwrap()
+	}
+
+	#[test]
+	pub fn test_dkr_with_new_threshold() {
+		let init_t = 2; // initial threshold.
+		let new_t = 1; // new/final threshold.
+		let n = 5;
+		let local_keys = simulate_keygen(init_t, n);
+
+		let old_local_keys = local_keys.clone();
+		let mut old_to_new_map = HashMap::new();
+		old_to_new_map.insert(1, 2);
+		old_to_new_map.insert(2, 1);
+		old_to_new_map.insert(3, 4);
+		old_to_new_map.insert(4, 3);
+		old_to_new_map.insert(5, 5);
+		let mut new_local_keys = simulate_dkr_with_new_threshold(local_keys, &old_to_new_map, new_t);
+		new_local_keys.sort_by(|a, b| a.i.cmp(&b.i));
+
+		let old_linear_secret_key: Vec<_> = (0..old_local_keys.len())
+			.map(|i| old_local_keys[i].keys_linear.x_i.clone())
+			.collect();
+		let new_linear_secret_key: Vec<_> = (0..new_local_keys.len())
+			.map(|i| new_local_keys[i].keys_linear.x_i.clone())
+			.collect();
+
+		let old_indices: Vec<_> = (0..(init_t + 1)).collect();
+		let new_indices: Vec<_> = (0..(new_t + 1)).collect();
+
+		let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
+			parameters: ShamirSecretSharing { threshold: init_t, share_count: n },
+			commitments: Vec::new(),
+			proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(&Scalar::random()),
+		};
+		let new_vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
+			parameters: ShamirSecretSharing { threshold: new_t, share_count: n },
+			commitments: Vec::new(),
+			proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(&Scalar::random()),
+		};
+
+		assert_eq!(
+			vss.reconstruct(&old_indices[..], &old_linear_secret_key[0..(init_t + 1) as usize]),
+			new_vss.reconstruct(&new_indices[..], &new_linear_secret_key[0..(new_t + 1) as usize])
+		);
+		assert_ne!(old_linear_secret_key, new_linear_secret_key);
+	}
 }
