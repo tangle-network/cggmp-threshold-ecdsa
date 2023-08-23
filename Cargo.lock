@@ -417,7 +417,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "reqwest",
  "rocket",
- "round-based",
+ "round-based 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "secp256k1",
  "serde",
  "serde_json",
@@ -1048,13 +1048,13 @@ dependencies = [
 [[package]]
 name = "fs-dkr"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/fs-dkr#52b20f4b904f142b8f07fc296615571ed415b7ce"
+source = "git+https://github.com/webb-tools/fs-dkr#94da447f2ad32533664d43655bff518722e4fbdd"
 dependencies = [
  "bitvec",
  "curv-kzen",
  "kzen-paillier",
  "multi-party-ecdsa",
- "round-based",
+ "round-based 0.1.7 (git+https://github.com/webb-tools/round-based-protocol)",
  "serde",
  "serde_derive",
  "sha2 0.9.9",
@@ -1837,7 +1837,7 @@ dependencies = [
  "derivative",
  "kzen-paillier",
  "log",
- "round-based",
+ "round-based 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "sha2 0.9.9",
  "subtle",
@@ -2649,6 +2649,19 @@ name = "round-based"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61d7da583ffbf4d938fb9dc60871b51769ff47e9836e323668fe2d791ca2fa06"
+dependencies = [
+ "async-stream",
+ "futures 0.3.25",
+ "log",
+ "serde",
+ "thiserror",
+ "tokio 1.21.2",
+]
+
+[[package]]
+name = "round-based"
+version = "0.1.7"
+source = "git+https://github.com/webb-tools/round-based-protocol#959126f9f6edce16d4ee95954091b93e33a83140"
 dependencies = [
  "async-stream",
  "futures 0.3.25",
