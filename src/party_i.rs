@@ -156,6 +156,7 @@ pub fn generate_h1_h2_N_tilde() -> (BigInt, BigInt, BigInt, BigInt, BigInt) {
 	xhi = BigInt::sub(&phi, &xhi);
 	xhi_inv = BigInt::sub(&phi, &xhi_inv);
 
+	// xhi ~ alpha, xhi_inv ~ beta (as specified in binance tss-lib)
 	(ek_tilde.n, h1, h2, xhi, xhi_inv)
 }
 
