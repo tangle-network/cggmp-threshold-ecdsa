@@ -30,8 +30,8 @@ use round_based::{
 	},
 	IsCritical, Msg, StateMachine,
 };
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt, mem::replace, time::Duration};
-use serde::{Serialize, Deserialize};
 use thiserror::Error;
 
 // NOTE: This is a hack since in the 1st round we will need to broadcast and send P2P
