@@ -190,14 +190,13 @@ impl DlnProof {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::utilities::{mta::range_proofs::SampleFromMultiplicativeGroup, BITS_PAILLIER};
 	use curv::elliptic::curves::{secp256_k1::Secp256k1, Scalar};
 	use paillier::{KeyGeneration, Paillier};
 	use sha2::Sha512Trunc256;
 
 	#[test]
 	fn test_discrete_log_proof() {
-		let ((s1, w1), (s2, w2)) = DlnProofStatement::generate();
+		let ((s1, w1), _) = DlnProofStatement::generate();
 		let proof = DlnProof::prove(&w1, &s1);
 		let result = proof.verify(&s1);
 		assert!(result.is_ok());
