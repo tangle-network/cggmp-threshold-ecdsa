@@ -12,7 +12,7 @@ use thiserror::Error;
 
 use crate::party_i::Keys;
 
-pub const ITERATIONS: usize = 128;
+pub const ITERATIONS: usize = 80;
 
 #[derive(Error, Debug)]
 pub enum DlnProofError {
@@ -33,7 +33,7 @@ impl DlnProofStatement {
 	/// Following from https://github.com/bnb-chain/tss-lib/blob/master/ecdsa/keygen/round_1.go#L86-L96
 	/// we generate two statements to prove that both h1,h2 generate the same group mod N
 	pub fn generate() -> ((Self, DlnProofWitness), (Self, DlnProofWitness)) {
-		let key = Keys::create(0);
+		let key = Keys::create_safe_prime(0);
 		(
 			(
 				DlnProofStatement {
@@ -82,9 +82,10 @@ impl DlnProof {
 			hash = hash.chain_bigint(&alpha[i]);
 		}
 
-		let c: Vec<_> = hash
-			.result_bigint()
-			.to_bytes()
+		let digest = hash.result_bigint();
+		println!("Prover | Digest: {:?}", digest);
+
+		let c: Vec<_> = digest.to_bytes()
 			.into_iter()
 			.flat_map(|val| {
 				[
@@ -112,24 +113,20 @@ impl DlnProof {
 	}
 
 	pub fn verify(&self, statement: &DlnProofStatement) -> Result<(), DlnProofError> {
-		println!("Verify h1 >= 1 and h1 < N");
 		let h1 = statement.h1.mod_floor(&statement.N);
 		if h1 <= BigInt::one() || h1 >= statement.N {
 			return Err(DlnProofError::Verify)
 		}
 
-		println!("Verify h2 >= 1 and h2 < N");
 		let h2 = statement.h2.mod_floor(&statement.N);
 		if h2 <= BigInt::one() || h2 >= statement.N {
 			return Err(DlnProofError::Verify)
 		}
 
-		println!("Verify h1 != h2");
 		if h1 == h2 {
 			return Err(DlnProofError::Verify)
 		}
 
-		println!("Verify all T_i >= 1 and T_i < N");
 		for t in &self.T {
 			let a = t.mod_floor(&statement.N);
 			if a <= BigInt::one() || a >= statement.N {
@@ -137,7 +134,6 @@ impl DlnProof {
 			}
 		}
 
-		println!("Verify all Alpha_i >= 1 and Alpha_i < N");
 		for alpha in &self.Alpha {
 			let a = alpha.mod_floor(&statement.N);
 			if a <= BigInt::one() || a >= statement.N {
@@ -154,9 +150,10 @@ impl DlnProof {
 			hash = hash.chain_bigint(&self.Alpha[i]);
 		}
 
-		let c: Vec<_> = hash
-			.result_bigint()
-			.to_bytes()
+		let digest = hash.result_bigint();
+		println!("Verifier | Digest: {:?}", digest);
+
+		let c: Vec<_> = digest.to_bytes()
 			.into_iter()
 			.flat_map(|val| {
 				[
@@ -201,7 +198,6 @@ mod tests {
 	#[test]
 	fn test_discrete_log_proof() {
 		let ((s1, w1), (s2, w2)) = DlnProofStatement::generate();
-		let x = Scalar::<Secp256k1>::random();
 		let proof = DlnProof::prove(&w1, &s1);
 		let result = proof.verify(&s1);
 		assert!(result.is_ok());
