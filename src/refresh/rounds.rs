@@ -97,13 +97,7 @@ impl Round1 {
 		mut output: O,
 	) -> Result<Round2>
 	where
-		O: Push<
-			Msg<
-				Option<
-				    RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
-				>,
-			>,
-		>,
+		O: Push<Msg<Option<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>>>,
 	{
 		let join_message_option_vec = input.into_vec();
 		let mut join_message_vec: Vec<
@@ -191,9 +185,7 @@ impl Round2 {
 	pub fn proceed(
 		self,
 		input: BroadcastMsgs<
-			Option<
-				RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
-			>,
+			Option<RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
 		>,
 	) -> Result<LocalKey<Secp256k1>> {
 		let refresh_message_option_vec = input.into_vec_including_me(self.refresh_message);

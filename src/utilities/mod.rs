@@ -5,6 +5,7 @@ use curv::{
 
 pub mod aff_g;
 pub mod dec_q;
+pub mod dlnproof;
 pub mod enc;
 pub mod log_star;
 pub mod mta;

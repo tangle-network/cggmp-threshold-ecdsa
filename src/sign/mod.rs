@@ -16,7 +16,7 @@
 use std::collections::HashMap;
 
 use curv::{elliptic::curves::Curve, BigInt};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use sha2::Sha256;
 

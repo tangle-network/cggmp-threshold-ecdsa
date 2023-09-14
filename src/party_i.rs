@@ -140,8 +140,8 @@ pub struct SignatureRecid {
 
 pub fn generate_h1_h2_N_tilde() -> (BigInt, BigInt, BigInt, BigInt, BigInt) {
 	// note, should be safe primes:
-	// let (ek_tilde, dk_tilde) = Paillier::keypair_safe_primes().keys();;
-	let (ek_tilde, dk_tilde) = Paillier::keypair().keys();
+	let (ek_tilde, dk_tilde) = Paillier::keypair_safe_primes().keys();
+	// let (ek_tilde, dk_tilde) = Paillier::keypair().keys();
 	let one = BigInt::one();
 	let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
 	let h1 = BigInt::sample_below(&ek_tilde.n);
