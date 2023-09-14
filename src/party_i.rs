@@ -144,7 +144,7 @@ pub fn generate_h1_h2_N_tilde() -> (BigInt, BigInt, BigInt, BigInt, BigInt) {
 	// let (ek_tilde, dk_tilde) = Paillier::keypair().keys();
 	let one = BigInt::one();
 	let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
-	let (mut xhi, mut xhi_inv) = loop {
+	let (xhi, xhi_inv) = loop {
 		let xhi_ = BigInt::sample_below(&phi);
 		match BigInt::mod_inv(&xhi_, &phi) {
 			Some(inv) => break (xhi_, inv),

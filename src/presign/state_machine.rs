@@ -515,10 +515,9 @@ pub mod test {
 	pub fn extract_secret_key(local_keys: &[LocalKey<Secp256k1>]) -> Scalar<Secp256k1> {
 		let secret_shares: Vec<Scalar<Secp256k1>> =
 			local_keys.iter().map(|key| key.keys_linear.x_i.clone()).collect();
-		local_keys[0].vss_scheme.reconstruct(
-			&(0..local_keys.len() as u16).collect::<Vec<u16>>(),
-			&secret_shares.clone(),
-		)
+		local_keys[0]
+			.vss_scheme
+			.reconstruct(&(0..local_keys.len() as u16).collect::<Vec<u16>>(), &secret_shares)
 	}
 
 	pub fn extract_k(
