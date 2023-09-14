@@ -105,7 +105,7 @@ impl DlnProof {
 
 		let mut t: Vec<BigInt> = vec![BigInt::zero(); ITERATIONS];
 		for i in 0..ITERATIONS {
-			let c_i = BigInt::from(c[i] as u16);
+			let c_i = if c[i] == 0 { BigInt::zero() } else { BigInt::one() };
 			let rhs = BigInt::mod_mul(&c_i, &witness.x, &statement.N);
 			t[i] = BigInt::mod_add(&a[i], &rhs, &statement.N);
 
@@ -185,7 +185,7 @@ impl DlnProof {
 
 		// Validate the zero-knowledge proof
 		for i in 0..ITERATIONS {
-			let c_i = BigInt::from(c[i] as u16);
+			let c_i = if c[i] == 0 { BigInt::zero() } else { BigInt::one() };
 			let h1_exp_t_i = BigInt::mod_pow(&h1, &self.T[i], &statement.N);
 			let h2_exp_c_i = BigInt::mod_pow(&h2, &c_i, &statement.N);
 			let alpha_i_mul_h2_exp_c_i = BigInt::mod_mul(&self.Alpha[i], &h2_exp_c_i, &statement.N);
