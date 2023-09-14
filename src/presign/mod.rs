@@ -37,8 +37,8 @@ use crate::utilities::{
 	mul::{PaillierMulProof, PaillierMulStatement},
 };
 
+use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
-use serde::{Serialize, Deserialize};
 
 pub mod rounds;
 pub mod state_machine;
