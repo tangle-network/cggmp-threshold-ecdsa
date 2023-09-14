@@ -83,7 +83,7 @@ impl DlnProof {
 		}
 
 		let digest = hash.result_bigint();
-		println!("Prover | Digest: {:?}", digest);
+		println!("Prover | Digest: {:?}", digest.to_bytes());
 
 		let c: Vec<_> = digest.to_bytes()
 			.into_iter()
@@ -105,20 +105,28 @@ impl DlnProof {
 		let mut t: Vec<BigInt> = vec![BigInt::zero(); ITERATIONS];
 		for i in 0..ITERATIONS {
 			let c_i = BigInt::from(c[i] as u16);
-			let rhs = BigInt::mod_mul(&c_i, &witness.x, &p_mul_q);
-			t[i] = BigInt::mod_add(&a[i], &rhs, &p_mul_q);
+			let rhs = BigInt::mod_mul(&c_i, &witness.x, &statement.N);
+			t[i] = BigInt::mod_add(&a[i], &rhs, &statement.N);
+
+			let h1_exp_t_i = BigInt::mod_pow(&statement.h1, &t[i], &statement.N);
+			let h2_exp_c_i = BigInt::mod_pow(&statement.h2, &c_i, &statement.N);
+			let alpha_i_mul_h2_exp_c_i = BigInt::mod_mul(&alpha[i], &h2_exp_c_i, &statement.N);
+			if h1_exp_t_i != alpha_i_mul_h2_exp_c_i {
+				println!("Prover {:?} {:?} | h1_exp_t_i: {:?}", i, c_i, h1_exp_t_i);
+				println!("Prover {:?} {:?} | alpha_i_mul_h2_exp_c_i: {:?}", i, c_i, alpha_i_mul_h2_exp_c_i);
+			}
 		}
 
 		DlnProof { Alpha: alpha, T: t }
 	}
 
 	pub fn verify(&self, statement: &DlnProofStatement) -> Result<(), DlnProofError> {
-		let h1 = statement.h1.mod_floor(&statement.N);
+		let h1 = statement.h1.clone();
 		if h1 <= BigInt::one() || h1 >= statement.N {
 			return Err(DlnProofError::Verify)
 		}
 
-		let h2 = statement.h2.mod_floor(&statement.N);
+		let h2 = statement.h2.clone();
 		if h2 <= BigInt::one() || h2 >= statement.N {
 			return Err(DlnProofError::Verify)
 		}
@@ -151,7 +159,7 @@ impl DlnProof {
 		}
 
 		let digest = hash.result_bigint();
-		println!("Verifier | Digest: {:?}", digest);
+		println!("Verifier | Digest: {:?}", digest.to_bytes());
 
 		let c: Vec<_> = digest.to_bytes()
 			.into_iter()
@@ -177,8 +185,9 @@ impl DlnProof {
 			let h2_exp_c_i = BigInt::mod_pow(&h2, &c_i, &statement.N);
 			let alpha_i_mul_h2_exp_c_i = BigInt::mod_mul(&self.Alpha[i], &h2_exp_c_i, &statement.N);
 
-			println!("{:?}", i);
 			if h1_exp_t_i != alpha_i_mul_h2_exp_c_i {
+				println!("Verifier {:?} {:?} | h1_exp_t_i: {:?}", i, c_i, h1_exp_t_i);
+				println!("Verifier {:?} {:?} | alpha_i_mul_h2_exp_c_i: {:?}", i, c_i, alpha_i_mul_h2_exp_c_i);
 				return Err(DlnProofError::Verify)
 			}
 		}
@@ -190,9 +199,6 @@ impl DlnProof {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use curv::elliptic::curves::{secp256_k1::Secp256k1, Scalar};
-	use paillier::{KeyGeneration, Paillier};
-	use sha2::Sha512Trunc256;
 
 	#[test]
 	fn test_discrete_log_proof() {
