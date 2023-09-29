@@ -82,7 +82,7 @@ impl<E: Curve, H: Digest + Clone> KnowledgeOfExponentPaillierEncryptionStatement
 		let N0 = paillier_key.clone().n;
 		let NN0 = paillier_key.nn;
 		let x = BigInt::sample_range(&BigInt::from(-1).mul(&l_exp), &l_exp);
-		let g = g.unwrap_or(Point::<E>::generator().to_point());
+		let g = g.unwrap_or_else(|| Point::<E>::generator().to_point());
 		let X = &g * Scalar::from(&x);
 		let C: BigInt = Paillier::encrypt_with_chosen_randomness(
 			&EncryptionKey { n: N0.clone(), nn: NN0.clone() },

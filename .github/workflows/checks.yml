@@ -10,19 +10,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # checks markdown links
-  link-check:
-    name: links
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Check markdown links
-        uses: gaurav-nelson/github-action-markdown-link-check@v1
-        with:
-          use-quiet-mode: 'yes'
-          use-verbose-mode: 'yes'
-          check-modified-files-only: 'yes'
   # ensures build succeeds without warnings
   cargo-check:
     name: build

@@ -78,8 +78,8 @@ impl DlnProof {
 			.chain_bigint(&statement.h1)
 			.chain_bigint(&statement.h2)
 			.chain_bigint(&statement.N);
-		for i in 0..ITERATIONS {
-			hash = hash.chain_bigint(&alpha[i]);
+		for alpha_i in alpha.iter() {
+			hash = hash.chain_bigint(alpha_i);
 		}
 
 		let digest = hash.result_bigint();
@@ -97,7 +97,7 @@ impl DlnProof {
 					(val >> 3) & 1,
 					(val >> 2) & 1,
 					(val >> 1) & 1,
-					(val >> 0) & 1,
+					val & 1,
 				]
 				.into_iter()
 			})
@@ -177,15 +177,15 @@ impl DlnProof {
 					(val >> 3) & 1,
 					(val >> 2) & 1,
 					(val >> 1) & 1,
-					(val >> 0) & 1,
+					val & 1,
 				]
 				.into_iter()
 			})
 			.collect();
 
 		// Validate the zero-knowledge proof
-		for i in 0..ITERATIONS {
-			let c_i = if c[i] == 0 { BigInt::zero() } else { BigInt::one() };
+		for (i, c_val) in c.iter().enumerate().take(ITERATIONS) {
+			let c_i = if *c_val == 0u8 { BigInt::zero() } else { BigInt::one() };
 			let h1_exp_t_i = BigInt::mod_pow(&h1, &self.T[i], &statement.N);
 			let h2_exp_c_i = BigInt::mod_pow(&h2, &c_i, &statement.N);
 			let alpha_i_mul_h2_exp_c_i = BigInt::mod_mul(&self.Alpha[i], &h2_exp_c_i, &statement.N);
