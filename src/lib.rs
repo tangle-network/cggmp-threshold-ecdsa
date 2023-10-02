@@ -29,6 +29,8 @@ pub mod sign;
 pub mod traits;
 pub mod utilities;
 
+pub use multi_party_ecdsa as mpc_ecdsa;
+
 #[derive(Copy, PartialEq, Eq, Clone, Debug)]
 pub enum Error {
     InvalidKey,
