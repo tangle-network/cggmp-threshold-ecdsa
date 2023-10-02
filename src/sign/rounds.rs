@@ -146,7 +146,6 @@ impl Round1 {
         }
         let sigma: BigInt = sigmas
             .values()
-            .into_iter()
             .fold(self.sigma_i.clone(), |acc, x| acc.add(x))
             .mod_floor(&self.ssid.q);
 

@@ -379,6 +379,7 @@ enum R {
 pub struct ProtocolMessage(M);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 enum M {
     Round1(
         Option<

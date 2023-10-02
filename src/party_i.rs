@@ -396,7 +396,7 @@ impl Keys {
                 vss.commitments.iter().enumerate()
             {
                 global_coefficients[i] =
-                    &global_coefficients[i] + &*coefficient_commitment;
+                    &global_coefficients[i] + coefficient_commitment;
             }
         }
 

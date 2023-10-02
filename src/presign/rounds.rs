@@ -738,10 +738,8 @@ impl Round2 {
         }
 
         // Gamma = Prod_j (Gamma_j)
-        let Gamma = Gammas
-            .values()
-            .into_iter()
-            .fold(self.Gamma_i.clone(), |acc, x| acc + x);
+        let Gamma =
+            Gammas.values().fold(self.Gamma_i.clone(), |acc, x| acc + x);
 
         // Delta = Gamma^{k_i}
         let Delta_i = Gamma.clone() * Scalar::from_bigint(&self.k_i);
@@ -782,30 +780,20 @@ impl Round2 {
         }
 
         // Sum alpha_i_j's
-        let sum_of_alphas = alpha_i
-            .values()
-            .into_iter()
-            .fold(BigInt::zero(), |acc, x| acc.add(x));
+        let sum_of_alphas =
+            alpha_i.values().fold(BigInt::zero(), |acc, x| acc.add(x));
 
         // Sum alpha_hat_i_j's
-        let sum_of_alpha_hats = alpha_hat_i
-            .values()
-            .into_iter()
-            .fold(BigInt::zero(), |acc, x| acc.add(x));
+        let sum_of_alpha_hats =
+            alpha_hat_i.values().fold(BigInt::zero(), |acc, x| acc.add(x));
 
         // Sum beta_i_j's
-        let sum_of_betas = self
-            .beta_i
-            .values()
-            .into_iter()
-            .fold(BigInt::zero(), |acc, x| acc.add(x));
+        let sum_of_betas =
+            self.beta_i.values().fold(BigInt::zero(), |acc, x| acc.add(x));
 
         // Sum beta_hat_i_j's
-        let sum_of_beta_hats = self
-            .beta_hat_i
-            .values()
-            .into_iter()
-            .fold(BigInt::zero(), |acc, x| acc.add(x));
+        let sum_of_beta_hats =
+            self.beta_hat_i.values().fold(BigInt::zero(), |acc, x| acc.add(x));
 
         // delta_i = gamma_i * k_i + sum of alpha_i_j's + sum of beta_i_j's mod
         // q
@@ -1016,15 +1004,12 @@ impl Round3 {
         // delta = sum of delta_j's
         let delta = deltas
             .values()
-            .into_iter()
             .fold(self.delta_i.clone(), |acc, x| acc.add(x))
             .mod_floor(&self.ssid.q);
 
         // Compute product of Delta_j's
-        let product_of_Deltas = Deltas
-            .values()
-            .into_iter()
-            .fold(self.Delta_i.clone(), |acc, x| acc + x);
+        let product_of_Deltas =
+            Deltas.values().fold(self.Delta_i.clone(), |acc, x| acc + x);
 
         if product_of_Deltas ==
             Point::<Secp256k1>::generator().as_point() *

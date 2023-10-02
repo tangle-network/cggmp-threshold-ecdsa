@@ -79,15 +79,15 @@ impl<E: Curve> Zeroize for SSID<E> {
         self.X.pk_vec = vec![];
 
         for encryption_key in self.X.paillier_key_vec.iter_mut() {
-            (*encryption_key).n.zeroize();
-            (*encryption_key).nn.zeroize();
+            encryption_key.n.zeroize();
+            encryption_key.nn.zeroize();
         }
         // TODO: Zeroize directly if this is insufficient
         self.X.y_sum_s = Point::zero();
         for dlog_statement in self.X.h1_h2_n_tilde_vec.iter_mut() {
-            (*dlog_statement).N.zeroize();
-            (*dlog_statement).g.zeroize();
-            (*dlog_statement).ni.zeroize();
+            dlog_statement.N.zeroize();
+            dlog_statement.g.zeroize();
+            dlog_statement.ni.zeroize();
         }
         self.X.vss_scheme.parameters.threshold.zeroize();
         self.X.vss_scheme.parameters.share_count.zeroize();
