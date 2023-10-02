@@ -34,6 +34,7 @@ digest = "0.9"
 generic-array = "0.14"
 rand_chacha = "0.3.1"
 rand = "0.8.5"
+getrandom = {version = "0.2", optional = true}
 
 [dependencies.paillier]
 version = "0.4.3"
@@ -59,3 +60,7 @@ secp256k1 = { version = "0.20", features = ["global-context"]}
 default = ["rust-gmp-kzen"]
 rust-gmp-kzen = ["fs-dkr/rust-gmp-kzen"]
 num-bigint = ["fs-dkr/num-bigint"]
+js = ["getrandom/js"]
+
+[patch.crates-io]
+curv-kzen = { git = "https://github.com/tmpfs/curv.git", branch = "wasm-bigint" }
