@@ -68,7 +68,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
 
 		// commit to points on the polynomial
 		let points_committed_vec: Vec<_> = (0..secret_shares.len())
-			.map(|i| Point::<E>::generator() * &secret_shares[i].clone().into())
+			.map(|i| Point::<E>::generator() * &secret_shares[i].clone())
 			.collect();
 
 		// encrypt points on the polynomial using Paillier keys
@@ -260,13 +260,13 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
 			let h1_h2_n_tilde =
 				key.h1_h2_n_tilde_vec.get((old_party_index - 1) as usize).unwrap().clone();
 			paillier_key_h1_h2_n_tilde_hash_map.insert(
-				old_to_new_map.get(old_party_index).unwrap().clone(),
+				*old_to_new_map.get(old_party_index).unwrap(),
 				(paillier_key, h1_h2_n_tilde),
 			);
 		}
 
 		for new_party_index in paillier_key_h1_h2_n_tilde_hash_map.keys() {
-			if new_party_index.clone() <= current_len {
+			if *new_party_index <= current_len {
 				key.paillier_key_vec[(new_party_index - 1) as usize] =
 					paillier_key_h1_h2_n_tilde_hash_map.get(new_party_index).unwrap().clone().0;
 				key.h1_h2_n_tilde_vec[(new_party_index - 1) as usize] =
@@ -305,7 +305,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
 
 	pub fn collect(
 		refresh_messages: &[Self],
-		mut local_key: &mut LocalKey<E>,
+		local_key: &mut LocalKey<E>,
 		new_dk: DecryptionKey,
 		join_messages: &[JoinMessage<E, H, M>],
 		current_t: u16,
@@ -433,7 +433,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
 
 		// update local key list of local public keys (X_i = g^x_i is updated by adding all
 		// committed points to that party)
-		for i in 0..refresh_messages.len() + join_messages.len() as usize {
+		for i in 0..refresh_messages.len() + join_messages.len() {
 			local_key
 				.pk_vec
 				.insert(i, refresh_messages[0].points_committed_vec[i].clone() * li_vec[0].clone());

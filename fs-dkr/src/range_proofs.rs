@@ -54,7 +54,7 @@ impl AliceZkpRound1 {
 		let beta = BigInt::from_paillier_key(alice_ek);
 		let gamma = BigInt::sample_below(&(q.pow(3) * N_tilde));
 		let ro = BigInt::sample_below(&(q * N_tilde));
-		let z = (BigInt::mod_pow(h1, &a, N_tilde) * BigInt::mod_pow(h2, &ro, N_tilde)) % N_tilde;
+		let z = (BigInt::mod_pow(h1, a, N_tilde) * BigInt::mod_pow(h2, &ro, N_tilde)) % N_tilde;
 		let u = ((alpha.borrow() * &alice_ek.n + 1) *
 			BigInt::mod_pow(&beta, &alice_ek.n, &alice_ek.nn)) %
 			&alice_ek.nn;
@@ -129,7 +129,7 @@ impl<E: Curve, H: Digest + Clone> AliceProof<E, H> {
 			z_e_inv) % N_tilde;
 
 		let gs1 = (self.s1.borrow() * N + 1) % NN;
-		let cipher_e_inv = BigInt::mod_inv(&BigInt::mod_pow(&cipher, &self.e, NN), NN);
+		let cipher_e_inv = BigInt::mod_inv(&BigInt::mod_pow(cipher, &self.e, NN), NN);
 		let cipher_e_inv = match cipher_e_inv {
 			None => return false,
 			Some(c) => c,
@@ -138,7 +138,7 @@ impl<E: Curve, H: Digest + Clone> AliceProof<E, H> {
 		let u = (gs1 * BigInt::mod_pow(&self.s, N, NN) * cipher_e_inv) % NN;
 
 		let e = H::new()
-			.chain_bigint(&N)
+			.chain_bigint(N)
 			.chain_bigint(&Gen)
 			.chain_bigint(cipher)
 			.chain_bigint(&self.z)
@@ -167,7 +167,7 @@ impl<E: Curve, H: Digest + Clone> AliceProof<E, H> {
 			q.bit_length() <= 256,
 			"We use SHA256 so we don't currently support moduli bigger than 256"
 		);
-		let round1 = AliceZkpRound1::from(alice_ek, dlog_statement, a, &q);
+		let round1 = AliceZkpRound1::from(alice_ek, dlog_statement, a, q);
 
 		let Gen = alice_ek.n.borrow() + 1;
 		let e = H::new()
