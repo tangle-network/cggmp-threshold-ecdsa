@@ -1,0 +1,108 @@
+[package]
+name = "multi-party-ecdsa"
+version = "0.8.2"
+edition = "2018"
+authors = [
+    "Gary <gary@kzencorp.com>",
+    "Omer <omer.shlomovits@gmail.com>"
+]
+keywords = [
+    "ecdsa",
+    "multi-party-ecdsa",
+    "signature",
+    "rust",
+    "secret-shares",
+    "blockchain",
+    "cryptography",
+    "cryptocurrency"
+]
+
+homepage = "https://github.com/KZen-networks/multi-party-ecdsa"
+repository = "https://github.com/KZen-networks/multi-party-ecdsa"
+license = "GPL-3.0-or-later"
+categories = ["cryptography"]
+
+[lib]
+crate-type = ["lib"]
+
+[features]
+default = ["curv-kzen/rust-gmp-kzen"]
+
+[dependencies]
+subtle = { version = "2" }
+serde = { version = "1.0", features = ["derive"] }
+zeroize = "^1.5"
+curv-kzen = { version = "0.10.0", default-features = false }
+centipede = { version = "0.3.1", default-features = false }
+zk-paillier = { version = "0.4.4", default-features = false }
+round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
+thiserror = "1.0.23"
+derivative = "2.2.0"
+sha2 = "0.9"
+log = "0.4.17"
+
+[dependencies.paillier]
+package = "kzen-paillier"
+version = "0.4.3"
+default-features = false
+
+[dev-dependencies]
+criterion = "0.3"
+aes-gcm = "0.9.4"
+hex = "0.4"
+tokio = { version = "1", default-features = false, features = ["macros"] }
+futures = "0.3"
+rocket = { version = "0.5.0-rc.1", default-features = false, features = ["json"] }
+reqwest = { version = "0.9", default-features = false }
+uuid = { version = "0.8", features = ["v4"] }
+serde_json = "1.0"
+rand = "0.8"
+surf = "2"
+async-sse = "5"
+anyhow = "1"
+structopt = "0.3"
+secp256k1 = { version = "0.20", features = ["global-context"]}
+
+thiserror = "1.0.23"
+round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = ["dev"] }
+[[example]]
+name = "gg18_sm_manager"
+
+[[example]]
+name = "gg18_sign_client"
+
+[[example]]
+name = "gg18_keygen_client"
+
+[[example]]
+name = "common"
+crate-type = ["lib"]
+
+[[bench]]
+name = "cclst_keygen"
+path = "benches/two_party_ecdsa/cclst_2019/keygen.rs"
+required-features = ["cclst"]
+harness = false
+
+[[bench]]
+name = "cclst_sign"
+path = "benches/two_party_ecdsa/cclst_2019/sign.rs"
+required-features = ["cclst"]
+harness = false
+
+
+[[bench]]
+name = "gg18"
+path = "benches/multi_party_ecdsa/gg18/keygen.rs"
+harness = false
+
+[[bench]]
+name = "lindel2017_keygen"
+path = "benches/two_party_ecdsa/lindell_2017/keygen.rs"
+harness = false
+
+
+[[bench]]
+name = "lindel2017_sign"
+path = "benches/two_party_ecdsa/lindell_2017/sign.rs"
+harness = false
