@@ -1,0 +1,40 @@
+[package]
+name = "fs-dkr"
+version = "0.1.0"
+authors = [
+    "Omer Shlomovits <omer.shlomovits@gmail.com>",
+    "Tudor Cebere <tudorcebere@gmail.com>",
+    "Drew Stone <drew@webb.tools>",
+]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies.paillier]
+version = "0.4.3"
+package = "kzen-paillier"
+default-features = false
+
+[dependencies.multi-party-ecdsa]
+workspace = true
+default-features = false
+
+[dependencies.bitvec]
+version = "1"
+default-features = false
+features = ["atomic", "alloc"]
+
+[dependencies]
+zk-paillier = { version = "0.4.4", default-features = false }
+curv = { package = "curv-kzen", version = "0.10", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_derive = "1.0"
+zeroize = "1"
+round-based = { git = "https://github.com/webb-tools/round-based-protocol", version = "0.1.4", features = ["dev"] }
+thiserror = "1.0.26"
+sha2 = "0.9"
+
+[features]
+default = ["rust-gmp-kzen"]
+rust-gmp-kzen = ["curv/rust-gmp-kzen"]
+num-bigint = ["curv/num-bigint"]
