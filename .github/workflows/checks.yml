@@ -48,10 +48,10 @@ jobs:
           access_token: ${{ github.token }}
 
       - uses: actions/checkout@v2
-      - name: Install latest nightly
+      - name: Install nightly toolchain
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: nightly
+            toolchain: nightly-2023-10-01
             components: rustfmt, clippy
 
       - name: Rust Cache
