@@ -41,7 +41,7 @@ jobs:
   
   # check compilation for wasm32-unknown-unknown
   webassembly-check:
-    name: lint
+    name: webassembly
     runs-on: ubuntu-latest
     steps:
       - name: Cancel Previous Runs
