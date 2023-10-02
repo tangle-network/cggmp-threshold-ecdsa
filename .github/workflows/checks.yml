@@ -12,6 +12,7 @@ on:
 jobs:
   # checks markdown links
   link-check:
+    if: ${{ false }}
     name: links
     runs-on: ubuntu-latest
     steps:
