@@ -12,7 +12,6 @@
 //! Components of the library:
 //!
 //! * [refresh_message]: crate::refresh_message
-//!
 
 pub mod add_party_message;
 pub mod error;
