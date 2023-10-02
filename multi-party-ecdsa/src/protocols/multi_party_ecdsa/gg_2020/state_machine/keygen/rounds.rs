@@ -201,7 +201,7 @@ impl Round3 {
                 let v = BigInt::from_bytes(&encrypted_share);
                 let c = RawCiphertext::from(v);
                 let raw_share: RawPlaintext<'_> = Paillier::decrypt(&self.keys.dk, c);
-                let share = Scalar::from_bigint(&raw_share.0.into_owned());
+                let share = Scalar::from_bigint(&raw_share.0);
                 let _ = decrypted_input.push_msg(Msg {
                     sender: i,
                     receiver: Some(self.party_i),
