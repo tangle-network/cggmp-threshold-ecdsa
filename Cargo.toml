@@ -72,6 +72,3 @@ default = ["rust-gmp-kzen"]
 rust-gmp-kzen = ["fs-dkr/rust-gmp-kzen"]
 num-bigint = ["fs-dkr/num-bigint"]
 js = ["getrandom/js"]
-
-[patch.crates-io]
-curv-kzen = { git = "https://github.com/tmpfs/curv.git", branch = "wasm-bigint" }

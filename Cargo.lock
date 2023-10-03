@@ -906,6 +906,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cryptoxide"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e35f15e1a0699dd988fed910dd78fdc6407f44654cd12589c91fa44ea67d9159"
+
+[[package]]
 name = "csv"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -978,8 +984,10 @@ dependencies = [
 [[package]]
 name = "curv-kzen"
 version = "0.10.0"
-source = "git+https://github.com/tmpfs/curv.git?branch=wasm-bigint#4bbe397e487bdaa84140433d08277c668e1e1f4e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a616b5f766fd80307f0e83de6326ccd9fe7b3ba4225fe4e12ae3a692a939d07b"
 dependencies = [
+ "cryptoxide",
  "curve25519-dalek",
  "digest 0.9.0",
  "ff-zeroize",
