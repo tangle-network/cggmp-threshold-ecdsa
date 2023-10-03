@@ -55,15 +55,19 @@ use curv::cryptographic_primitives::proofs::sigma_valid_pedersen::PedersenProof;
 
 use std::convert::TryInto;
 
+pub use crate::mpc_ecdsa::gg_2020::party_i::{
+    Parameters,
+    KeyGenBroadcastMessage1,
+    SharedKeys,
+    KeyGenDecommitMessage1,
+    SignBroadcastPhase1,
+    SignDecommitPhase1,
+    SignatureRecid,
+};
+
 const SECURITY: usize = 256;
 const PAILLIER_MIN_BIT_LENGTH: usize = 2047;
 const PAILLIER_MAX_BIT_LENGTH: usize = 2048;
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Parameters {
-    pub threshold: u16,   //t
-    pub share_count: u16, //n
-}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Keys<E: Curve = Secp256k1> {
@@ -88,28 +92,6 @@ pub struct PartyPrivate {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct KeyGenBroadcastMessage1 {
-    pub e: EncryptionKey,
-    pub dlog_statement: DLogStatement,
-    pub com: BigInt,
-    pub correct_key_proof: NiCorrectKeyProof,
-    pub composite_dlog_proof_base_h1: CompositeDLogProof,
-    pub composite_dlog_proof_base_h2: CompositeDLogProof,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct KeyGenDecommitMessage1 {
-    pub blind_factor: BigInt,
-    pub y_i: Point<Secp256k1>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SharedKeys {
-    pub y: Point<Secp256k1>,
-    pub x_i: Scalar<Secp256k1>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SignKeys {
     pub w_i: Scalar<Secp256k1>,
     pub g_w_i: Point<Secp256k1>,
@@ -118,16 +100,20 @@ pub struct SignKeys {
     pub g_gamma_i: Point<Secp256k1>,
 }
 
+/*
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SignBroadcastPhase1 {
     pub com: BigInt,
 }
+*/
 
+/*
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SignDecommitPhase1 {
     pub blind_factor: BigInt,
     pub g_gamma_i: Point<Secp256k1>,
 }
+*/
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LocalSignature {
@@ -138,12 +124,14 @@ pub struct LocalSignature {
     pub y: Point<Secp256k1>,
 }
 
+/*
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SignatureRecid {
     pub r: Scalar<Secp256k1>,
     pub s: Scalar<Secp256k1>,
     pub recid: u8,
 }
+*/
 
 pub fn generate_h1_h2_N_tilde() -> (BigInt, BigInt, BigInt, BigInt, BigInt) {
     // note, should be safe primes:
