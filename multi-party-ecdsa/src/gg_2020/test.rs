@@ -171,7 +171,10 @@ fn keygen_t_n_parties(
     ),
     ErrorType,
 > {
-    let params = Parameters { threshold: t, share_count: n };
+    let params = Parameters {
+        threshold: t,
+        share_count: n,
+    };
     let (t, n) = (t as usize, n as usize);
     let party_keys_vec = (0..n).map(Keys::create).collect::<Vec<Keys>>();
 
@@ -180,8 +183,10 @@ fn keygen_t_n_parties(
         .map(|k| k.phase1_broadcast_phase3_proof_of_correct_key_proof_of_correct_h1h2())
         .unzip();
 
-    let e_vec =
-        bc1_vec.iter().map(|bc1| bc1.e.clone()).collect::<Vec<EncryptionKey>>();
+    let e_vec = bc1_vec
+        .iter()
+        .map(|bc1| bc1.e.clone())
+        .collect::<Vec<EncryptionKey>>();
     let h1_h2_N_tilde_vec = bc1_vec
         .iter()
         .map(|bc1| bc1.dlog_statement.clone())
@@ -239,7 +244,7 @@ fn keygen_t_n_parties(
             (&index_vec[i] + 1).into(),
         );
         if res.is_err() {
-            return Err(res.err().unwrap())
+            return Err(res.err().unwrap());
         }
         let (shared_keys, dlog_proof) = res.unwrap();
         shared_keys_vec.push(shared_keys);
@@ -258,14 +263,15 @@ fn keygen_t_n_parties(
     );
 
     if dlog_verification.is_err() {
-        return Err(dlog_verification.err().unwrap())
+        return Err(dlog_verification.err().unwrap());
     }
     //test
     let xi_vec = (0..=t)
         .map(|i| shared_keys_vec[i].x_i.clone())
         .collect::<Vec<Scalar<Secp256k1>>>();
-    let x =
-        vss_scheme_for_test[0].clone().reconstruct(&index_vec[0..=t], &xi_vec);
+    let x = vss_scheme_for_test[0]
+        .clone()
+        .reconstruct(&index_vec[0..=t], &xi_vec);
     let sum_u_i = party_keys_vec
         .iter()
         .fold(Scalar::<Secp256k1>::zero(), |acc, x| acc + &x.u_i);
@@ -579,7 +585,7 @@ fn sign(
             i,
         );
         if phase5_verify_zk.is_err() {
-            return Err(phase5_verify_zk.err().unwrap())
+            return Err(phase5_verify_zk.err().unwrap());
         }
     }
 

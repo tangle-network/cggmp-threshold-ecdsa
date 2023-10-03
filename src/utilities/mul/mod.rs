@@ -52,7 +52,12 @@ pub struct PaillierMulWitness<E: Curve, H: Digest + Clone> {
 
 impl<E: Curve, H: Digest + Clone> PaillierMulWitness<E, H> {
     pub fn new(x: BigInt, rho: BigInt, rho_x: BigInt) -> Self {
-        PaillierMulWitness { x, rho, rho_x, phantom: PhantomData }
+        PaillierMulWitness {
+            x,
+            rho,
+            rho_x,
+            phantom: PhantomData,
+        }
     }
 }
 
@@ -90,7 +95,12 @@ impl<E: Curve, H: Digest + Clone> PaillierMulStatement<E, H> {
                 ek_prover,
                 phantom: PhantomData,
             },
-            PaillierMulWitness { x, rho, rho_x, phantom: PhantomData },
+            PaillierMulWitness {
+                x,
+                rho,
+                rho_x,
+                phantom: PhantomData,
+            },
         )
     }
 }
@@ -161,7 +171,13 @@ impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
             &statement.N,
         );
         // Return the proof
-        PaillierMulProof { z, u, v, commitment, phantom: PhantomData }
+        PaillierMulProof {
+            z,
+            u,
+            v,
+            commitment,
+            phantom: PhantomData,
+        }
     }
 
     pub fn verify(

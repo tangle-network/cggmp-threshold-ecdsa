@@ -59,7 +59,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
         let secret = local_key.keys_linear.x_i.clone();
         // secret share old key
         if new_n <= new_t {
-            return Err(FsDkrError::NewPartyUnassignedIndexError)
+            return Err(FsDkrError::NewPartyUnassignedIndexError);
         }
         let (vss_scheme, secret_shares) =
             VerifiableSS::<E, sha2::Sha256>::share(new_t, new_n, &secret);
@@ -72,8 +72,8 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
             .collect();
 
         // encrypt points on the polynomial using Paillier keys
-        let (points_encrypted_vec, randomness_vec): (Vec<_>, Vec<_>) = (0..
-            secret_shares.len())
+        let (points_encrypted_vec, randomness_vec): (Vec<_>, Vec<_>) = (0
+            ..secret_shares.len())
             .map(|i| {
                 let randomness =
                     BigInt::sample_below(&local_key.paillier_key_vec[i].n);
@@ -167,7 +167,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
             return Err(FsDkrError::PartiesThresholdViolation {
                 threshold: current_t,
                 refreshed_keys: refresh_messages.len(),
-            })
+            });
         }
 
         // check all vectors are of same length
@@ -180,16 +180,16 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
             let points_encrypted_len =
                 refresh_message.points_encrypted_vec.len();
 
-            if !(pdl_proof_len == reference_len &&
-                points_commited_len == reference_len &&
-                points_encrypted_len == reference_len)
+            if !(pdl_proof_len == reference_len
+                && points_commited_len == reference_len
+                && points_encrypted_len == reference_len)
             {
                 return Err(FsDkrError::SizeMismatchError {
                     refresh_message_index: k,
                     pdl_proof_len,
                     points_commited_len,
                     points_encrypted_len,
-                })
+                });
             }
         }
 
@@ -204,7 +204,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
                     )
                     .is_err()
                 {
-                    return Err(FsDkrError::PublicShareValidationError)
+                    return Err(FsDkrError::PublicShareValidationError);
                 }
             }
         }
@@ -385,7 +385,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
                     &statement.ek,
                     &local_key.h1_h2_n_tilde_vec[i],
                 ) {
-                    return Err(FsDkrError::RangeProof { party_index: i })
+                    return Err(FsDkrError::RangeProof { party_index: i });
                 }
             }
         }
@@ -423,7 +423,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
             {
                 return Err(FsDkrError::PaillierVerificationError {
                     party_index: refresh_message.party_index,
-                })
+                });
             }
             let n_length = refresh_message.ek.n.bit_length();
             if !(crate::PAILLIER_KEY_SIZE - 1..=crate::PAILLIER_KEY_SIZE)
@@ -432,7 +432,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
                 return Err(FsDkrError::ModuliTooSmall {
                     party_index: refresh_message.party_index,
                     moduli_size: n_length,
-                })
+                });
             }
 
             // if the proof checks, we add the new paillier public key to the
@@ -452,7 +452,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
             {
                 return Err(FsDkrError::PaillierVerificationError {
                     party_index,
-                })
+                });
             }
 
             // creating an inverse dlog statement
@@ -464,13 +464,13 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
             if join_message
                 .composite_dlog_proof_base_h1
                 .verify(&join_message.dlog_statement)
-                .is_err() ||
-                join_message
+                .is_err()
+                || join_message
                     .composite_dlog_proof_base_h2
                     .verify(&dlog_statement_base_h2)
                     .is_err()
             {
-                return Err(FsDkrError::DLogProofValidation { party_index })
+                return Err(FsDkrError::DLogProofValidation { party_index });
             }
 
             let n_length = join_message.ek.n.bit_length();
@@ -482,7 +482,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
                 return Err(FsDkrError::ModuliTooSmall {
                     party_index: join_message.get_party_index()?,
                     moduli_size: n_length,
-                })
+                });
             }
 
             // if the proof checks, we add the new paillier public key to the
@@ -512,13 +512,13 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
         for i in 0..refresh_messages.len() + join_messages.len() {
             local_key.pk_vec.insert(
                 i,
-                refresh_messages[0].points_committed_vec[i].clone() *
-                    li_vec[0].clone(),
+                refresh_messages[0].points_committed_vec[i].clone()
+                    * li_vec[0].clone(),
             );
             for j in 1..current_t as usize + 1 {
-                local_key.pk_vec[i] = local_key.pk_vec[i].clone() +
-                    refresh_messages[j].points_committed_vec[i].clone() *
-                        li_vec[j].clone();
+                local_key.pk_vec[i] = local_key.pk_vec[i].clone()
+                    + refresh_messages[j].points_committed_vec[i].clone()
+                        * li_vec[j].clone();
             }
         }
 

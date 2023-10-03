@@ -60,10 +60,14 @@ pub fn aes_encrypt(key: &[u8], plaintext: &[u8]) -> AEAD {
     OsRng.fill_bytes(&mut nonce);
     let nonce = Nonce::from_slice(&nonce);
 
-    let ciphertext =
-        cipher.encrypt(nonce, plaintext).expect("encryption failure!");
+    let ciphertext = cipher
+        .encrypt(nonce, plaintext)
+        .expect("encryption failure!");
 
-    AEAD { ciphertext, tag: nonce.to_vec() }
+    AEAD {
+        ciphertext,
+        tag: nonce.to_vec(),
+    }
 }
 
 #[allow(dead_code)]
@@ -86,10 +90,13 @@ where
     let retries = 3;
     let retry_delay = time::Duration::from_millis(250);
     for _i in 1..retries {
-        let res = client.post(&format!("{}/{}", addr, path)).json(&body).send();
+        let res = client
+            .post(&format!("{}/{}", addr, path))
+            .json(&body)
+            .send();
 
         if let Ok(mut res) = res {
-            return Some(res.text().unwrap())
+            return Some(res.text().unwrap());
         }
         thread::sleep(retry_delay);
     }
@@ -151,7 +158,7 @@ pub fn poll_for_broadcasts(
                         "[{:?}] party {:?} => party {:?}",
                         round, i, party_num
                     );
-                    break
+                    break;
                 }
             }
         }
@@ -184,7 +191,7 @@ pub fn poll_for_p2p(
                         "[{:?}] party {:?} => party {:?}",
                         round, i, party_num
                     );
-                    break
+                    break;
                 }
             }
         }

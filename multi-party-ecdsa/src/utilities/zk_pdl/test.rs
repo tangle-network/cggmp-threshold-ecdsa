@@ -32,9 +32,17 @@ fn test_zk_pdl() {
     )
     .0
     .into_owned();
-    let statement =
-        PDLStatement { ciphertext: c, ek, Q, G: Point::generator().to_point() };
-    let witness = PDLWitness { x, r: randomness.0, dk };
+    let statement = PDLStatement {
+        ciphertext: c,
+        ek,
+        Q,
+        G: Point::generator().to_point(),
+    };
+    let witness = PDLWitness {
+        x,
+        r: randomness.0,
+        dk,
+    };
     //
     let (verifier_message1, mut verifier_state) =
         Verifier::message1(&statement);

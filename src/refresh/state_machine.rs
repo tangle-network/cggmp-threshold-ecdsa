@@ -60,10 +60,10 @@ impl KeyRefresh {
         current_t_option: Option<u16>,
     ) -> Result<Self> {
         if new_n < 2 {
-            return Err(Error::TooFewParties)
+            return Err(Error::TooFewParties);
         }
         if new_t == 0 || new_t >= new_n {
-            return Err(Error::InvalidThreshold)
+            return Err(Error::InvalidThreshold);
         }
 
         // Sets the party index either from the `local_key_option` or
@@ -81,12 +81,14 @@ impl KeyRefresh {
         // Sets the current/old threshold either from the `local_key_option` or
         // `current_t_option`, otherwise returns an error if neither is
         // Some.
-        let current_t =
-            match local_key_option.as_ref().map(|it| it.t).or(current_t_option)
-            {
-                Some(it) => it,
-                None => return Err(Error::UnknownCurrentThreshold),
-            };
+        let current_t = match local_key_option
+            .as_ref()
+            .map(|it| it.t)
+            .or(current_t_option)
+        {
+            Some(it) => it,
+            None => return Err(Error::UnknownCurrentThreshold),
+        };
 
         let mut state = Self {
             round: R::Round0(Box::new(Round0 {
@@ -123,10 +125,16 @@ impl KeyRefresh {
     /// Proceeds round state if it received enough messages and if it's cheap to
     /// compute or `may_block == true`
     fn proceed_round(&mut self, may_block: bool) -> Result<()> {
-        let store1_wants_more =
-            self.round0_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
-        let store2_wants_more =
-            self.round1_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
+        let store1_wants_more = self
+            .round0_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
+        let store2_wants_more = self
+            .round1_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
 
         let next_state: R;
 
@@ -137,14 +145,14 @@ impl KeyRefresh {
                     .map(|msg| R::Round1(Box::new(msg)))
                     .map_err(Error::ProceedRound)?;
                 true
-            },
+            }
             s @ R::Round0(_) => {
                 next_state = s;
                 false
-            },
+            }
             R::Round1(round)
-                if !store1_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store1_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.round0_msgs.take().ok_or(InternalError::StoreGone)?;
@@ -156,14 +164,14 @@ impl KeyRefresh {
                     .map(|msg| R::Round2(Box::new(msg)))
                     .map_err(Error::ProceedRound)?;
                 true
-            },
+            }
             s @ R::Round1(_) => {
                 next_state = s;
                 false
-            },
+            }
             R::Round2(round)
-                if !store2_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store2_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.round1_msgs.take().ok_or(InternalError::StoreGone)?;
@@ -175,15 +183,15 @@ impl KeyRefresh {
                     .map(|msg| R::Final(Box::new(msg)))
                     .map_err(Error::ProceedRound)?;
                 true
-            },
+            }
             s @ R::Round2(_) => {
                 next_state = s;
                 false
-            },
+            }
             s @ R::Final(_) | s @ R::Gone => {
                 next_state = s;
                 false
-            },
+            }
         };
         self.round = next_state;
         if try_again {
@@ -218,7 +226,7 @@ impl StateMachine for KeyRefresh {
                     })
                     .map_err(Error::HandleMessage)?;
                 self.proceed_round(false)
-            },
+            }
             ProtocolMessage(M::Round2(m)) => {
                 let store = self.round1_msgs.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -234,7 +242,7 @@ impl StateMachine for KeyRefresh {
                     })
                     .map_err(Error::HandleMessage)?;
                 self.proceed_round(false)
-            },
+            }
         }
     }
 
@@ -243,10 +251,16 @@ impl StateMachine for KeyRefresh {
     }
 
     fn wants_to_proceed(&self) -> bool {
-        let store1_wants_more =
-            self.round0_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
-        let store2_wants_more =
-            self.round1_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
+        let store1_wants_more = self
+            .round0_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
+        let store2_wants_more = self
+            .round1_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
 
         match &self.round {
             R::Round0(_) => true,
@@ -309,10 +323,16 @@ impl StateMachine for KeyRefresh {
 
 impl crate::traits::RoundBlame for KeyRefresh {
     fn round_blame(&self) -> (u16, Vec<u16>) {
-        let store1_blame =
-            self.round0_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
-        let store2_blame =
-            self.round1_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
+        let store1_blame = self
+            .round0_msgs
+            .as_ref()
+            .map(|s| s.blame())
+            .unwrap_or_default();
+        let store2_blame = self
+            .round1_msgs
+            .as_ref()
+            .map(|s| s.blame())
+            .unwrap_or_default();
 
         let default = (0, vec![]);
         match &self.round {
@@ -544,7 +564,10 @@ pub mod test {
             .collect();
         let indices: Vec<_> = (0..(t + 1)).collect();
         let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
-            parameters: ShamirSecretSharing { threshold: t, share_count: n },
+            parameters: ShamirSecretSharing {
+                threshold: t,
+                share_count: n,
+            },
             commitments: Vec::new(),
             proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
                 &Scalar::random(),
@@ -634,7 +657,10 @@ pub mod test {
             .collect();
         let indices: Vec<_> = (0..(t + 1)).collect();
         let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
-            parameters: ShamirSecretSharing { threshold: t, share_count: n },
+            parameters: ShamirSecretSharing {
+                threshold: t,
+                share_count: n,
+            },
             commitments: Vec::new(),
             proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
                 &Scalar::random(),
@@ -747,7 +773,10 @@ pub mod test {
             .collect();
         let indices: Vec<_> = (0..(t + 1)).collect();
         let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
-            parameters: ShamirSecretSharing { threshold: t, share_count: n },
+            parameters: ShamirSecretSharing {
+                threshold: t,
+                share_count: n,
+            },
             commitments: Vec::new(),
             proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
                 &Scalar::random(),
@@ -841,7 +870,10 @@ pub mod test {
         let old_indices = vec![0, 1, 2];
         let new_indices = vec![0, 1, 2];
         let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
-            parameters: ShamirSecretSharing { threshold: t, share_count: n },
+            parameters: ShamirSecretSharing {
+                threshold: t,
+                share_count: n,
+            },
             commitments: Vec::new(),
             proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
                 &Scalar::random(),

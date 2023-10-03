@@ -43,7 +43,9 @@ impl From<&super::OfflineStage> for OfflineStageProgress {
             round4_msgs: ReceivedMessages::from_broadcast(state.msgs4.as_ref()),
             round5_msgs: ReceivedMessages::from_broadcast(state.msgs5.as_ref()),
 
-            msgs_queue: OutgoingMessages { len: state.msgs_queue.0.len() },
+            msgs_queue: OutgoingMessages {
+                len: state.msgs_queue.0.len(),
+            },
         }
     }
 }
@@ -112,7 +114,7 @@ impl fmt::Debug for ReceivedMessages {
                     container.total - container.waiting_for.len(),
                     container.total
                 )
-            },
+            }
             None => write!(f, "[gone]"),
         }
     }

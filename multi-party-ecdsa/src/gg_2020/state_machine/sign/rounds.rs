@@ -84,7 +84,11 @@ impl Round0 {
             &self.local_key.keys_linear.x_i,
             &self.local_key.vss_scheme.clone(),
             usize::from(self.s_l[usize::from(self.i - 1)]) - 1,
-            &self.s_l.iter().map(|&i| usize::from(i) - 1).collect::<Vec<_>>(),
+            &self
+                .s_l
+                .iter()
+                .map(|&i| usize::from(i) - 1)
+                .collect::<Vec<_>>(),
         );
         let (bc1, decom1) = sign_keys.phase1_broadcast();
 
@@ -154,8 +158,12 @@ impl Round1 {
         let mut ni_vec = Vec::new();
 
         let ttag = self.s_l.len();
-        let l_s: Vec<_> =
-            self.s_l.iter().cloned().map(|i| usize::from(i) - 1).collect();
+        let l_s: Vec<_> = self
+            .s_l
+            .iter()
+            .cloned()
+            .map(|i| usize::from(i) - 1)
+            .collect();
         let i = usize::from(self.i - 1);
         for j in 0..ttag - 1 {
             let ind = if j < i { j } else { j + 1 };
@@ -267,8 +275,12 @@ impl Round2 {
 
         let ttag = self.s_l.len();
         let index = usize::from(self.i) - 1;
-        let l_s: Vec<_> =
-            self.s_l.iter().cloned().map(|i| usize::from(i) - 1).collect();
+        let l_s: Vec<_> = self
+            .s_l
+            .iter()
+            .cloned()
+            .map(|i| usize::from(i) - 1)
+            .collect();
         let g_w_vec = SignKeys::g_w_vec(
             &self.local_key.pk_vec[..],
             &l_s[..],
@@ -484,8 +496,12 @@ impl Round4 {
 
         // each party sends first message to all other parties
         let mut phase5_proofs_vec = Vec::new();
-        let l_s: Vec<_> =
-            self.s_l.iter().cloned().map(|i| usize::from(i) - 1).collect();
+        let l_s: Vec<_> = self
+            .s_l
+            .iter()
+            .cloned()
+            .map(|i| usize::from(i) - 1)
+            .collect();
         let index = usize::from(self.i - 1);
         for j in 0..ttag - 1 {
             let ind = if j < index { j } else { j + 1 };
@@ -566,8 +582,12 @@ impl Round5 {
             .map(|(r_dash, pdl_proof)| (r_dash.0, pdl_proof))
             .unzip();
 
-        let l_s: Vec<_> =
-            self.s_l.iter().cloned().map(|i| usize::from(i) - 1).collect();
+        let l_s: Vec<_> = self
+            .s_l
+            .iter()
+            .cloned()
+            .map(|i| usize::from(i) - 1)
+            .collect();
         let ttag = self.s_l.len();
         for i in 0..ttag {
             LocalSignature::phase5_verify_pdl(
@@ -730,7 +750,9 @@ impl Round7 {
         sigs: &[PartialSignature],
     ) -> Result<SignatureRecid> {
         let sigs = sigs.iter().map(|s_i| s_i.0.clone()).collect::<Vec<_>>();
-        self.local_signature.output_signature(&sigs).map_err(Error::Round7)
+        self.local_signature
+            .output_signature(&sigs)
+            .map_err(Error::Round7)
     }
 }
 

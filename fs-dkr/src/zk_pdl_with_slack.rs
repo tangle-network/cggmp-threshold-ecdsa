@@ -107,7 +107,16 @@ impl<E: Curve, H: Digest + Clone> PDLwSlackProof<E, H> {
         );
         let s3 = &e * rho + gamma;
 
-        PDLwSlackProof { z, u1, u2, u3, s1, s2, s3, _phantom: PhantomData }
+        PDLwSlackProof {
+            z,
+            u1,
+            u2,
+            u3,
+            s1,
+            s2,
+            s3,
+            _phantom: PhantomData,
+        }
     }
 
     pub fn verify(&self, statement: &PDLwSlackStatement<E>) -> FsDkrResult<()> {

@@ -25,7 +25,11 @@ pub enum FsDkrError {
     },
 
     #[error("PDLwSlack proof verification failed, results: u1 == u1_test: {is_u1_eq:?}, u2 == u2_test: {is_u2_eq:?}, u3 == u3_test: {is_u3_eq:?}")]
-    PDLwSlackProof { is_u1_eq: bool, is_u2_eq: bool, is_u3_eq: bool },
+    PDLwSlackProof {
+        is_u1_eq: bool,
+        is_u2_eq: bool,
+        is_u3_eq: bool,
+    },
 
     #[error("Ring Pedersen Proof Failed")]
     RingPedersenProofError,
@@ -34,7 +38,10 @@ pub enum FsDkrError {
     RangeProof { party_index: usize },
 
     #[error("The Paillier moduli size of party: {party_index:?} is {moduli_size:?} bits, when it should be 2047-2048 bits")]
-    ModuliTooSmall { party_index: u16, moduli_size: usize },
+    ModuliTooSmall {
+        party_index: u16,
+        moduli_size: usize,
+    },
 
     #[error("Paillier verification proof failed for party {party_index:?}")]
     PaillierVerificationError { party_index: u16 },

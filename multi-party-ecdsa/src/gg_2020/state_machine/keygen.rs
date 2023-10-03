@@ -58,13 +58,13 @@ impl Keygen {
     /// * `i` is not in range `[1; n]`, returns [Error::InvalidPartyIndex]
     pub fn new(i: u16, t: u16, n: u16) -> Result<Self> {
         if n < 2 {
-            return Err(Error::TooFewParties)
+            return Err(Error::TooFewParties);
         }
         if t == 0 || t >= n {
-            return Err(Error::InvalidThreshold)
+            return Err(Error::InvalidThreshold);
         }
         if i == 0 || i > n {
-            return Err(Error::InvalidPartyIndex)
+            return Err(Error::InvalidPartyIndex);
         }
         let mut state = Self {
             round: R::Round0(Round0 { party_i: i, t, n }),
@@ -111,14 +111,14 @@ impl Keygen {
                     .map(R::Round1)
                     .map_err(Error::ProceedRound)?;
                 true
-            },
+            }
             s @ R::Round0(_) => {
                 next_state = s;
                 false
-            },
+            }
             R::Round1(round)
-                if !store1_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store1_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.msgs1.take().ok_or(InternalError::StoreGone)?;
@@ -130,14 +130,14 @@ impl Keygen {
                     .map(R::Round2)
                     .map_err(Error::ProceedRound)?;
                 true
-            },
+            }
             s @ R::Round1(_) => {
                 next_state = s;
                 false
-            },
+            }
             R::Round2(round)
-                if !store2_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store2_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.msgs2.take().ok_or(InternalError::StoreGone)?;
@@ -149,14 +149,14 @@ impl Keygen {
                     .map(R::Round3)
                     .map_err(Error::ProceedRound)?;
                 true
-            },
+            }
             s @ R::Round2(_) => {
                 next_state = s;
                 false
-            },
+            }
             R::Round3(round)
-                if !store3_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store3_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.msgs3.take().ok_or(InternalError::StoreGone)?;
@@ -168,14 +168,14 @@ impl Keygen {
                     .map(R::Round4)
                     .map_err(Error::ProceedRound)?;
                 true
-            },
+            }
             s @ R::Round3(_) => {
                 next_state = s;
                 false
-            },
+            }
             R::Round4(round)
-                if !store4_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store4_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.msgs4.take().ok_or(InternalError::StoreGone)?;
@@ -187,15 +187,15 @@ impl Keygen {
                     .map(R::Final)
                     .map_err(Error::ProceedRound)?;
                 true
-            },
+            }
             s @ R::Round4(_) => {
                 next_state = s;
                 false
-            },
+            }
             s @ R::Final(_) | s @ R::Gone => {
                 next_state = s;
                 false
-            },
+            }
         };
 
         self.round = next_state;
@@ -231,7 +231,7 @@ impl StateMachine for Keygen {
                     })
                     .map_err(Error::HandleMessage)?;
                 self.proceed_round(false)
-            },
+            }
             ProtocolMessage(M::Round2(m)) => {
                 let store = self.msgs2.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -247,7 +247,7 @@ impl StateMachine for Keygen {
                     })
                     .map_err(Error::HandleMessage)?;
                 self.proceed_round(false)
-            },
+            }
             ProtocolMessage(M::Round3(m)) => {
                 let store = self.msgs3.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -263,7 +263,7 @@ impl StateMachine for Keygen {
                     })
                     .map_err(Error::HandleMessage)?;
                 self.proceed_round(false)
-            },
+            }
             ProtocolMessage(M::Round4(m)) => {
                 let store = self.msgs4.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -279,7 +279,7 @@ impl StateMachine for Keygen {
                     })
                     .map_err(Error::HandleMessage)?;
                 self.proceed_round(false)
-            },
+            }
         }
     }
 
@@ -529,16 +529,16 @@ impl IsCritical for Error {
             // protocol and don't indicate a bug in the library.
             Error::HandleMessage(e) => !matches!(
                 e,
-                StoreErr::MsgOverwrite |
-                    StoreErr::NotForMe |
-                    StoreErr::WantsMoreMessages
+                StoreErr::MsgOverwrite
+                    | StoreErr::NotForMe
+                    | StoreErr::WantsMoreMessages
             ),
             Error::ReceivedOutOfOrderMessage { .. } => false,
-            Error::DoublePickOutput |
-            Error::TooFewParties |
-            Error::InvalidThreshold |
-            Error::InvalidPartyIndex |
-            Error::InternalError(_) => true,
+            Error::DoublePickOutput
+            | Error::TooFewParties
+            | Error::InvalidThreshold
+            | Error::InvalidPartyIndex
+            | Error::InternalError(_) => true,
         }
     }
 }

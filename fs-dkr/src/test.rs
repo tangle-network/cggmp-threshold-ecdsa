@@ -46,11 +46,15 @@ mod tests {
             .map(|i| old_keys[i].keys_linear.x_i.clone())
             .collect();
 
-        let new_linear_secret_key: Vec<_> =
-            (0..keys.len()).map(|i| keys[i].keys_linear.x_i.clone()).collect();
+        let new_linear_secret_key: Vec<_> = (0..keys.len())
+            .map(|i| keys[i].keys_linear.x_i.clone())
+            .collect();
         let indices: Vec<_> = (0..(t + 1) as u16).collect();
         let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
-            parameters: ShamirSecretSharing { threshold: t, share_count: n },
+            parameters: ShamirSecretSharing {
+                threshold: t,
+                share_count: n,
+            },
             commitments: Vec::new(),
             proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
                 &Scalar::random(),
@@ -127,8 +131,10 @@ mod tests {
                 keys: &mut [LocalKey<Secp256k1>],
                 old_to_new_map: &HashMap<u16, u16>,
                 join_messages: &[JoinMessage<Secp256k1, Sha256, M>],
-            ) -> (Vec<RefreshMessage<Secp256k1, Sha256, M>>, Vec<DecryptionKey>)
-            {
+            ) -> (
+                Vec<RefreshMessage<Secp256k1, Sha256, M>>,
+                Vec<DecryptionKey>,
+            ) {
                 let new_n = (&keys.len() + join_messages.len()) as u16;
                 keys.iter_mut()
                     .map(|key| {
@@ -236,11 +242,15 @@ mod tests {
             .map(|i| all_keys[i].keys_linear.x_i.clone())
             .collect();
 
-        let new_linear_secret_key: Vec<_> =
-            (0..keys.len()).map(|i| keys[i].keys_linear.x_i.clone()).collect();
+        let new_linear_secret_key: Vec<_> = (0..keys.len())
+            .map(|i| keys[i].keys_linear.x_i.clone())
+            .collect();
         let indices: Vec<_> = (0..(t + 1) as u16).collect();
         let vss = VerifiableSS::<Secp256k1, sha2::Sha256> {
-            parameters: ShamirSecretSharing { threshold: t, share_count: n },
+            parameters: ShamirSecretSharing {
+                threshold: t,
+                share_count: n,
+            },
             commitments: Vec::new(),
             proof: DLogProof::<Secp256k1, sha2::Sha256>::prove(
                 &Scalar::random(),
@@ -338,7 +348,7 @@ mod tests {
                     .remove_party_indices
                     .contains(&(*party_index as u16))
                 {
-                    continue
+                    continue;
                 }
                 refresh_bucket.push(refresh_message.clone());
             }
@@ -354,7 +364,7 @@ mod tests {
         // keys will be updated to refreshed values
         for (party, key) in party_key.iter_mut() {
             if remove_party_indices.contains(&(*party as u16)) {
-                continue
+                continue;
             }
 
             RefreshMessage::collect(
@@ -382,7 +392,10 @@ mod tests {
     fn simulate_dkr<const M: usize>(
         keys: &mut Vec<LocalKey<Secp256k1>>,
         new_t_option: Option<u16>,
-    ) -> (Vec<RefreshMessage<Secp256k1, Sha256, M>>, Vec<DecryptionKey>) {
+    ) -> (
+        Vec<RefreshMessage<Secp256k1, Sha256, M>>,
+        Vec<DecryptionKey>,
+    ) {
         let mut broadcast_vec: Vec<RefreshMessage<Secp256k1, Sha256, M>> =
             Vec::new();
         let mut new_dks: Vec<DecryptionKey> = Vec::new();

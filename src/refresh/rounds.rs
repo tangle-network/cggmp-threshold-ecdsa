@@ -67,7 +67,7 @@ impl Round0 {
                     }),
                     _ => Err(FsDkrError::NewPartyUnassignedIndexError),
                 }
-            },
+            }
             None => {
                 let (mut join_message, paillier_keys) =
                     JoinMessage::distribute();
@@ -90,10 +90,10 @@ impl Round0 {
                             new_n: self.new_n,
                             current_t: self.current_t,
                         })
-                    },
+                    }
                     None => Err(FsDkrError::NewPartyUnassignedIndexError),
                 }
-            },
+            }
         }
     }
     pub fn is_expensive(&self) -> bool {
@@ -172,7 +172,7 @@ impl Round1 {
                     new_n: self.new_n,
                     current_t: self.current_t,
                 })
-            },
+            }
 
             PartyType::New(boxed_new) => {
                 let (join_message, paillier_keys, new_party_index) = *boxed_new;
@@ -195,7 +195,7 @@ impl Round1 {
                     new_n: self.new_n,
                     current_t: self.current_t,
                 })
-            },
+            }
         }
     }
 
@@ -257,7 +257,7 @@ impl Round2 {
                     self.current_t,
                 )?;
                 Ok(*local_key)
-            },
+            }
             PartyType::New(boxed_new) => {
                 let (join_message, paillier_keys, _new_party_index) =
                     *boxed_new;
@@ -272,7 +272,7 @@ impl Round2 {
                     self.new_n,
                     self.current_t,
                 )
-            },
+            }
         }
     }
 

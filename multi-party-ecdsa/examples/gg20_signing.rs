@@ -53,9 +53,12 @@ async fn main() -> Result<()> {
 
     let signing = OfflineStage::new(i, args.parties, local_share)?;
     let completed_offline_stage =
-        AsyncProtocol::new(signing, incoming, outgoing).run().await.map_err(
-            |e| anyhow!("protocol execution terminated with error: {}", e),
-        )?;
+        AsyncProtocol::new(signing, incoming, outgoing)
+            .run()
+            .await
+            .map_err(|e| {
+                anyhow!("protocol execution terminated with error: {}", e)
+            })?;
 
     let (i, incoming, outgoing) =
         join_computation(args.address, &format!("{}-online", args.room))
@@ -71,7 +74,11 @@ async fn main() -> Result<()> {
     )?;
 
     outgoing
-        .send(Msg { sender: i, receiver: None, body: partial_signature })
+        .send(Msg {
+            sender: i,
+            receiver: None,
+            body: partial_signature,
+        })
         .await?;
 
     let partial_signatures: Vec<_> = incoming
@@ -79,8 +86,9 @@ async fn main() -> Result<()> {
         .map_ok(|msg| msg.body)
         .try_collect()
         .await?;
-    let signature =
-        signing.complete(&partial_signatures).context("online stage failed")?;
+    let signature = signing
+        .complete(&partial_signatures)
+        .context("online stage failed")?;
     let signature =
         serde_json::to_string(&signature).context("serialize signature")?;
     println!("{}", signature);

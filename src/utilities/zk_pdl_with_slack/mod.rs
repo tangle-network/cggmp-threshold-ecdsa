@@ -129,7 +129,15 @@ impl PDLwSlackProof {
         );
         let s3 = &e * rho + gamma;
 
-        PDLwSlackProof { z, u1, u2, u3, s1, s2, s3 }
+        PDLwSlackProof {
+            z,
+            u1,
+            u2,
+            u3,
+            s1,
+            s2,
+            s3,
+        }
     }
 
     pub fn verify(

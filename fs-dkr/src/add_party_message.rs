@@ -85,10 +85,17 @@ fn generate_dlog_statement_proofs(
 ) -> (DLogStatement, CompositeDLogProof, CompositeDLogProof) {
     let (n_tilde, h1, h2, xhi, xhi_inv) = generate_h1_h2_n_tilde();
 
-    let dlog_statement_base_h1 =
-        DLogStatement { N: n_tilde.clone(), g: h1.clone(), ni: h2.clone() };
+    let dlog_statement_base_h1 = DLogStatement {
+        N: n_tilde.clone(),
+        g: h1.clone(),
+        ni: h2.clone(),
+    };
 
-    let dlog_statement_base_h2 = DLogStatement { N: n_tilde, g: h2, ni: h1 };
+    let dlog_statement_base_h2 = DLogStatement {
+        N: n_tilde,
+        g: h2,
+        ni: h1,
+    };
 
     let composite_dlog_proof_base_h1 =
         CompositeDLogProof::prove(&dlog_statement_base_h1, &xhi);
@@ -147,7 +154,8 @@ impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
     /// Returns the party index if it has been assigned one, throws
     /// [FsDkrError::NewPartyUnassignedIndexError] otherwise
     pub fn get_party_index(&self) -> FsDkrResult<u16> {
-        self.party_index.ok_or(FsDkrError::NewPartyUnassignedIndexError)
+        self.party_index
+            .ok_or(FsDkrError::NewPartyUnassignedIndexError)
     }
 
     /// Collect phase of the protocol. Compared to the
@@ -202,8 +210,10 @@ impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
             join_message.get_party_index()?;
         }
 
-        let parameters =
-            ShamirSecretSharing { threshold: new_t, share_count: new_n };
+        let parameters = ShamirSecretSharing {
+            threshold: new_t,
+            share_count: new_n,
+        };
 
         // generate a new share, the details can be found here https://hackmd.io/@omershlo/Hy1jBo6JY.
         let (cipher_text_sum, li_vec) = RefreshMessage::get_ciphertext_sum(
@@ -213,27 +223,31 @@ impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
             &paillier_key.ek,
             current_t,
         );
-        let new_share =
-            Paillier::decrypt(&paillier_key.dk, cipher_text_sum).0.into_owned();
+        let new_share = Paillier::decrypt(&paillier_key.dk, cipher_text_sum)
+            .0
+            .into_owned();
 
         let new_share_fe: Scalar<E> = Scalar::<E>::from(&new_share);
         let paillier_dk = paillier_key.dk.clone();
         let key_linear_x_i = new_share_fe.clone();
         let key_linear_y = Point::<E>::generator() * new_share_fe.clone();
-        let keys_linear = SharedKeys { x_i: key_linear_x_i, y: key_linear_y };
+        let keys_linear = SharedKeys {
+            x_i: key_linear_x_i,
+            y: key_linear_y,
+        };
         let mut pk_vec: Vec<_> = (0..new_n as usize)
             .map(|i| {
-                refresh_messages[0].points_committed_vec[i].clone() *
-                    li_vec[0].clone()
+                refresh_messages[0].points_committed_vec[i].clone()
+                    * li_vec[0].clone()
             })
             .collect();
 
         #[allow(clippy::needless_range_loop)]
         for i in 0..new_n as usize {
             for j in 1..(current_t + 1) as usize {
-                pk_vec[i] = pk_vec[i].clone() +
-                    refresh_messages[j].points_committed_vec[i].clone() *
-                        li_vec[j].clone();
+                pk_vec[i] = pk_vec[i].clone()
+                    + refresh_messages[j].points_committed_vec[i].clone()
+                        * li_vec[j].clone();
             }
         }
 
@@ -271,8 +285,10 @@ impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
             .map(|party| {
                 let ek = available_parties.get(&party);
                 match ek {
-                    None =>
-                        EncryptionKey { n: BigInt::zero(), nn: BigInt::zero() },
+                    None => EncryptionKey {
+                        n: BigInt::zero(),
+                        nn: BigInt::zero(),
+                    },
                     Some(key) => (*key).clone(),
                 }
             })
@@ -293,7 +309,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
         // they differ, abort. TODO: this should be verifiable?
         for refresh_message in refresh_messages.iter() {
             if refresh_message.public_key != refresh_messages[0].public_key {
-                return Err(FsDkrError::BroadcastedPublicKeyError)
+                return Err(FsDkrError::BroadcastedPublicKeyError);
             }
         }
 

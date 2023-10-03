@@ -14,7 +14,9 @@ impl Digest for Sha256 {
     type OutputSize = U32;
 
     fn new() -> Self {
-        Self { inner: sha2::Sha256::new() }
+        Self {
+            inner: sha2::Sha256::new(),
+        }
     }
 
     fn update(&mut self, data: impl AsRef<[u8]>) {
@@ -25,7 +27,9 @@ impl Digest for Sha256 {
     where
         Self: Sized,
     {
-        Self { inner: self.inner.chain(data) }
+        Self {
+            inner: self.inner.chain(data),
+        }
     }
 
     fn finalize(self) -> Output<Self> {

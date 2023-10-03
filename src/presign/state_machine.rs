@@ -75,7 +75,7 @@ impl PreSigning {
     ) -> Result<Self> {
         let n = ssid.P.len();
         if n < 2 {
-            return Err(Error::TooFewParties)
+            return Err(Error::TooFewParties);
         }
 
         let i = ssid.X.i;
@@ -115,14 +115,26 @@ impl PreSigning {
     /// Proceeds round state if it received enough messages and if it's cheap to
     /// compute or `may_block == true`
     fn proceed_round(&mut self, may_block: bool) -> Result<()> {
-        let store1_wants_more =
-            self.round0_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
-        let store2_wants_more =
-            self.round1_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
-        let store3_wants_more =
-            self.round2_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
-        let store4_wants_more =
-            self.round3_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
+        let store1_wants_more = self
+            .round0_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
+        let store2_wants_more = self
+            .round1_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
+        let store3_wants_more = self
+            .round2_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
+        let store4_wants_more = self
+            .round3_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
 
         let next_state: R;
 
@@ -133,14 +145,14 @@ impl PreSigning {
                     .map(|msg| R::Round1(Box::new(msg)))
                     .map_err(|_e| Error::ProceedRound { msg_round: 0 })?;
                 true
-            },
+            }
             s @ R::Round0(_) => {
                 next_state = s;
                 false
-            },
+            }
             R::Round1(round)
-                if !store1_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store1_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.round0_msgs.take().ok_or(InternalError::StoreGone)?;
@@ -152,14 +164,14 @@ impl PreSigning {
                     .map(|msg| R::Round2(Box::new(msg)))
                     .map_err(|_e| Error::ProceedRound { msg_round: 1 })?;
                 true
-            },
+            }
             s @ R::Round1(_) => {
                 next_state = s;
                 false
-            },
+            }
             R::Round2(round)
-                if !store2_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store2_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.round1_msgs.take().ok_or(InternalError::StoreGone)?;
@@ -171,14 +183,14 @@ impl PreSigning {
                     .map(|msg| R::Round3(Box::new(msg)))
                     .map_err(|_e| Error::ProceedRound { msg_round: 2 })?;
                 true
-            },
+            }
             s @ R::Round2(_) => {
                 next_state = s;
                 false
-            },
+            }
             R::Round3(round)
-                if !store3_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store3_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.round2_msgs.take().ok_or(InternalError::StoreGone)?;
@@ -190,14 +202,14 @@ impl PreSigning {
                     .map(|msg| R::Round4(Box::new(msg)))
                     .map_err(|_e| Error::ProceedRound { msg_round: 3 })?;
                 true
-            },
+            }
             s @ R::Round3(_) => {
                 next_state = s;
                 false
-            },
+            }
             R::Round4(round)
-                if !store4_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store4_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.round3_msgs.take().ok_or(InternalError::StoreGone)?;
@@ -209,15 +221,15 @@ impl PreSigning {
                     .map(|msg| R::Final(Box::new(msg)))
                     .map_err(|_e| Error::ProceedRound { msg_round: 4 })?;
                 true
-            },
+            }
             s @ R::Round4(_) => {
                 next_state = s;
                 false
-            },
+            }
             s @ R::Final(_) | s @ R::Gone => {
                 next_state = s;
                 false
-            },
+            }
         };
         self.round = next_state;
         if try_again {
@@ -253,7 +265,7 @@ impl StateMachine for PreSigning {
                     })
                     .map_err(Error::HandleMessage)?;
                 self.proceed_round(false)
-            },
+            }
             ProtocolMessage(M::Round2(m)) => {
                 let store = self.round1_msgs.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -269,7 +281,7 @@ impl StateMachine for PreSigning {
                     })
                     .map_err(Error::HandleMessage)?;
                 self.proceed_round(false)
-            },
+            }
             ProtocolMessage(M::Round3(m)) => {
                 let store = self.round2_msgs.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -285,7 +297,7 @@ impl StateMachine for PreSigning {
                     })
                     .map_err(Error::HandleMessage)?;
                 self.proceed_round(false)
-            },
+            }
             ProtocolMessage(M::Round4(m)) => {
                 let store = self.round3_msgs.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -301,7 +313,7 @@ impl StateMachine for PreSigning {
                     })
                     .map_err(Error::HandleMessage)?;
                 self.proceed_round(false)
-            },
+            }
         }
     }
 
@@ -310,14 +322,26 @@ impl StateMachine for PreSigning {
     }
 
     fn wants_to_proceed(&self) -> bool {
-        let store1_wants_more =
-            self.round0_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
-        let store2_wants_more =
-            self.round1_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
-        let store3_wants_more =
-            self.round2_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
-        let store4_wants_more =
-            self.round3_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
+        let store1_wants_more = self
+            .round0_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
+        let store2_wants_more = self
+            .round1_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
+        let store3_wants_more = self
+            .round2_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
+        let store4_wants_more = self
+            .round3_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
 
         match &self.round {
             R::Round0(_) => true,
@@ -384,14 +408,26 @@ impl StateMachine for PreSigning {
 
 impl crate::traits::RoundBlame for PreSigning {
     fn round_blame(&self) -> (u16, Vec<u16>) {
-        let store1_blame =
-            self.round0_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
-        let store2_blame =
-            self.round1_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
-        let store3_blame =
-            self.round2_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
-        let store4_blame =
-            self.round3_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
+        let store1_blame = self
+            .round0_msgs
+            .as_ref()
+            .map(|s| s.blame())
+            .unwrap_or_default();
+        let store2_blame = self
+            .round1_msgs
+            .as_ref()
+            .map(|s| s.blame())
+            .unwrap_or_default();
+        let store3_blame = self
+            .round2_msgs
+            .as_ref()
+            .map(|s| s.blame())
+            .unwrap_or_default();
+        let store4_blame = self
+            .round3_msgs
+            .as_ref()
+            .map(|s| s.blame())
+            .unwrap_or_default();
 
         let default = (0, vec![]);
         match &self.round {
@@ -615,8 +651,10 @@ pub mod test {
     pub fn extract_secret_key(
         local_keys: &[LocalKey<Secp256k1>],
     ) -> Scalar<Secp256k1> {
-        let secret_shares: Vec<Scalar<Secp256k1>> =
-            local_keys.iter().map(|key| key.keys_linear.x_i.clone()).collect();
+        let secret_shares: Vec<Scalar<Secp256k1>> = local_keys
+            .iter()
+            .map(|key| key.keys_linear.x_i.clone())
+            .collect();
         local_keys[0].vss_scheme.reconstruct(
             &(0..local_keys.len() as u16).collect::<Vec<u16>>(),
             &secret_shares.clone(),
@@ -727,8 +765,8 @@ pub mod test {
                 // Composes SSID.
                 // See Figure 6, Round 1.
                 // Ref: <https://eprint.iacr.org/2021/060.pdf>.
-                let phi = (&paillier_dk.p - BigInt::one()) *
-                    (&paillier_dk.q - BigInt::one());
+                let phi = (&paillier_dk.p - BigInt::one())
+                    * (&paillier_dk.q - BigInt::one());
                 let r = BigInt::sample_below(&paillier_ek.n);
                 let lambda = BigInt::sample_below(&phi);
                 let t = BigInt::mod_pow(&r, &BigInt::from(2), &paillier_ek.n);

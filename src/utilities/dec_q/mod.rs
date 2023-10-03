@@ -53,7 +53,11 @@ pub struct PaillierDecryptionModQWitness<E: Curve, H: Digest + Clone> {
 
 impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQWitness<E, H> {
     pub fn new(y: BigInt, rho: BigInt) -> Self {
-        PaillierDecryptionModQWitness { y, rho, phantom: PhantomData }
+        PaillierDecryptionModQWitness {
+            y,
+            rho,
+            phantom: PhantomData,
+        }
     }
 }
 
@@ -92,7 +96,11 @@ impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQStatement<E, H> {
                 ek_prover,
                 phantom: PhantomData,
             },
-            PaillierDecryptionModQWitness { y, rho, phantom: PhantomData },
+            PaillierDecryptionModQWitness {
+                y,
+                rho,
+                phantom: PhantomData,
+            },
         )
     }
 }
@@ -178,7 +186,12 @@ impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQProof<E, H> {
             .add(&BigInt::one())
             .mul(&e);
         let commitment: PaillierDecryptionModQCommitment =
-            PaillierDecryptionModQCommitment { A, gamma, big_S, big_T };
+            PaillierDecryptionModQCommitment {
+                A,
+                gamma,
+                big_S,
+                big_T,
+            };
         // z1 = α + e · y
         let z1 = BigInt::add(&alpha, &BigInt::mul(&e, &witness.y));
         // z2 = ν + e · μ

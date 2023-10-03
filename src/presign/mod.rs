@@ -46,7 +46,10 @@ pub mod rounds;
 pub mod state_machine;
 
 pub fn DEFAULT_ENCRYPTION_KEY() -> EncryptionKey {
-    EncryptionKey { n: BigInt::zero(), nn: BigInt::zero() }
+    EncryptionKey {
+        n: BigInt::zero(),
+        nn: BigInt::zero(),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

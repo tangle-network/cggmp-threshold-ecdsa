@@ -344,7 +344,16 @@ impl<E: Curve, H: Digest + Clone>
             &statement.N1,
         );
 
-        Self { z1, z2, z3, z4, w, wy, commitment, phantom: PhantomData }
+        Self {
+            z1,
+            z2,
+            z3,
+            z4,
+            w,
+            wy,
+            commitment,
+            phantom: PhantomData,
+        }
     }
 
     pub fn verify(
@@ -415,8 +424,8 @@ impl<E: Curve, H: Digest + Clone>
         // g^{z1} = B_x ·X^e  ∈ G
         let left_2 =
             Point::<E>::generator().as_point() * Scalar::from_bigint(&proof.z1);
-        let right_2 = proof.commitment.B_x.clone() +
-            (statement.X.clone() * Scalar::from_bigint(&e));
+        let right_2 = proof.commitment.B_x.clone()
+            + (statement.X.clone() * Scalar::from_bigint(&e));
         // Assert left == right
         assert!(left_2 == right_2);
         /*

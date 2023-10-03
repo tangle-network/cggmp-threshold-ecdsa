@@ -37,7 +37,7 @@ jobs:
       - name: Install Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2023-10-01
+          toolchain: stable
           components: rustfmt, clippy
           target: wasm32-unknown-unknown
           override: true

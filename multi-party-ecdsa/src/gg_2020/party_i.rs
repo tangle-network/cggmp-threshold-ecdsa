@@ -262,8 +262,10 @@ impl Keys {
             composite_dlog_proof_base_h1,
             composite_dlog_proof_base_h2,
         };
-        let decom1 =
-            KeyGenDecommitMessage1 { blind_factor, y_i: self.y_i.clone() };
+        let decom1 = KeyGenDecommitMessage1 {
+            blind_factor,
+            y_i: self.y_i.clone(),
+        };
         (bcm1, decom1)
     }
 
@@ -405,8 +407,8 @@ impl Keys {
                         &secret_shares_vec[i],
                         index.try_into().unwrap(),
                     )
-                    .is_ok() &&
-                    vss_scheme_vec[i].commitments[0] == y_vec[i];
+                    .is_ok()
+                    && vss_scheme_vec[i].commitments[0] == y_vec[i];
                 if !res {
                     bad_actors_vec.push(i);
                     false
@@ -516,7 +518,11 @@ impl Keys {
 
 impl PartyPrivate {
     pub fn set_private(key: Keys, shared_key: SharedKeys<Secp256k1>) -> Self {
-        Self { u_i: key.u_i, x_i: shared_key.x_i, dk: key.dk }
+        Self {
+            u_i: key.u_i,
+            x_i: shared_key.x_i,
+            dk: key.dk,
+        }
     }
 
     pub fn y_i(&self) -> Point<Secp256k1> {
@@ -647,7 +653,13 @@ impl SignKeys {
         let gamma_i = Scalar::<Secp256k1>::random();
         let g_gamma_i = g * &gamma_i;
         let k_i = Scalar::<Secp256k1>::random();
-        Self { w_i, g_w_i, k_i, gamma_i, g_gamma_i }
+        Self {
+            w_i,
+            g_w_i,
+            k_i,
+            gamma_i,
+            g_gamma_i,
+        }
     }
 
     pub fn phase1_broadcast(
@@ -701,8 +713,11 @@ impl SignKeys {
 
     pub fn phase3_compute_t_i(
         sigma_i: &Scalar<Secp256k1>,
-    ) -> (Point<Secp256k1>, Scalar<Secp256k1>, PedersenProof<Secp256k1, Sha256>)
-    {
+    ) -> (
+        Point<Secp256k1>,
+        Scalar<Secp256k1>,
+        PedersenProof<Secp256k1, Sha256>,
+    ) {
         let g_sigma_i = Point::generator() * sigma_i;
         let l = Scalar::<Secp256k1>::random();
         let h_l = Point::<Secp256k1>::base_point2() * &l;
@@ -791,8 +806,10 @@ impl LocalSignature {
             N_tilde: dlog_statement.N.clone(),
         };
 
-        let pdl_w_slack_witness =
-            PDLwSlackWitness { x: k_i.clone(), r: k_enc_randomness.clone() };
+        let pdl_w_slack_witness = PDLwSlackWitness {
+            x: k_i.clone(),
+            r: k_enc_randomness.clone(),
+        };
 
         PDLwSlackProof::prove(&pdl_w_slack_witness, &pdl_w_slack_statement)
     }
@@ -836,7 +853,7 @@ impl LocalSignature {
                 })
                 .all(|x| x);
             if proofs_verification {
-                return Ok(())
+                return Ok(());
             }
         }
 
@@ -854,8 +871,8 @@ impl LocalSignature {
         let sum = R_dash_vec
             .iter()
             .fold(Point::generator().to_point(), |acc, x| acc + x);
-        match sum - &Point::generator().to_point() ==
-            Point::generator().to_point()
+        match sum - &Point::generator().to_point()
+            == Point::generator().to_point()
         {
             true => Ok(()),
             false => Err(Phase5BadSum),
@@ -876,7 +893,10 @@ impl LocalSignature {
             D: T.clone(),
             E: S.clone(),
         };
-        let witness = HomoElGamalWitness { x: l.clone(), r: sigma.clone() };
+        let witness = HomoElGamalWitness {
+            x: l.clone(),
+            r: sigma.clone(),
+        };
         let proof = HomoELGamalProof::prove(&witness, &delta);
 
         (S, proof)
@@ -913,7 +933,7 @@ impl LocalSignature {
                     data: Vec::new(),
                 };
                 Err(err_type)
-            },
+            }
         }
     }
 
@@ -921,8 +941,9 @@ impl LocalSignature {
         pubkey_y: &Point<Secp256k1>,
         S_vec: &[Point<Secp256k1>],
     ) -> Result<(), Error> {
-        let sum_plus_g =
-            S_vec.iter().fold(Point::generator().to_point(), |acc, x| acc + x);
+        let sum_plus_g = S_vec
+            .iter()
+            .fold(Point::generator().to_point(), |acc, x| acc + x);
         let sum = sum_plus_g - &Point::generator().to_point();
 
         match &sum == pubkey_y {
@@ -940,10 +961,18 @@ impl LocalSignature {
     ) -> Self {
         let m_fe = Scalar::<Secp256k1>::from(message);
         let r = Scalar::<Secp256k1>::from(
-            &R.x_coord().unwrap().mod_floor(Scalar::<Secp256k1>::group_order()),
+            &R.x_coord()
+                .unwrap()
+                .mod_floor(Scalar::<Secp256k1>::group_order()),
         );
         let s_i = m_fe * k_i + &r * sigma_i;
-        Self { r, R: R.clone(), s_i, m: message.clone(), y: pubkey.clone() }
+        Self {
+            r,
+            R: R.clone(),
+            s_i,
+            m: message.clone(),
+            y: pubkey.clone(),
+        }
     }
 
     pub fn output_signature(
@@ -1004,8 +1033,8 @@ pub fn verify(
     let yu2 = y * &u2;
     // can be faster using shamir trick
 
-    if sig.r ==
-        Scalar::<Secp256k1>::from(
+    if sig.r
+        == Scalar::<Secp256k1>::from(
             &(gu1 + yu2)
                 .x_coord()
                 .unwrap()

@@ -90,15 +90,15 @@ impl OfflineStage {
         local_key: LocalKey<Secp256k1>,
     ) -> Result<Self> {
         if s_l.len() < 2 {
-            return Err(Error::TooFewParties)
+            return Err(Error::TooFewParties);
         }
         if i == 0 || usize::from(i) > s_l.len() {
-            return Err(Error::InvalidPartyIndex)
+            return Err(Error::InvalidPartyIndex);
         }
 
         let keygen_n = local_key.n;
         if s_l.iter().any(|&i| i == 0 || i > keygen_n) {
-            return Err(Error::InvalidSl)
+            return Err(Error::InvalidSl);
         }
         {
             // Check if s_l has duplicates
@@ -108,7 +108,7 @@ impl OfflineStage {
             s_l_sorted_deduped.dedup();
 
             if s_l_sorted != s_l_sorted_deduped {
-                return Err(Error::InvalidSl)
+                return Err(Error::InvalidSl);
             }
         }
 
@@ -159,14 +159,14 @@ impl OfflineStage {
                     .map(OfflineR::R1)
                     .map_err(Error::ProceedRound)?;
                 true
-            },
+            }
             s @ OfflineR::R0(_) => {
                 next_state = s;
                 false
-            },
+            }
             OfflineR::R1(round)
-                if !store1_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store1_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.msgs1.take().ok_or(InternalError::StoreGone)?;
@@ -178,14 +178,14 @@ impl OfflineStage {
                     .map(OfflineR::R2)
                     .map_err(Error::ProceedRound)?;
                 true
-            },
+            }
             s @ OfflineR::R1(_) => {
                 next_state = s;
                 false
-            },
+            }
             OfflineR::R2(round)
-                if !store2_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store2_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.msgs2.take().ok_or(InternalError::StoreGone)?;
@@ -197,14 +197,14 @@ impl OfflineStage {
                     .map(OfflineR::R3)
                     .map_err(Error::ProceedRound)?;
                 true
-            },
+            }
             s @ OfflineR::R2(_) => {
                 next_state = s;
                 false
-            },
+            }
             OfflineR::R3(round)
-                if !store3_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store3_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.msgs3.take().ok_or(InternalError::StoreGone)?;
@@ -216,14 +216,14 @@ impl OfflineStage {
                     .map(OfflineR::R4)
                     .map_err(Error::ProceedRound)?;
                 true
-            },
+            }
             s @ OfflineR::R3(_) => {
                 next_state = s;
                 false
-            },
+            }
             OfflineR::R4(round)
-                if !store4_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store4_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.msgs4.take().ok_or(InternalError::StoreGone)?;
@@ -235,14 +235,14 @@ impl OfflineStage {
                     .map(OfflineR::R5)
                     .map_err(Error::ProceedRound)?;
                 false
-            },
+            }
             s @ OfflineR::R4(_) => {
                 next_state = s;
                 false
-            },
+            }
             OfflineR::R5(round)
-                if !store5_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store5_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.msgs5.take().ok_or(InternalError::StoreGone)?;
@@ -254,14 +254,14 @@ impl OfflineStage {
                     .map(OfflineR::R6)
                     .map_err(Error::ProceedRound)?;
                 false
-            },
+            }
             s @ OfflineR::R5(_) => {
                 next_state = s;
                 false
-            },
+            }
             OfflineR::R6(round)
-                if !store6_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store6_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.msgs6.take().ok_or(InternalError::StoreGone)?;
@@ -273,15 +273,15 @@ impl OfflineStage {
                     .map(OfflineR::Finished)
                     .map_err(Error::ProceedRound)?;
                 false
-            },
+            }
             s @ OfflineR::R6(_) => {
                 next_state = s;
                 false
-            },
+            }
             s @ OfflineR::Finished(_) | s @ OfflineR::Gone => {
                 next_state = s;
                 false
-            },
+            }
         };
 
         self.round = next_state;
@@ -319,7 +319,7 @@ impl StateMachine for OfflineStage {
                         body: m,
                     })
                     .map_err(Error::HandleMessage)?;
-            },
+            }
             OfflineProtocolMessage(OfflineM::M2(m)) => {
                 let store = self.msgs2.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -334,7 +334,7 @@ impl StateMachine for OfflineStage {
                         body: m,
                     })
                     .map_err(Error::HandleMessage)?;
-            },
+            }
             OfflineProtocolMessage(OfflineM::M3(m)) => {
                 let store = self.msgs3.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -349,7 +349,7 @@ impl StateMachine for OfflineStage {
                         body: m,
                     })
                     .map_err(Error::HandleMessage)?;
-            },
+            }
             OfflineProtocolMessage(OfflineM::M4(m)) => {
                 let store = self.msgs4.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -364,7 +364,7 @@ impl StateMachine for OfflineStage {
                         body: m,
                     })
                     .map_err(Error::HandleMessage)?;
-            },
+            }
             OfflineProtocolMessage(OfflineM::M5(m)) => {
                 let store = self.msgs5.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -379,7 +379,7 @@ impl StateMachine for OfflineStage {
                         body: m,
                     })
                     .map_err(Error::HandleMessage)?;
-            },
+            }
             OfflineProtocolMessage(OfflineM::M6(m)) => {
                 let store = self.msgs6.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -394,7 +394,7 @@ impl StateMachine for OfflineStage {
                         body: m,
                     })
                     .map_err(Error::HandleMessage)?;
-            },
+            }
         }
         self.proceed_round(false)
     }
@@ -712,7 +712,9 @@ impl SignManual {
         self,
         sigs: &[PartialSignature],
     ) -> Result<SignatureRecid, SignError> {
-        self.state.proceed_manual(sigs).map_err(SignError::CompleteSigning)
+        self.state
+            .proceed_manual(sigs)
+            .map_err(SignError::CompleteSigning)
     }
 }
 

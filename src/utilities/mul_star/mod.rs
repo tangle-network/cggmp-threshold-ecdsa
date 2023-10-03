@@ -96,7 +96,17 @@ impl<E: Curve, H: Digest + Clone>
             &NN0,
         );
         (
-            Self { N0, NN0, C, D, X, N_hat, s, t, phantom: PhantomData },
+            Self {
+                N0,
+                NN0,
+                C,
+                D,
+                X,
+                N_hat,
+                s,
+                t,
+                phantom: PhantomData,
+            },
             PaillierMultiplicationVersusGroupWitness {
                 x,
                 rho,
@@ -204,7 +214,13 @@ impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupProof<E, H> {
         );
         let commitment =
             PaillierMultiplicationVersusGroupCommitment { A, B_x, E, S };
-        Self { z_1, z_2, w, commitment, phantom: PhantomData }
+        Self {
+            z_1,
+            z_2,
+            w,
+            commitment,
+            phantom: PhantomData,
+        }
     }
 
     pub fn verify(
@@ -233,11 +249,11 @@ impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupProof<E, H> {
         );
 
         // left_2 = g^z_1
-        let left_2 = Point::<E>::generator().as_point() *
-            Scalar::from_bigint(&proof.z_1);
+        let left_2 = Point::<E>::generator().as_point()
+            * Scalar::from_bigint(&proof.z_1);
         // right_2 = B_x * X^e
-        let right_2 = proof.commitment.B_x.clone() +
-            (statement.X.clone() * Scalar::from_bigint(&e));
+        let right_2 = proof.commitment.B_x.clone()
+            + (statement.X.clone() * Scalar::from_bigint(&e));
 
         // left_3 = s^z_1 t^z_2 mod N_hat
         let left_3 = BigInt::mod_mul(
@@ -254,24 +270,24 @@ impl<E: Curve, H: Digest + Clone> PaillierMultiplicationVersusGroupProof<E, H> {
         );
 
         if left_1 != right_1 || left_2 != right_2 || left_3 != right_3 {
-            return Err(IncorrectProof)
+            return Err(IncorrectProof);
         }
 
         // Range Check -2^{L + eps} <= z_1 <= 2^{L+eps}
-        let lower_bound_check: bool = proof.z_1 >=
-            BigInt::from(-1).mul(&BigInt::pow(
+        let lower_bound_check: bool = proof.z_1
+            >= BigInt::from(-1).mul(&BigInt::pow(
                 &BigInt::from(2),
                 crate::utilities::L_PLUS_EPSILON as u32,
             ));
 
-        let upper_bound_check = proof.z_1 <=
-            BigInt::pow(
+        let upper_bound_check = proof.z_1
+            <= BigInt::pow(
                 &BigInt::from(2),
                 crate::utilities::L_PLUS_EPSILON as u32,
             );
 
         if !(lower_bound_check && upper_bound_check) {
-            return Err(IncorrectProof)
+            return Err(IncorrectProof);
         }
         Ok(())
     }

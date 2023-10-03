@@ -56,7 +56,11 @@ pub struct PaillierEncryptionInRangeWitness<E: Curve, H: Digest + Clone> {
 
 impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeWitness<E, H> {
     pub fn new(k: BigInt, rho: BigInt) -> Self {
-        PaillierEncryptionInRangeWitness { k, rho, phantom: PhantomData }
+        PaillierEncryptionInRangeWitness {
+            k,
+            rho,
+            phantom: PhantomData,
+        }
     }
 }
 
@@ -83,8 +87,20 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeStatement<E, H> {
         .into();
 
         (
-            Self { N0, NN0, K, s, t, N_hat, phantom: PhantomData },
-            PaillierEncryptionInRangeWitness { k, rho, phantom: PhantomData },
+            Self {
+                N0,
+                NN0,
+                K,
+                s,
+                t,
+                N_hat,
+                phantom: PhantomData,
+            },
+            PaillierEncryptionInRangeWitness {
+                k,
+                rho,
+                phantom: PhantomData,
+            },
         )
     }
 }
@@ -192,7 +208,13 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
         // z_3 = gamma + e*mu
         let z_3 = BigInt::add(&gamma, &BigInt::mul(&e, &mu));
 
-        Self { z_1, z_2, z_3, commitment, phantom: PhantomData }
+        Self {
+            z_1,
+            z_2,
+            z_3,
+            commitment,
+            phantom: PhantomData,
+        }
     }
 
     #[allow(dead_code)]
@@ -210,7 +232,10 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
         let NN0 = statement.NN0.clone();
         // left_1 = (1+N_0)^{z_1}z_2^{N_0} mod N_0^2
         let left_1: BigInt = Paillier::encrypt_with_chosen_randomness(
-            &EncryptionKey { n: statement.N0.clone(), nn: NN0.clone() },
+            &EncryptionKey {
+                n: statement.N0.clone(),
+                nn: NN0.clone(),
+            },
             RawPlaintext::from(&proof.z_1),
             &Randomness::from(&proof.z_2),
         )
@@ -236,24 +261,24 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
         );
 
         if left_1.mod_floor(&NN0) != right_1 || left_2 != right_2 {
-            return Err(IncorrectProof)
+            return Err(IncorrectProof);
         }
 
         // Range Check -2^{L + eps} <= z_1 <= 2^{L+eps}
-        let lower_bound_check: bool = proof.z_1 >=
-            BigInt::from(-1).mul(&BigInt::pow(
+        let lower_bound_check: bool = proof.z_1
+            >= BigInt::from(-1).mul(&BigInt::pow(
                 &BigInt::from(2),
                 crate::utilities::L_PLUS_EPSILON as u32,
             ));
 
-        let upper_bound_check = proof.z_1 <=
-            BigInt::pow(
+        let upper_bound_check = proof.z_1
+            <= BigInt::pow(
                 &BigInt::from(2),
                 crate::utilities::L_PLUS_EPSILON as u32,
             );
 
         if !(lower_bound_check && upper_bound_check) {
-            return Err(IncorrectProof)
+            return Err(IncorrectProof);
         }
 
         Ok(())

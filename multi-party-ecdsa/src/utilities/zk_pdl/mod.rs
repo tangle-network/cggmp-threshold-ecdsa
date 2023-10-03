@@ -184,8 +184,8 @@ impl Verifier {
             &prover_second_message.decommit.blindness,
         );
 
-        if prover_first_message.c_hat == c_hat_test &&
-            prover_second_message.decommit.q_hat == state.q_tag
+        if prover_first_message.c_hat == c_hat_test
+            && prover_second_message.decommit.q_hat == state.q_tag
         {
             Ok(())
         } else {
@@ -227,8 +227,8 @@ impl Prover {
         witness: &PDLWitness,
         state: &PDLProverState,
     ) -> Result<PDLProverSecondMessage, ZkPdlError> {
-        let ab_concat = &verifier_second_message.a +
-            verifier_second_message
+        let ab_concat = &verifier_second_message.a
+            + verifier_second_message
                 .b
                 .clone()
                 .shl(verifier_second_message.a.bit_length()); // b|a (in the paper it is a|b)
@@ -239,10 +239,12 @@ impl Prover {
             );
         let ax1 = &verifier_second_message.a * witness.x.to_bigint();
         let alpha_test = ax1 + &verifier_second_message.b;
-        if alpha_test == state.alpha &&
-            verifier_first_message.c_tag_tag == c_tag_tag_test
+        if alpha_test == state.alpha
+            && verifier_first_message.c_tag_tag == c_tag_tag_test
         {
-            Ok(PDLProverSecondMessage { decommit: state.decommit.clone() })
+            Ok(PDLProverSecondMessage {
+                decommit: state.decommit.clone(),
+            })
         } else {
             Err(ZkPdlError::Message2)
         }

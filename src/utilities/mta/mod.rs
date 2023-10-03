@@ -104,7 +104,10 @@ impl MessageA {
             })
             .collect::<Vec<AliceProof>>();
 
-        Self { c: c_a, range_proofs: alice_range_proofs }
+        Self {
+            c: c_a,
+            range_proofs: alice_range_proofs,
+        }
     }
 }
 
@@ -138,7 +141,7 @@ impl MessageB {
         dlog_statements: &[DLogStatement],
     ) -> Result<(Self, Scalar<Secp256k1>), Error> {
         if m_a.range_proofs.len() != dlog_statements.len() {
-            return Err(InvalidKey)
+            return Err(InvalidKey);
         }
         // verify proofs
         if !m_a
@@ -150,7 +153,7 @@ impl MessageB {
             })
             .all(|x| x)
         {
-            return Err(InvalidKey)
+            return Err(InvalidKey);
         };
         let beta_tag_fe = Scalar::<Secp256k1>::from(beta_tag);
         let c_beta_tag = Paillier::encrypt_with_chosen_randomness(
@@ -215,9 +218,9 @@ impl MessageB {
         let g_alpha = g * &alpha;
         let ba_btag = &self.b_proof.pk * a + &self.beta_tag_proof.pk;
 
-        if DLogProof::verify(&self.b_proof).is_ok() &&
-            DLogProof::verify(&self.beta_tag_proof).is_ok() &&
-            ba_btag == g_alpha
+        if DLogProof::verify(&self.b_proof).is_ok()
+            && DLogProof::verify(&self.beta_tag_proof).is_ok()
+            && ba_btag == g_alpha
         {
             Ok(alpha)
         } else {

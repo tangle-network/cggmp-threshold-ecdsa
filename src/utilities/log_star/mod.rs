@@ -103,13 +103,26 @@ impl<E: Curve, H: Digest + Clone>
         let g = g.unwrap_or(Point::<E>::generator().to_point());
         let X = &g * Scalar::from(&x);
         let C: BigInt = Paillier::encrypt_with_chosen_randomness(
-            &EncryptionKey { n: N0.clone(), nn: NN0.clone() },
+            &EncryptionKey {
+                n: N0.clone(),
+                nn: NN0.clone(),
+            },
             RawPlaintext::from(&x),
             &Randomness::from(&rho),
         )
         .into();
         (
-            Self { N0, NN0, C, X, g, N_hat, s, t, phantom: PhantomData },
+            Self {
+                N0,
+                NN0,
+                C,
+                X,
+                g,
+                N_hat,
+                s,
+                t,
+                phantom: PhantomData,
+            },
             KnowledgeOfExponentPaillierEncryptionWitness {
                 x,
                 rho,
@@ -229,7 +242,13 @@ impl<E: Curve, H: Digest + Clone>
         // z_3 = gamma + e*mu
         let z_3 = BigInt::add(&gamma, &BigInt::mul(&e, &mu));
 
-        Self { z_1, z_2, z_3, commitment, phantom: PhantomData }
+        Self {
+            z_1,
+            z_2,
+            z_3,
+            commitment,
+            phantom: PhantomData,
+        }
     }
 
     pub fn verify(
@@ -264,8 +283,8 @@ impl<E: Curve, H: Digest + Clone>
         // left_2 = g^z_1
         let left_2 = &statement.g * Scalar::from_bigint(&proof.z_1);
         // right_2 = Y * X^e
-        let right_2 = proof.commitment.Y.clone() +
-            (statement.X.clone() * Scalar::from_bigint(&e));
+        let right_2 = proof.commitment.Y.clone()
+            + (statement.X.clone() * Scalar::from_bigint(&e));
 
         // left_3 = s^z_1 t^z_3 mod N_hat
         let left_3 = BigInt::mod_mul(
@@ -281,28 +300,28 @@ impl<E: Curve, H: Digest + Clone>
             &statement.N_hat,
         );
 
-        if left_1.mod_floor(&statement.NN0) != right_1 ||
-            left_2 != right_2 ||
-            left_3 != right_3
+        if left_1.mod_floor(&statement.NN0) != right_1
+            || left_2 != right_2
+            || left_3 != right_3
         {
-            return Err(IncorrectProof)
+            return Err(IncorrectProof);
         }
 
         // Range Check -2^{L + eps} <= z_1 <= 2^{L+eps}
-        let lower_bound_check: bool = proof.z_1 >=
-            BigInt::from(-1).mul(&BigInt::pow(
+        let lower_bound_check: bool = proof.z_1
+            >= BigInt::from(-1).mul(&BigInt::pow(
                 &BigInt::from(2),
                 crate::utilities::L_PLUS_EPSILON as u32,
             ));
 
-        let upper_bound_check = proof.z_1 <=
-            BigInt::pow(
+        let upper_bound_check = proof.z_1
+            <= BigInt::pow(
                 &BigInt::from(2),
                 crate::utilities::L_PLUS_EPSILON as u32,
             );
 
         if !(lower_bound_check && upper_bound_check) {
-            return Err(IncorrectProof)
+            return Err(IncorrectProof);
         }
         Ok(())
     }

@@ -238,13 +238,13 @@ impl Round1 {
                     error_type: "enc".to_string(),
                     bad_actors: vec![j.into()],
                     data: bincode::serialize(&error_data).unwrap(),
-                }))
+                }));
             }
         }
 
         // Gamma_i = g^{gamma_i}
-        let Gamma_i = Point::<Secp256k1>::generator().as_point() *
-            Scalar::from_bigint(&self.gamma_i);
+        let Gamma_i = Point::<Secp256k1>::generator().as_point()
+            * Scalar::from_bigint(&self.gamma_i);
         // {beta, beta_hat, r, r_hat, s, s_hat}_i will store mapping from j to
         // {beta, beta_hat, r, r_hat, s, s_hat}_i_j.
         let mut beta_i: HashMap<u16, BigInt> = HashMap::new();
@@ -495,8 +495,8 @@ impl Round1 {
                         Y: F_hat_j_i.clone(),
                         // We use omega_i in place of x_i, see doc on omega_i
                         // definition for explanation.
-                        X: Point::<Secp256k1>::generator().as_point() *
-                            Scalar::from_bigint(&omega_i),
+                        X: Point::<Secp256k1>::generator().as_point()
+                            * Scalar::from_bigint(&omega_i),
                         ek_prover: self.secrets.ek.clone(),
                         ek_verifier: eks
                             .get(j)
@@ -784,16 +784,21 @@ impl Round2 {
             alpha_i.values().fold(BigInt::zero(), |acc, x| acc.add(x));
 
         // Sum alpha_hat_i_j's
-        let sum_of_alpha_hats =
-            alpha_hat_i.values().fold(BigInt::zero(), |acc, x| acc.add(x));
+        let sum_of_alpha_hats = alpha_hat_i
+            .values()
+            .fold(BigInt::zero(), |acc, x| acc.add(x));
 
         // Sum beta_i_j's
-        let sum_of_betas =
-            self.beta_i.values().fold(BigInt::zero(), |acc, x| acc.add(x));
+        let sum_of_betas = self
+            .beta_i
+            .values()
+            .fold(BigInt::zero(), |acc, x| acc.add(x));
 
         // Sum beta_hat_i_j's
-        let sum_of_beta_hats =
-            self.beta_hat_i.values().fold(BigInt::zero(), |acc, x| acc.add(x));
+        let sum_of_beta_hats = self
+            .beta_hat_i
+            .values()
+            .fold(BigInt::zero(), |acc, x| acc.add(x));
 
         // delta_i = gamma_i * k_i + sum of alpha_i_j's + sum of beta_i_j's mod
         // q
@@ -1011,13 +1016,13 @@ impl Round3 {
         let product_of_Deltas =
             Deltas.values().fold(self.Delta_i.clone(), |acc, x| acc + x);
 
-        if product_of_Deltas ==
-            Point::<Secp256k1>::generator().as_point() *
-                Scalar::from_bigint(&delta)
+        if product_of_Deltas
+            == Point::<Secp256k1>::generator().as_point()
+                * Scalar::from_bigint(&delta)
         {
             // R = Gamma^{delta^{-1}}
-            let R = self.Gamma.clone() *
-                Scalar::from_bigint(
+            let R = self.Gamma.clone()
+                * Scalar::from_bigint(
                     &BigInt::mod_inv(&delta, &self.ssid.q).unwrap(),
                 );
             let presigning_output = PresigningOutput {
@@ -1093,44 +1098,92 @@ impl Round3 {
                 PaillierAffineOpWithGroupComInRangeStatement<Secp256k1, Sha256>,
             > = HashMap::new();
 
-            self.ssid.P.iter().zip(self.ssid.P.iter()).for_each(|(j, l)| {
-				if *j != self.ssid.X.i && j != l {
-					let D_j_i = self.D_j.get(&self.ssid.X.i.clone()).unwrap();
+            self.ssid
+                .P
+                .iter()
+                .zip(self.ssid.P.iter())
+                .for_each(|(j, l)| {
+                    if *j != self.ssid.X.i && j != l {
+                        let D_j_i =
+                            self.D_j.get(&self.ssid.X.i.clone()).unwrap();
 
-					// F_j_i = enc_i(beta_i_j, r_i_j)
-					let F_j_i = self.F_j.get(&self.ssid.X.i).unwrap();
+                        // F_j_i = enc_i(beta_i_j, r_i_j)
+                        let F_j_i = self.F_j.get(&self.ssid.X.i).unwrap();
 
-					let witness_D_j_i = PaillierAffineOpWithGroupComInRangeWitness::new(
-						self.gamma_i.clone(),
-						self.beta_i.get(j).unwrap_or(&BigInt::zero()).clone(),
-						self.s_i.get(j).unwrap_or(&BigInt::zero()).clone(),
-						self.r_i.get(j).unwrap_or(&BigInt::zero()).clone(),
-					);
-					let statement_D_j_i = PaillierAffineOpWithGroupComInRangeStatement {
-						S: self.S.get(l).unwrap_or(&BigInt::zero()).clone(),
-						T: self.T.get(l).unwrap_or(&BigInt::zero()).clone(),
-						N_hat: self.N_hats.get(l).unwrap_or(&BigInt::zero()).clone(),
-						N0: self.secrets.ek.n.clone(),
-						N1: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).n.clone(),
-						NN0: self.secrets.ek.nn.clone(),
-						NN1: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).nn.clone(),
-						C: D_j_i.clone(),
-						D: self.K.get(j).unwrap_or(&BigInt::zero()).clone(),
-						Y: F_j_i.clone(),
-						X: self.Gamma_i.clone(),
-						ek_prover: self.secrets.ek.clone(),
-						ek_verifier: self.eks.get(j).unwrap_or(&DEFAULT_ENCRYPTION_KEY()).clone(),
-						phantom: PhantomData,
-					};
-					let D_j_i_proof =
-						PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::prove(
-							&witness_D_j_i,
-							&statement_D_j_i,
-						);
-					proofs_D_j_i.insert((*l, *j), D_j_i_proof);
-					statements_D_j_i.insert((*l, *j), statement_D_j_i);
-				}
-			});
+                        let witness_D_j_i =
+                            PaillierAffineOpWithGroupComInRangeWitness::new(
+                                self.gamma_i.clone(),
+                                self.beta_i
+                                    .get(j)
+                                    .unwrap_or(&BigInt::zero())
+                                    .clone(),
+                                self.s_i
+                                    .get(j)
+                                    .unwrap_or(&BigInt::zero())
+                                    .clone(),
+                                self.r_i
+                                    .get(j)
+                                    .unwrap_or(&BigInt::zero())
+                                    .clone(),
+                            );
+                        let statement_D_j_i =
+                            PaillierAffineOpWithGroupComInRangeStatement {
+                                S: self
+                                    .S
+                                    .get(l)
+                                    .unwrap_or(&BigInt::zero())
+                                    .clone(),
+                                T: self
+                                    .T
+                                    .get(l)
+                                    .unwrap_or(&BigInt::zero())
+                                    .clone(),
+                                N_hat: self
+                                    .N_hats
+                                    .get(l)
+                                    .unwrap_or(&BigInt::zero())
+                                    .clone(),
+                                N0: self.secrets.ek.n.clone(),
+                                N1: self
+                                    .eks
+                                    .get(j)
+                                    .unwrap_or(&DEFAULT_ENCRYPTION_KEY())
+                                    .n
+                                    .clone(),
+                                NN0: self.secrets.ek.nn.clone(),
+                                NN1: self
+                                    .eks
+                                    .get(j)
+                                    .unwrap_or(&DEFAULT_ENCRYPTION_KEY())
+                                    .nn
+                                    .clone(),
+                                C: D_j_i.clone(),
+                                D: self
+                                    .K
+                                    .get(j)
+                                    .unwrap_or(&BigInt::zero())
+                                    .clone(),
+                                Y: F_j_i.clone(),
+                                X: self.Gamma_i.clone(),
+                                ek_prover: self.secrets.ek.clone(),
+                                ek_verifier: self
+                                    .eks
+                                    .get(j)
+                                    .unwrap_or(&DEFAULT_ENCRYPTION_KEY())
+                                    .clone(),
+                                phantom: PhantomData,
+                            };
+                        let D_j_i_proof =
+                            PaillierAffineOpWithGroupComInRangeProof::<
+                                Secp256k1,
+                                Sha256,
+                            >::prove(
+                                &witness_D_j_i, &statement_D_j_i
+                            );
+                        proofs_D_j_i.insert((*l, *j), D_j_i_proof);
+                        statements_D_j_i.insert((*l, *j), statement_D_j_i);
+                    }
+                });
 
             // H_i proof
             let H_i_randomness: BigInt =
@@ -1248,7 +1301,11 @@ impl Round3 {
                 receiver: None,
                 body: Box::new(body),
             });
-            Ok(Round4 { ssid: self.ssid, output: None, transcript: None })
+            Ok(Round4 {
+                ssid: self.ssid,
+                output: None,
+                transcript: None,
+            })
         }
     }
 
@@ -1318,7 +1375,7 @@ impl Round4 {
                             bad_actors: vec_D_si_j_proof_bad_actors,
                             data: bincode::serialize(&error_data).unwrap(),
                         },
-                    ))
+                    ));
                 }
                 // Check H_j proofs
                 let proof_H_si = msg.proof_H_i;
@@ -1337,7 +1394,7 @@ impl Round4 {
                             bad_actors: vec![si.into()],
                             data: bincode::serialize(&error_data).unwrap(),
                         },
-                    ))
+                    ));
                 }
                 // Check delta_si_proof
                 let proof_delta_si =
@@ -1361,7 +1418,7 @@ impl Round4 {
                             bad_actors: vec![si.into()],
                             data: bincode::serialize(&error_data).unwrap(),
                         },
-                    ))
+                    ));
                 }
             }
             Ok(None)

@@ -142,7 +142,7 @@ impl Round2 {
 
         for (i, share) in vss_result.1.iter().enumerate() {
             if i + 1 == usize::from(self.party_i) {
-                continue
+                continue;
             }
 
             let enc_key_for_recipient = &self.received_comm[i].e;

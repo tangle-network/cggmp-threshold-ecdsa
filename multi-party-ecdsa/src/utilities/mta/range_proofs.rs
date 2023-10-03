@@ -53,16 +53,24 @@ impl AliceZkpRound1 {
         let beta = BigInt::from_paillier_key(alice_ek);
         let gamma = BigInt::sample_below(&(q.pow(3) * N_tilde));
         let ro = BigInt::sample_below(&(q * N_tilde));
-        let z = (BigInt::mod_pow(h1, a, N_tilde) *
-            BigInt::mod_pow(h2, &ro, N_tilde)) %
-            N_tilde;
-        let u = ((alpha.borrow() * &alice_ek.n + 1) *
-            BigInt::mod_pow(&beta, &alice_ek.n, &alice_ek.nn)) %
-            &alice_ek.nn;
-        let w = (BigInt::mod_pow(h1, &alpha, N_tilde) *
-            BigInt::mod_pow(h2, &gamma, N_tilde)) %
-            N_tilde;
-        Self { alpha, beta, gamma, ro, z, u, w }
+        let z = (BigInt::mod_pow(h1, a, N_tilde)
+            * BigInt::mod_pow(h2, &ro, N_tilde))
+            % N_tilde;
+        let u = ((alpha.borrow() * &alice_ek.n + 1)
+            * BigInt::mod_pow(&beta, &alice_ek.n, &alice_ek.nn))
+            % &alice_ek.nn;
+        let w = (BigInt::mod_pow(h1, &alpha, N_tilde)
+            * BigInt::mod_pow(h2, &gamma, N_tilde))
+            % N_tilde;
+        Self {
+            alpha,
+            beta,
+            gamma,
+            ro,
+            z,
+            u,
+            w,
+        }
     }
 }
 
@@ -82,8 +90,8 @@ impl AliceZkpRound2 {
         r: &BigInt,
     ) -> Self {
         Self {
-            s: (BigInt::mod_pow(r, e, &alice_ek.n) * round1.beta.borrow()) %
-                &alice_ek.n,
+            s: (BigInt::mod_pow(r, e, &alice_ek.n) * round1.beta.borrow())
+                % &alice_ek.n,
             s1: (e * a) + round1.alpha.borrow(),
             s2: (e * round1.ro.borrow()) + round1.gamma.borrow(),
         }
@@ -116,7 +124,7 @@ impl AliceProof {
         let Gen = alice_ek.n.borrow() + 1;
 
         if self.s1 > Scalar::<Secp256k1>::group_order().pow(3) {
-            return false
+            return false;
         }
 
         let z_e_inv = BigInt::mod_inv(
@@ -129,10 +137,10 @@ impl AliceProof {
             Some(c) => c,
         };
 
-        let w = (BigInt::mod_pow(h1, &self.s1, N_tilde) *
-            BigInt::mod_pow(h2, &self.s2, N_tilde) *
-            z_e_inv) %
-            N_tilde;
+        let w = (BigInt::mod_pow(h1, &self.s1, N_tilde)
+            * BigInt::mod_pow(h2, &self.s2, N_tilde)
+            * z_e_inv)
+            % N_tilde;
 
         let gs1 = (self.s1.borrow() * N + 1) % NN;
         let cipher_e_inv =
@@ -153,7 +161,7 @@ impl AliceProof {
             .chain_bigint(&w)
             .result_bigint();
         if e != self.e {
-            return false
+            return false;
         }
 
         true
@@ -239,23 +247,36 @@ impl BobZkpRound1 {
         let ro_prim = BigInt::sample_below(&(q.pow(3) * N_tilde));
         let sigma = BigInt::sample_below(&(q * N_tilde));
         let tau = BigInt::sample_below(&(q.pow(3) * N_tilde));
-        let z = (BigInt::mod_pow(h1, &b_bn, N_tilde) *
-            BigInt::mod_pow(h2, &ro, N_tilde)) %
-            N_tilde;
-        let z_prim = (BigInt::mod_pow(h1, &alpha, N_tilde) *
-            BigInt::mod_pow(h2, &ro_prim, N_tilde)) %
-            N_tilde;
-        let t = (BigInt::mod_pow(h1, beta_prim, N_tilde) *
-            BigInt::mod_pow(h2, &sigma, N_tilde)) %
-            N_tilde;
-        let w = (BigInt::mod_pow(h1, &gamma, N_tilde) *
-            BigInt::mod_pow(h2, &tau, N_tilde)) %
-            N_tilde;
-        let v = (BigInt::mod_pow(a_encrypted, &alpha, &alice_ek.nn) *
-            (gamma.borrow() * &alice_ek.n + 1) *
-            BigInt::mod_pow(&beta, &alice_ek.n, &alice_ek.nn)) %
-            &alice_ek.nn;
-        Self { alpha, beta, gamma, ro, ro_prim, sigma, tau, z, z_prim, t, w, v }
+        let z = (BigInt::mod_pow(h1, &b_bn, N_tilde)
+            * BigInt::mod_pow(h2, &ro, N_tilde))
+            % N_tilde;
+        let z_prim = (BigInt::mod_pow(h1, &alpha, N_tilde)
+            * BigInt::mod_pow(h2, &ro_prim, N_tilde))
+            % N_tilde;
+        let t = (BigInt::mod_pow(h1, beta_prim, N_tilde)
+            * BigInt::mod_pow(h2, &sigma, N_tilde))
+            % N_tilde;
+        let w = (BigInt::mod_pow(h1, &gamma, N_tilde)
+            * BigInt::mod_pow(h2, &tau, N_tilde))
+            % N_tilde;
+        let v = (BigInt::mod_pow(a_encrypted, &alpha, &alice_ek.nn)
+            * (gamma.borrow() * &alice_ek.n + 1)
+            * BigInt::mod_pow(&beta, &alice_ek.n, &alice_ek.nn))
+            % &alice_ek.nn;
+        Self {
+            alpha,
+            beta,
+            gamma,
+            ro,
+            ro_prim,
+            sigma,
+            tau,
+            z,
+            z_prim,
+            t,
+            w,
+            v,
+        }
     }
 }
 
@@ -284,9 +305,9 @@ impl BobZkpRound2 {
     ) -> Self {
         let b_bn = b.to_bigint();
         Self {
-            s: (BigInt::mod_pow(r.0.borrow(), e, &alice_ek.n) *
-                round1.beta.borrow()) %
-                &alice_ek.n,
+            s: (BigInt::mod_pow(r.0.borrow(), e, &alice_ek.n)
+                * round1.beta.borrow())
+                % &alice_ek.n,
             s1: (e * b_bn) + round1.alpha.borrow(),
             s2: (e * round1.ro.borrow()) + round1.ro_prim.borrow(),
             t1: (e * beta_prim) + round1.gamma.borrow(),
@@ -331,7 +352,7 @@ impl BobProof {
         let h2 = &dlog_statement.ni;
 
         if self.s1 > Scalar::<Secp256k1>::group_order().pow(3) {
-            return false
+            return false;
         }
 
         let z_e_inv = BigInt::mod_inv(
@@ -344,10 +365,10 @@ impl BobProof {
             Some(c) => c,
         };
 
-        let z_prim = (BigInt::mod_pow(h1, &self.s1, N_tilde) *
-            BigInt::mod_pow(h2, &self.s2, N_tilde) *
-            z_e_inv) %
-            N_tilde;
+        let z_prim = (BigInt::mod_pow(h1, &self.s1, N_tilde)
+            * BigInt::mod_pow(h2, &self.s2, N_tilde)
+            * z_e_inv)
+            % N_tilde;
 
         let mta_e_inv =
             BigInt::mod_inv(&BigInt::mod_pow(mta_avc_out, &self.e, NN), NN);
@@ -356,11 +377,11 @@ impl BobProof {
             Some(c) => c,
         };
 
-        let v = (BigInt::mod_pow(a_enc, &self.s1, NN) *
-            BigInt::mod_pow(&self.s, N, NN) *
-            (self.t1.borrow() * N + 1) *
-            mta_e_inv) %
-            NN;
+        let v = (BigInt::mod_pow(a_enc, &self.s1, NN)
+            * BigInt::mod_pow(&self.s, N, NN)
+            * (self.t1.borrow() * N + 1)
+            * mta_e_inv)
+            % NN;
 
         let t_e_inv = BigInt::mod_inv(
             &BigInt::mod_pow(&self.t, &self.e, N_tilde),
@@ -371,10 +392,10 @@ impl BobProof {
             Some(c) => c,
         };
 
-        let w = (BigInt::mod_pow(h1, &self.t1, N_tilde) *
-            BigInt::mod_pow(h2, &self.t2, N_tilde) *
-            t_e_inv) %
-            N_tilde;
+        let w = (BigInt::mod_pow(h1, &self.t1, N_tilde)
+            * BigInt::mod_pow(h2, &self.t2, N_tilde)
+            * t_e_inv)
+            % N_tilde;
 
         let Gen = alice_ek.n.borrow() + 1;
         let mut values_to_hash = vec![
@@ -402,7 +423,7 @@ impl BobProof {
                     .into_iter()
                     .fold(Sha256::new(), |acc, b| acc.chain_bigint(b))
                     .result_bigint()
-            },
+            }
             None => values_to_hash
                 .into_iter()
                 .fold(Sha256::new(), |acc, b| acc.chain_bigint(b))
@@ -410,7 +431,7 @@ impl BobProof {
         };
 
         if e != self.e {
-            return false
+            return false;
         }
 
         true
@@ -515,9 +536,12 @@ impl BobProofExt {
             mta_avc_out,
             alice_ek,
             dlog_statement,
-            Some(&BobCheck { u: self.u.clone(), X: X.clone() }),
+            Some(&BobCheck {
+                u: self.u.clone(),
+                X: X.clone(),
+            }),
         ) {
-            return false
+            return false;
         }
 
         // fiddle with EC points
@@ -529,7 +553,7 @@ impl BobProofExt {
         };
 
         if x1 != x2 {
-            return false
+            return false;
         }
 
         true
@@ -548,7 +572,7 @@ impl SampleFromMultiplicativeGroup for BigInt {
         loop {
             let r = Self::sample_below(N);
             if r.gcd(N) == One {
-                return r
+                return r;
             }
         }
     }
@@ -587,7 +611,10 @@ pub(crate) mod tests {
             true,
         );
 
-        BobProofExt { proof: bob_proof, u: u.unwrap() }
+        BobProofExt {
+            proof: bob_proof,
+            u: u.unwrap(),
+        }
     }
 
     pub(crate) fn generate_init(
@@ -606,7 +633,11 @@ pub(crate) mod tests {
         let h2 = BigInt::mod_pow(&h1, &xhi, &ek_tilde.n);
 
         let (ek, dk) = Paillier::keypair().keys();
-        let dlog_statement = DLogStatement { g: h1, ni: h2, N: ek_tilde.n };
+        let dlog_statement = DLogStatement {
+            g: h1,
+            ni: h2,
+            N: ek_tilde.n,
+        };
         (dlog_statement, ek, dk)
     }
 

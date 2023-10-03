@@ -71,11 +71,16 @@ impl Signing {
         let n = ssid.P.len() as u16;
         let i = ssid.X.i;
         if n < 2 {
-            return Err(Error::TooFewParties)
+            return Err(Error::TooFewParties);
         }
 
         let mut state = Self {
-            round: R::Round0(Box::new(Round0 { ssid, l, m, presigning_data })),
+            round: R::Round0(Box::new(Round0 {
+                ssid,
+                l,
+                m,
+                presigning_data,
+            })),
 
             round0_msgs: Some(Round1::expects_messages(i, n)),
             round1_msgs: Some(Round2::expects_messages(i, n)),
@@ -101,10 +106,16 @@ impl Signing {
     /// Proceeds round state if it received enough messages and if it's cheap to
     /// compute or `may_block == true`
     fn proceed_round(&mut self, may_block: bool) -> Result<()> {
-        let store1_wants_more =
-            self.round0_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
-        let store2_wants_more =
-            self.round1_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
+        let store1_wants_more = self
+            .round0_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
+        let store2_wants_more = self
+            .round1_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
 
         let next_state: R;
 
@@ -115,14 +126,14 @@ impl Signing {
                     .map(|msg| R::Round1(Box::new(msg)))
                     .map_err(|_e| Error::ProceedRound { msg_round: 0 })?;
                 true
-            },
+            }
             s @ R::Round0(_) => {
                 next_state = s;
                 false
-            },
+            }
             R::Round1(round)
-                if !store1_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store1_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.round0_msgs.take().ok_or(InternalError::StoreGone)?;
@@ -134,14 +145,14 @@ impl Signing {
                     .map(|msg| R::Round2(Box::new(msg)))
                     .map_err(|_e| Error::ProceedRound { msg_round: 1 })?;
                 true
-            },
+            }
             s @ R::Round1(_) => {
                 next_state = s;
                 false
-            },
+            }
             R::Round2(round)
-                if !store2_wants_more &&
-                    (!round.is_expensive() || may_block) =>
+                if !store2_wants_more
+                    && (!round.is_expensive() || may_block) =>
             {
                 let store =
                     self.round1_msgs.take().ok_or(InternalError::StoreGone)?;
@@ -153,16 +164,16 @@ impl Signing {
                     .map(|msg| R::Final(Box::new(msg)))
                     .map_err(|_e| Error::ProceedRound { msg_round: 2 })?;
                 true
-            },
+            }
             s @ R::Round2(_) => {
                 next_state = s;
                 false
-            },
+            }
 
             s @ R::Final(_) | s @ R::Gone => {
                 next_state = s;
                 false
-            },
+            }
         };
         self.round = next_state;
         if try_again {
@@ -197,7 +208,7 @@ impl StateMachine for Signing {
                     })
                     .map_err(Error::HandleMessage)?;
                 self.proceed_round(false)
-            },
+            }
             ProtocolMessage(M::Round2(m)) => {
                 let store = self.round1_msgs.as_mut().ok_or(
                     Error::ReceivedOutOfOrderMessage {
@@ -213,7 +224,7 @@ impl StateMachine for Signing {
                     })
                     .map_err(Error::HandleMessage)?;
                 self.proceed_round(false)
-            },
+            }
         }
     }
 
@@ -222,10 +233,16 @@ impl StateMachine for Signing {
     }
 
     fn wants_to_proceed(&self) -> bool {
-        let store1_wants_more =
-            self.round0_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
-        let store2_wants_more =
-            self.round1_msgs.as_ref().map(|s| s.wants_more()).unwrap_or(false);
+        let store1_wants_more = self
+            .round0_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
+        let store2_wants_more = self
+            .round1_msgs
+            .as_ref()
+            .map(|s| s.wants_more())
+            .unwrap_or(false);
 
         match &self.round {
             R::Round0(_) => true,
@@ -288,10 +305,16 @@ impl StateMachine for Signing {
 
 impl crate::traits::RoundBlame for Signing {
     fn round_blame(&self) -> (u16, Vec<u16>) {
-        let store1_blame =
-            self.round0_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
-        let store2_blame =
-            self.round1_msgs.as_ref().map(|s| s.blame()).unwrap_or_default();
+        let store1_blame = self
+            .round0_msgs
+            .as_ref()
+            .map(|s| s.blame())
+            .unwrap_or_default();
+        let store2_blame = self
+            .round1_msgs
+            .as_ref()
+            .map(|s| s.blame())
+            .unwrap_or_default();
 
         let default = (0, vec![]);
         match &self.round {
@@ -523,8 +546,8 @@ mod test {
         let r_direct = (Point::<Secp256k1>::generator() * k.invert().unwrap())
             .x_coord()
             .unwrap();
-        let s_direct = (k.to_bigint() *
-            (message_digest + (&r_direct * &sec_key.to_bigint())))
+        let s_direct = (k.to_bigint()
+            * (message_digest + (&r_direct * &sec_key.to_bigint())))
             .mod_floor(q);
         let expected_signature = (r_direct, s_direct);
         assert_eq!(signature, expected_signature);

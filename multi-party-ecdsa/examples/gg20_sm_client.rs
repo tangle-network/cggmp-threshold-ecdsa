@@ -34,8 +34,8 @@ where
     // Ignore incoming messages addressed to someone else
     let incoming = incoming.try_filter(move |msg| {
         futures::future::ready(
-            msg.sender != index &&
-                (msg.receiver.is_none() || msg.receiver == Some(index)),
+            msg.sender != index
+                && (msg.receiver.is_none() || msg.receiver == Some(index)),
         )
     });
 
@@ -44,7 +44,10 @@ where
         futures::sink::unfold(client, |client, message: Msg<M>| async move {
             let serialized =
                 serde_json::to_string(&message).context("serialize message")?;
-            client.broadcast(&serialized).await.context("broadcast message")?;
+            client
+                .broadcast(&serialized)
+                .await
+                .context("broadcast message")?;
             Ok::<_, anyhow::Error>(client)
         });
 
@@ -60,7 +63,9 @@ impl SmClient {
         let config = surf::Config::new()
             .set_base_url(address.join(&format!("rooms/{}/", room_id))?)
             .set_timeout(None);
-        Ok(Self { http_client: config.try_into()? })
+        Ok(Self {
+            http_client: config.try_into()?,
+        })
     }
 
     pub async fn issue_index(&self) -> Result<u16> {
@@ -100,7 +105,7 @@ impl SmClient {
                 Ok(_) => {
                     // ignore other types of events
                     None
-                },
+                }
                 Err(e) => Some(Err(e.into_inner())),
             }
         }))
@@ -139,19 +144,21 @@ async fn main() -> Result<()> {
     let client =
         SmClient::new(args.address, &args.room).context("create SmClient")?;
     match args.cmd {
-        Cmd::Broadcast { message } =>
-            client.broadcast(&message).await.context("broadcast message")?,
+        Cmd::Broadcast { message } => client
+            .broadcast(&message)
+            .await
+            .context("broadcast message")?,
         Cmd::IssueIdx => {
             let index = client.issue_index().await.context("issue index")?;
             println!("Index: {}", index);
-        },
+        }
         Cmd::Subscribe => {
             let messages = client.subscribe().await.context("subsribe")?;
             tokio::pin!(messages);
             while let Some(message) = messages.next().await {
                 println!("{:?}", message);
             }
-        },
+        }
     }
     Ok(())
 }

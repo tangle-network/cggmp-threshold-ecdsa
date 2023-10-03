@@ -158,8 +158,8 @@ impl Round1 {
         let r_sigma_inv = self.r.mul(&sigma_inv);
         let g = Point::<Secp256k1>::generator();
         let X = self.ssid.X.public_key();
-        let x_projection = ((g * Scalar::from_bigint(&m_sigma_inv)) +
-            (X * Scalar::from_bigint(&r_sigma_inv)))
+        let x_projection = ((g * Scalar::from_bigint(&m_sigma_inv))
+            + (X * Scalar::from_bigint(&r_sigma_inv)))
         .x_coord()
         .unwrap_or_else(BigInt::zero);
 
@@ -175,7 +175,10 @@ impl Round1 {
                 receiver: None,
                 body: Box::new(None),
             });
-            Ok(Round2 { ssid: self.ssid, output: Some(signing_output) })
+            Ok(Round2 {
+                ssid: self.ssid,
+                output: Some(signing_output),
+            })
         } else {
             // (l,j) to proof for D_j_i
             let mut proofs_D_hat_j_i: HashMap<
@@ -189,43 +192,47 @@ impl Round1 {
                 PaillierAffineOpWithGroupComInRangeStatement<Secp256k1, Sha256>,
             > = HashMap::new();
 
-            self.ssid.P.iter().zip(self.ssid.P.iter()).for_each(|(j, l)| {
-                if *j != self.ssid.X.i && j != l {
-                    let D_hat_j_i = self
-                        .presigning_transcript
-                        .D_hat_j
-                        .get(&self.ssid.X.i)
-                        .unwrap()
-                        .clone();
+            self.ssid
+                .P
+                .iter()
+                .zip(self.ssid.P.iter())
+                .for_each(|(j, l)| {
+                    if *j != self.ssid.X.i && j != l {
+                        let D_hat_j_i = self
+                            .presigning_transcript
+                            .D_hat_j
+                            .get(&self.ssid.X.i)
+                            .unwrap()
+                            .clone();
 
-                    // F_hat_j_i = enc_i(beta_hat_i_j, r_hat_i_j)
-                    let F_hat_j_i = self
-                        .presigning_transcript
-                        .F_hat_j
-                        .get(&self.ssid.X.i)
-                        .unwrap()
-                        .clone();
+                        // F_hat_j_i = enc_i(beta_hat_i_j, r_hat_i_j)
+                        let F_hat_j_i = self
+                            .presigning_transcript
+                            .F_hat_j
+                            .get(&self.ssid.X.i)
+                            .unwrap()
+                            .clone();
 
-                    let witness_D_hat_j_i =
-                        PaillierAffineOpWithGroupComInRangeWitness::new(
-                            self.presigning_transcript.secrets.x_i.clone(),
-                            self.presigning_transcript
-                                .beta_hat_i
-                                .get(j)
-                                .unwrap_or(&BigInt::zero())
-                                .clone(),
-                            self.presigning_transcript
-                                .s_hat_i
-                                .get(j)
-                                .unwrap_or(&BigInt::zero())
-                                .clone(),
-                            self.presigning_transcript
-                                .r_hat_i
-                                .get(j)
-                                .unwrap_or(&BigInt::zero())
-                                .clone(),
-                        );
-                    let statement_D_hat_j_i =
+                        let witness_D_hat_j_i =
+                            PaillierAffineOpWithGroupComInRangeWitness::new(
+                                self.presigning_transcript.secrets.x_i.clone(),
+                                self.presigning_transcript
+                                    .beta_hat_i
+                                    .get(j)
+                                    .unwrap_or(&BigInt::zero())
+                                    .clone(),
+                                self.presigning_transcript
+                                    .s_hat_i
+                                    .get(j)
+                                    .unwrap_or(&BigInt::zero())
+                                    .clone(),
+                                self.presigning_transcript
+                                    .r_hat_i
+                                    .get(j)
+                                    .unwrap_or(&BigInt::zero())
+                                    .clone(),
+                            );
+                        let statement_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
 							S: self
 								.presigning_transcript
@@ -280,15 +287,16 @@ impl Round1 {
 								.clone(),
 							phantom: PhantomData,
 						};
-                    let proof_D_hat_j_i =
+                        let proof_D_hat_j_i =
 						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
 							Secp256k1,
 							Sha256,
 						>::prove(&witness_D_hat_j_i, &statement_D_hat_j_i);
-                    proofs_D_hat_j_i.insert((*l, *j), proof_D_hat_j_i);
-                    statements_D_hat_j_i.insert((*l, *j), statement_D_hat_j_i);
-                }
-            });
+                        proofs_D_hat_j_i.insert((*l, *j), proof_D_hat_j_i);
+                        statements_D_hat_j_i
+                            .insert((*l, *j), statement_D_hat_j_i);
+                    }
+                });
 
             // mul* H_hat_i proof
             let H_hat_i_randomness = sample_relatively_prime_integer(
@@ -309,8 +317,8 @@ impl Round1 {
                 self.presigning_transcript.rho_i.mul(&H_hat_i_randomness),
             );
 
-            let X_i = Point::<Secp256k1>::generator() *
-                Scalar::from_bigint(&self.presigning_transcript.secrets.x_i);
+            let X_i = Point::<Secp256k1>::generator()
+                * Scalar::from_bigint(&self.presigning_transcript.secrets.x_i);
 
             let mut proof_H_hat_i: HashMap<
                 u16,
@@ -499,7 +507,10 @@ impl Round1 {
                 receiver: None,
                 body: Box::new(body),
             });
-            Ok(Round2 { ssid: self.ssid, output: None })
+            Ok(Round2 {
+                ssid: self.ssid,
+                output: None,
+            })
         }
     }
 
@@ -567,7 +578,7 @@ impl Round2 {
                         error_type: "aff-g".to_string(),
                         bad_actors: vec_D_hat_si_j_proof_bad_actors,
                         data: bincode::serialize(&error_data).unwrap(),
-                    }))
+                    }));
                 }
                 // Check H_j proofs
                 let proof_H_hat_si =
@@ -589,7 +600,7 @@ impl Round2 {
                         error_type: "mul".to_string(),
                         bad_actors: vec![si.into()],
                         data: bincode::serialize(&error_data).unwrap(),
-                    }))
+                    }));
                 }
                 // Check delta_si_proof
                 let proof_sigma_si =
@@ -611,7 +622,7 @@ impl Round2 {
                         error_type: "dec-q".to_string(),
                         bad_actors: vec![si.into()],
                         data: bincode::serialize(&error_data).unwrap(),
-                    }))
+                    }));
                 }
             }
             Ok(None)

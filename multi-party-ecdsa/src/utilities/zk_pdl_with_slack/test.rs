@@ -24,8 +24,11 @@ fn test_zk_pdl_with_slack() {
     let xhi = BigInt::sample_below(&S);
     let h1_inv = BigInt::mod_inv(&h1, &ek_tilde.n).unwrap();
     let h2 = BigInt::mod_pow(&h1_inv, &xhi, &ek_tilde.n);
-    let statement =
-        DLogStatement { N: ek_tilde.n.clone(), g: h1.clone(), ni: h2.clone() };
+    let statement = DLogStatement {
+        N: ek_tilde.n.clone(),
+        g: h1.clone(),
+        ni: h2.clone(),
+    };
 
     let composite_dlog_proof = CompositeDLogProof::prove(&statement, &xhi);
 
@@ -82,8 +85,11 @@ fn test_zk_pdl_with_slack_soundness() {
     let xhi = BigInt::sample_below(&S);
     let h1_inv = BigInt::mod_inv(&h1, &ek_tilde.n).unwrap();
     let h2 = BigInt::mod_pow(&h1_inv, &xhi, &ek_tilde.n);
-    let statement =
-        DLogStatement { N: ek_tilde.n.clone(), g: h1.clone(), ni: h2.clone() };
+    let statement = DLogStatement {
+        N: ek_tilde.n.clone(),
+        g: h1.clone(),
+        ni: h2.clone(),
+    };
 
     let composite_dlog_proof = CompositeDLogProof::prove(&statement, &xhi);
 

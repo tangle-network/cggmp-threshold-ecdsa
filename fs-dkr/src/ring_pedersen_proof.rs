@@ -107,7 +107,11 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RingPedersenProof<E, H, M> {
 
         let mut Z = [(); M].map(|_| BigInt::zero());
         for i in 0..M {
-            let e_i = if bitwise_e[i] { BigInt::one() } else { BigInt::zero() };
+            let e_i = if bitwise_e[i] {
+                BigInt::one()
+            } else {
+                BigInt::zero()
+            };
             let z_i = BigInt::mod_add(
                 &a[i],
                 &(e_i * &witness.lambda),
@@ -116,7 +120,11 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RingPedersenProof<E, H, M> {
             Z[i] = z_i;
         }
 
-        Self { A: A.to_vec(), Z: Z.to_vec(), phantom: PhantomData }
+        Self {
+            A: A.to_vec(),
+            Z: Z.to_vec(),
+            phantom: PhantomData,
+        }
     }
 
     pub fn verify(
@@ -137,8 +145,8 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RingPedersenProof<E, H, M> {
                 e_i = 1;
             }
 
-            if BigInt::mod_pow(&statement.T, &proof.Z[i], &statement.N) ==
-                BigInt::mod_mul(
+            if BigInt::mod_pow(&statement.T, &proof.Z[i], &statement.N)
+                == BigInt::mod_mul(
                     &proof.A[i],
                     &BigInt::mod_pow(
                         &statement.S,
@@ -148,9 +156,9 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RingPedersenProof<E, H, M> {
                     &statement.N,
                 )
             {
-                continue
+                continue;
             } else {
-                return Err(FsDkrError::RingPedersenProofError)
+                return Err(FsDkrError::RingPedersenProofError);
             }
         }
         Ok(())
