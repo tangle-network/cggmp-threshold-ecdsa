@@ -38,10 +38,10 @@ use crate::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageA {
-    pub c: BigInt,                     // paillier encryption
+    pub c: BigInt, // paillier encryption
     pub range_proofs: Vec<AliceProof>, /* proofs (using other parties'
-                                        * h1,h2,N_tilde) that the plaintext
-                                        * is small */
+                    * h1,h2,N_tilde) that the plaintext
+                    * is small */
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

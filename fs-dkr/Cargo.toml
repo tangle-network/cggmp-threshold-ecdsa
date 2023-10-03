@@ -13,12 +13,10 @@ curv-kzen.workspace = true
 zk-paillier.workspace = true
 sha2.workspace = true
 paillier.workspace = true
-
-serde = { version = "1.0", features = ["derive"] }
-serde_derive = "1.0"
-zeroize = "1"
-round-based = { git = "https://github.com/webb-tools/round-based-protocol", version = "0.1.4", features = ["dev"] }
-thiserror = "1.0.26"
+round-based.workspace = true
+serde.workspace = true
+zeroize.workspace = true
+thiserror.workspace = true
 
 [dependencies.multi-party-ecdsa]
 workspace = true

@@ -34,12 +34,12 @@ centipede.workspace = true
 zk-paillier.workspace = true
 sha2.workspace = true
 paillier.workspace = true
+round-based.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+zeroize.workspace = true
 
 subtle = { version = "2" }
-serde = { version = "1.0", features = ["derive"] }
-zeroize = "^1.5"
-round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
-thiserror = "1.0.23"
 derivative = "2.2.0"
 log = "0.4.17"
 

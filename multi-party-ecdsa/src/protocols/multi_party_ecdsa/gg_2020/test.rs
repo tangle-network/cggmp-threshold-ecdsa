@@ -277,8 +277,8 @@ fn keygen_t_n_parties(
         pk_vec,          // dlog proof for x_i
         y_sum,           // public key for this MPC keypair.
         vss_scheme_for_test[0].clone(), /* This contains the commitments for
-                                         * each initial share and the shares
-                                         * itself */
+                          * each initial share and the shares
+                          * itself */
         e_vec, // paillier encryption keys. Why separate ?
         h1_h2_N_tilde_vec,
     ))

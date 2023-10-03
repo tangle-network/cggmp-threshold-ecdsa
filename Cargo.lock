@@ -1341,7 +1341,6 @@ dependencies = [
  "multi-party-ecdsa",
  "round-based",
  "serde",
- "serde_derive",
  "sha2 0.9.9",
  "thiserror",
  "zeroize",
