@@ -18,7 +18,6 @@
 */
 
 #![allow(non_snake_case)]
-#![feature(box_patterns)]
 
 use serde::{Deserialize, Serialize};
 
