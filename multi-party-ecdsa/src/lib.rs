@@ -18,6 +18,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod gg_2020;
 pub mod protocols;
 pub mod utilities;
 use std::fmt;

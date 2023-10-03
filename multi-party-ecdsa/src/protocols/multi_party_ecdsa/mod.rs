@@ -14,4 +14,4 @@
     @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
 
-pub mod gg_2020;
+pub use crate::gg_2020;
