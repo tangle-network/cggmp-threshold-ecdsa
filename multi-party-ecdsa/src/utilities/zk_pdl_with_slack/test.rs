@@ -1,11 +1,14 @@
 #![allow(non_snake_case)]
 use crate::utilities::zk_pdl_with_slack::*;
-use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
-use curv::BigInt;
-use paillier::core::Randomness;
-use paillier::traits::{EncryptWithChosenRandomness, KeyGeneration};
-use paillier::Paillier;
-use paillier::RawPlaintext;
+use curv::{
+    elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar},
+    BigInt,
+};
+use paillier::{
+    core::Randomness,
+    traits::{EncryptWithChosenRandomness, KeyGeneration},
+    Paillier, RawPlaintext,
+};
 use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
 #[test]
@@ -21,11 +24,8 @@ fn test_zk_pdl_with_slack() {
     let xhi = BigInt::sample_below(&S);
     let h1_inv = BigInt::mod_inv(&h1, &ek_tilde.n).unwrap();
     let h2 = BigInt::mod_pow(&h1_inv, &xhi, &ek_tilde.n);
-    let statement = DLogStatement {
-        N: ek_tilde.n.clone(),
-        g: h1.clone(),
-        ni: h2.clone(),
-    };
+    let statement =
+        DLogStatement { N: ek_tilde.n.clone(), g: h1.clone(), ni: h2.clone() };
 
     let composite_dlog_proof = CompositeDLogProof::prove(&statement, &xhi);
 
@@ -59,7 +59,8 @@ fn test_zk_pdl_with_slack() {
 
     let pdl_w_slack_witness = PDLwSlackWitness { x, r: randomness.0 };
 
-    let proof = PDLwSlackProof::prove(&pdl_w_slack_witness, &pdl_w_slack_statement);
+    let proof =
+        PDLwSlackProof::prove(&pdl_w_slack_witness, &pdl_w_slack_statement);
     // verify h1,h2, N_tilde
     let setup_result = composite_dlog_proof.verify(&statement);
     assert!(setup_result.is_ok());
@@ -81,11 +82,8 @@ fn test_zk_pdl_with_slack_soundness() {
     let xhi = BigInt::sample_below(&S);
     let h1_inv = BigInt::mod_inv(&h1, &ek_tilde.n).unwrap();
     let h2 = BigInt::mod_pow(&h1_inv, &xhi, &ek_tilde.n);
-    let statement = DLogStatement {
-        N: ek_tilde.n.clone(),
-        g: h1.clone(),
-        ni: h2.clone(),
-    };
+    let statement =
+        DLogStatement { N: ek_tilde.n.clone(), g: h1.clone(), ni: h2.clone() };
 
     let composite_dlog_proof = CompositeDLogProof::prove(&statement, &xhi);
 
@@ -120,7 +118,8 @@ fn test_zk_pdl_with_slack_soundness() {
 
     let pdl_w_slack_witness = PDLwSlackWitness { x, r: randomness.0 };
 
-    let proof = PDLwSlackProof::prove(&pdl_w_slack_witness, &pdl_w_slack_statement);
+    let proof =
+        PDLwSlackProof::prove(&pdl_w_slack_witness, &pdl_w_slack_statement);
     // verify h1,h2, N_tilde
     let setup_result = composite_dlog_proof.verify(&statement);
     assert!(setup_result.is_ok());

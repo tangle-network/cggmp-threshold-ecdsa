@@ -44,12 +44,14 @@ async fn main() -> Result<()> {
     tokio::pin!(incoming);
     tokio::pin!(outgoing);
 
-    let keygen = Keygen::new(args.index, args.threshold, args.number_of_parties)?;
-    let output = AsyncProtocol::new(keygen, incoming, outgoing)
-        .run()
-        .await
-        .map_err(|e| anyhow!("protocol execution terminated with error: {}", e))?;
-    let output = serde_json::to_vec_pretty(&output).context("serialize output")?;
+    let keygen =
+        Keygen::new(args.index, args.threshold, args.number_of_parties)?;
+    let output =
+        AsyncProtocol::new(keygen, incoming, outgoing).run().await.map_err(
+            |e| anyhow!("protocol execution terminated with error: {}", e),
+        )?;
+    let output =
+        serde_json::to_vec_pretty(&output).context("serialize output")?;
     tokio::io::copy(&mut output.as_slice(), &mut output_file)
         .await
         .context("save output to file")?;

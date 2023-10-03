@@ -14,18 +14,22 @@
 
     @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
-use crate::protocols::multi_party_ecdsa::gg_2020::ErrorType;
-use crate::utilities::mta::{MessageA, MessageB};
-use curv::cryptographic_primitives::proofs::sigma_ec_ddh::ECDDHProof;
-use curv::cryptographic_primitives::proofs::sigma_ec_ddh::ECDDHStatement;
-use curv::cryptographic_primitives::proofs::sigma_ec_ddh::ECDDHWitness;
-use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
-use curv::BigInt;
-use paillier::traits::EncryptWithChosenRandomness;
-use paillier::traits::Open;
-use paillier::DecryptionKey;
-use paillier::Paillier;
-use paillier::{EncryptionKey, Randomness, RawCiphertext, RawPlaintext};
+use crate::{
+    protocols::multi_party_ecdsa::gg_2020::ErrorType,
+    utilities::mta::{MessageA, MessageB},
+};
+use curv::{
+    cryptographic_primitives::proofs::sigma_ec_ddh::{
+        ECDDHProof, ECDDHStatement, ECDDHWitness,
+    },
+    elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar},
+    BigInt,
+};
+use paillier::{
+    traits::{EncryptWithChosenRandomness, Open},
+    DecryptionKey, EncryptionKey, Paillier, Randomness, RawCiphertext,
+    RawPlaintext,
+};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
@@ -55,14 +59,16 @@ pub struct GlobalStatePhase5 {
 }
 
 // TODO: check all parties submitted inputs
-// TODO: if not - abort gracefully with list of parties that did not produce inputs
+// TODO: if not - abort gracefully with list of parties that did not produce
+// inputs
 impl GlobalStatePhase5 {
     pub fn local_state_to_global_state(
         encryption_key_vec: &[EncryptionKey],
-        delta_vec: &[Scalar<Secp256k1>],  //to test against delta_vec
-        g_gamma_vec: &[Point<Secp256k1>], // to test against the opened commitment for g_gamma
-        m_a_vec: &[MessageA],             // to test against broadcast message A
-        m_b_mat: Vec<Vec<MessageB>>,      // to test against broadcast message B
+        delta_vec: &[Scalar<Secp256k1>], //to test against delta_vec
+        g_gamma_vec: &[Point<Secp256k1>], /* to test against the opened
+                                          * commitment for g_gamma */
+        m_a_vec: &[MessageA], // to test against broadcast message A
+        m_b_mat: Vec<Vec<MessageB>>, // to test against broadcast message B
         local_state_vec: &[LocalStatePhase5],
     ) -> Self {
         let len = local_state_vec.len();
@@ -98,7 +104,9 @@ impl GlobalStatePhase5 {
             })
             .collect::<Vec<Vec<BigInt>>>();
 
-        //  let encryption_key_vec  = (0..len).map(|i| local_state_vec[i].encryption_key.clone() ).collect::<Vec<EncryptionKey>>();
+        //  let encryption_key_vec  = (0..len).map(|i|
+        // local_state_vec[i].encryption_key.clone()
+        // ).collect::<Vec<EncryptionKey>>();
         GlobalStatePhase5 {
             k_vec,
             k_randomness_vec,
@@ -142,26 +150,29 @@ impl GlobalStatePhase5 {
                     (0..len - 1)
                         .map(|j| {
                             let ind = if j < i { j } else { j + 1 };
-                            let (message_b, beta) = MessageB::b_with_predefined_randomness(
-                                &self.gamma_vec[ind],
-                                &self.encryption_key_vec[i],
-                                message_a.clone(),
-                                &self.beta_randomness_vec[i][j],
-                                &self.beta_tag_vec[i][j],
-                                &[],
-                            )
-                            .unwrap();
+                            let (message_b, beta) =
+                                MessageB::b_with_predefined_randomness(
+                                    &self.gamma_vec[ind],
+                                    &self.encryption_key_vec[i],
+                                    message_a.clone(),
+                                    &self.beta_randomness_vec[i][j],
+                                    &self.beta_tag_vec[i][j],
+                                    &[],
+                                )
+                                .unwrap();
                             // check message_b
                             if message_b.c != self.m_b_mat[i][j].c {
                                 bad_signers_vec.push(ind)
                             }
 
-                            let k_i_gamma_j = &self.k_vec[i] * &self.gamma_vec[ind];
+                            let k_i_gamma_j =
+                                &self.k_vec[i] * &self.gamma_vec[ind];
                             let alpha = k_i_gamma_j - &beta;
 
                             (alpha, beta)
                         })
-                        .collect::<Vec<(Scalar<Secp256k1>, Scalar<Secp256k1>)>>()
+                        .collect::<Vec<(Scalar<Secp256k1>, Scalar<Secp256k1>)>>(
+                        )
                 } else {
                     vec![]
                 }
@@ -174,8 +185,9 @@ impl GlobalStatePhase5 {
         // [P4, P4, P4, P3, ...]
         // [...,            ...]
         // [Pn, Pn, Pn, Pn, ...]
-        // We have n columns, one for each party for all the times the party played alice.
-        // The Pi's indicate the counter party that played bob
+        // We have n columns, one for each party for all the times the party
+        // played alice. The Pi's indicate the counter party that played
+        // bob
 
         // we only proceed to check the blame if everyone opened values that are
         // consistent with publicly known commitments and ciphertexts
@@ -234,7 +246,8 @@ pub struct LocalStatePhase6 {
     pub proof_of_eq_dlog: ECDDHProof<Secp256k1, Sha256>,
 }
 
-// It is assumed the second message of MtAwc (ciphertext from b to a) is broadcasted in the original protocol
+// It is assumed the second message of MtAwc (ciphertext from b to a) is
+// broadcasted in the original protocol
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GlobalStatePhase6 {
     pub k_vec: Vec<Scalar<Secp256k1>>,
@@ -250,7 +263,10 @@ pub struct GlobalStatePhase6 {
 }
 
 impl GlobalStatePhase6 {
-    pub fn extract_paillier_randomness(ciphertext: &BigInt, dk: &DecryptionKey) -> BigInt {
+    pub fn extract_paillier_randomness(
+        ciphertext: &BigInt,
+        dk: &DecryptionKey,
+    ) -> BigInt {
         let raw_c = RawCiphertext::from(ciphertext.clone());
         let (_plaintext, randomness) = Paillier::open(dk, raw_c);
         randomness.0
@@ -272,12 +288,13 @@ impl GlobalStatePhase6 {
     }
 
     // TODO: check all parties submitted inputs
-    // TODO: if not - abort gracefully with list of parties that did not produce inputs
+    // TODO: if not - abort gracefully with list of parties that did not produce
+    // inputs
     pub fn local_state_to_global_state(
         encryption_key_vec: &[EncryptionKey],
         S_vec: &[Point<Secp256k1>],
         g_w_vec: &[Point<Secp256k1>],
-        m_a_vec: &[MessageA],        // to test against broadcast message A
+        m_a_vec: &[MessageA], // to test against broadcast message A
         m_b_mat: Vec<Vec<MessageB>>, // to test against broadcast message B
         local_state_vec: &[LocalStatePhase6],
     ) -> Self {
@@ -379,7 +396,8 @@ impl GlobalStatePhase6 {
                 .map(|i| {
                     let g_wi_ki = &self.g_w_vec[i] * &self.k_vec[i];
                     let sum = self.miu_vec[i].iter().fold(g_wi_ki, |acc, x| {
-                        acc + (Point::generator() * &Scalar::<Secp256k1>::from(x))
+                        acc + (Point::generator() *
+                            &Scalar::<Secp256k1>::from(x))
                     });
                     sum
                 })
@@ -390,7 +408,8 @@ impl GlobalStatePhase6 {
                 for j in 0..len - 1 {
                     let ind1 = if j < i { j } else { j + 1 };
                     let ind2 = if j < i { i - 1 } else { i };
-                    g_sigma_i_vec[i] = &g_sigma_i_vec[i] + &g_ni_mat[ind1][ind2];
+                    g_sigma_i_vec[i] =
+                        &g_sigma_i_vec[i] + &g_ni_mat[ind1][ind2];
                 }
             }
 
@@ -439,7 +458,8 @@ impl GlobalStatePhase7 {
 
         for i in 0..len {
             let R_si = &self.R * &self.s_vec[i];
-            let R_dash_m = &self.R_dash_vec[i] * &Scalar::<Secp256k1>::from(&self.m);
+            let R_dash_m =
+                &self.R_dash_vec[i] * &Scalar::<Secp256k1>::from(&self.m);
             let Si_r = &self.S_vec[i] * &self.r;
             let right = R_dash_m + Si_r;
             let left = R_si;

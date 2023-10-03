@@ -1,24 +1,31 @@
-use curv::arithmetic::Converter;
-use curv::cryptographic_primitives::proofs::sigma_dlog::DLogProof;
-use curv::elliptic::curves::{secp256_k1::Secp256k1, Curve, Point, Scalar};
-use curv::BigInt;
+use curv::{
+    arithmetic::Converter,
+    cryptographic_primitives::proofs::sigma_dlog::DLogProof,
+    elliptic::curves::{secp256_k1::Secp256k1, Curve, Point, Scalar},
+    BigInt,
+};
 use sha2::Sha256;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use paillier::Paillier;
-use paillier::{Decrypt, Encrypt};
-use paillier::{EncryptionKey, RawCiphertext, RawPlaintext};
-use round_based::containers::push::Push;
-use round_based::containers::{self, BroadcastMsgs, MessageStore, P2PMsgs, P2PMsgsStore, Store};
-use round_based::{IsCritical, Msg};
+use paillier::{
+    Decrypt, Encrypt, EncryptionKey, Paillier, RawCiphertext, RawPlaintext,
+};
+use round_based::{
+    containers::{
+        self, push::Push, BroadcastMsgs, MessageStore, P2PMsgs, P2PMsgsStore,
+        Store,
+    },
+    IsCritical, Msg,
+};
 use zk_paillier::zkproofs::DLogStatement;
 
-use crate::protocols::multi_party_ecdsa::gg_2020::{VerifiableSS, party_i::{
-    KeyGenBroadcastMessage1, KeyGenDecommitMessage1, Keys,
-},};
-use crate::protocols::multi_party_ecdsa::gg_2020::{self, ErrorType};
+use crate::protocols::multi_party_ecdsa::gg_2020::{
+    self,
+    party_i::{KeyGenBroadcastMessage1, KeyGenDecommitMessage1, Keys},
+    ErrorType, VerifiableSS,
+};
 
 pub struct Round0 {
     pub party_i: u16,
@@ -32,8 +39,9 @@ impl Round0 {
         O: Push<Msg<gg_2020::party_i::KeyGenBroadcastMessage1>>,
     {
         let party_keys = Keys::create(self.party_i as usize);
-        let (bc1, decom1) =
-            party_keys.phase1_broadcast_phase3_proof_of_correct_key_proof_of_correct_h1h2();
+        let (bc1, decom1) = party_keys
+            .phase1_broadcast_phase3_proof_of_correct_key_proof_of_correct_h1h2(
+            );
 
         output.push(Msg {
             sender: self.party_i,
@@ -90,7 +98,10 @@ impl Round1 {
     pub fn is_expensive(&self) -> bool {
         false
     }
-    pub fn expects_messages(i: u16, n: u16) -> Store<BroadcastMsgs<KeyGenBroadcastMessage1>> {
+    pub fn expects_messages(
+        i: u16,
+        n: u16,
+    ) -> Store<BroadcastMsgs<KeyGenBroadcastMessage1>> {
         containers::BroadcastMsgsStore::new(i, n)
     }
 }
@@ -131,12 +142,14 @@ impl Round2 {
 
         for (i, share) in vss_result.1.iter().enumerate() {
             if i + 1 == usize::from(self.party_i) {
-                continue;
+                continue
             }
 
             let enc_key_for_recipient = &self.received_comm[i].e;
-            let encrypted_share =
-                Paillier::encrypt(enc_key_for_recipient, RawPlaintext::from(share.to_bigint()));
+            let encrypted_share = Paillier::encrypt(
+                enc_key_for_recipient,
+                RawPlaintext::from(share.to_bigint()),
+            );
             output.push(Msg {
                 sender: self.party_i,
                 receiver: Some(i as u16 + 1),
@@ -161,7 +174,10 @@ impl Round2 {
     pub fn is_expensive(&self) -> bool {
         true
     }
-    pub fn expects_messages(i: u16, n: u16) -> Store<BroadcastMsgs<KeyGenDecommitMessage1>> {
+    pub fn expects_messages(
+        i: u16,
+        n: u16,
+    ) -> Store<BroadcastMsgs<KeyGenDecommitMessage1>> {
         containers::BroadcastMsgsStore::new(i, n)
     }
 }
@@ -199,7 +215,8 @@ impl Round3 {
             for (i, (vss, encrypted_share)) in encrypted_input {
                 let v = BigInt::from_bytes(&encrypted_share);
                 let c = RawCiphertext::from(v);
-                let raw_share: RawPlaintext<'_> = Paillier::decrypt(&self.keys.dk, c);
+                let raw_share: RawPlaintext<'_> =
+                    Paillier::decrypt(&self.keys.dk, c);
                 let share = Scalar::from_bigint(&raw_share.0);
                 let _ = decrypted_input.push_msg(Msg {
                     sender: i,
@@ -247,7 +264,10 @@ impl Round3 {
     pub fn is_expensive(&self) -> bool {
         true
     }
-    pub fn expects_messages(i: u16, n: u16) -> Store<P2PMsgs<(VerifiableSS<Secp256k1>, Vec<u8>)>> {
+    pub fn expects_messages(
+        i: u16,
+        n: u16,
+    ) -> Store<P2PMsgs<(VerifiableSS<Secp256k1>, Vec<u8>)>> {
         containers::P2PMsgsStore::new(i, n)
     }
 }
@@ -274,7 +294,8 @@ impl Round4 {
             threshold: self.t,
             share_count: self.n,
         };
-        let dlog_proofs = input.into_vec_including_me(self.own_dlog_proof.clone());
+        let dlog_proofs =
+            input.into_vec_including_me(self.own_dlog_proof.clone());
 
         Keys::verify_dlog_proofs_check_against_vss(
             &params,
@@ -320,12 +341,16 @@ impl Round4 {
     pub fn is_expensive(&self) -> bool {
         true
     }
-    pub fn expects_messages(i: u16, n: u16) -> Store<BroadcastMsgs<DLogProof<Secp256k1, Sha256>>> {
+    pub fn expects_messages(
+        i: u16,
+        n: u16,
+    ) -> Store<BroadcastMsgs<DLogProof<Secp256k1, Sha256>>> {
         containers::BroadcastMsgsStore::new(i, n)
     }
 }
 
-/// Local secret obtained by party after [keygen](super::Keygen) protocol is completed
+/// Local secret obtained by party after [keygen](super::Keygen) protocol is
+/// completed
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LocalKey<E: Curve> {
     pub paillier_dk: paillier::DecryptionKey,
@@ -353,8 +378,8 @@ type Result<T> = std::result::Result<T, ProceedError>;
 
 /// Proceeding protocol error
 ///
-/// Subset of [keygen errors](enum@super::Error) that can occur at protocol proceeding (i.e. after
-/// every message was received and pre-validated).
+/// Subset of [keygen errors](enum@super::Error) that can occur at protocol
+/// proceeding (i.e. after every message was received and pre-validated).
 #[derive(Debug, Error)]
 pub enum ProceedError {
     #[error("round 2: verify commitments: {0:?}")]

@@ -1,30 +1,39 @@
 #![allow(non_snake_case)]
 
-use std::convert::TryFrom;
-use std::iter;
+use std::{convert::TryFrom, iter};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
-use curv::BigInt;
+use curv::{
+    elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar},
+    BigInt,
+};
 use sha2::Sha256;
 
-use round_based::containers::push::Push;
-use round_based::containers::{self, BroadcastMsgs, P2PMsgs, Store};
-use round_based::Msg;
+use round_based::{
+    containers::{self, push::Push, BroadcastMsgs, P2PMsgs, Store},
+    Msg,
+};
 
 use crate::utilities::mta::{MessageA, MessageB};
 
-use crate::protocols::multi_party_ecdsa::gg_2020 as gg20;
-use crate::utilities::zk_pdl_with_slack::PDLwSlackProof;
-use curv::cryptographic_primitives::proofs::sigma_correct_homomorphic_elgamal_enc::HomoELGamalProof;
-use curv::cryptographic_primitives::proofs::sigma_valid_pedersen::PedersenProof;
-use gg20::party_i::{
-    LocalSignature, SignBroadcastPhase1, SignDecommitPhase1, SignKeys, SignatureRecid,
+use crate::{
+    protocols::multi_party_ecdsa::gg_2020 as gg20,
+    utilities::zk_pdl_with_slack::PDLwSlackProof,
 };
-use gg20::state_machine::keygen::LocalKey;
-use gg20::ErrorType;
+use curv::cryptographic_primitives::proofs::{
+    sigma_correct_homomorphic_elgamal_enc::HomoELGamalProof,
+    sigma_valid_pedersen::PedersenProof,
+};
+use gg20::{
+    party_i::{
+        LocalSignature, SignBroadcastPhase1, SignDecommitPhase1, SignKeys,
+        SignatureRecid,
+    },
+    state_machine::keygen::LocalKey,
+    ErrorType,
+};
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -51,12 +60,14 @@ pub struct HEGProof(pub HomoELGamalProof<Secp256k1, Sha256>);
 pub struct Round0 {
     /// Index of this party
     ///
-    /// Must be in range `[0; n)` where `n` is number of parties involved in signing.
+    /// Must be in range `[0; n)` where `n` is number of parties involved in
+    /// signing.
     pub i: u16,
 
     /// List of parties' indexes from keygen protocol
     ///
-    /// I.e. `s_l[i]` must be an index of party `i` that was used by this party in keygen protocol.
+    /// I.e. `s_l[i]` must be an index of party `i` that was used by this party
+    /// in keygen protocol.
     // s_l.len()` equals to `n` (number of parties involved in signing)
     pub s_l: Vec<u16>,
 
@@ -73,16 +84,18 @@ impl Round0 {
             &self.local_key.keys_linear.x_i,
             &self.local_key.vss_scheme.clone(),
             usize::from(self.s_l[usize::from(self.i - 1)]) - 1,
-            &self
-                .s_l
-                .iter()
-                .map(|&i| usize::from(i) - 1)
-                .collect::<Vec<_>>(),
+            &self.s_l.iter().map(|&i| usize::from(i) - 1).collect::<Vec<_>>(),
         );
         let (bc1, decom1) = sign_keys.phase1_broadcast();
 
-        let party_ek = self.local_key.paillier_key_vec[usize::from(self.local_key.i - 1)].clone();
-        let m_a = MessageA::a(&sign_keys.k_i, &party_ek, &self.local_key.h1_h2_n_tilde_vec);
+        let party_ek = self.local_key.paillier_key_vec
+            [usize::from(self.local_key.i - 1)]
+        .clone();
+        let m_a = MessageA::a(
+            &sign_keys.k_i,
+            &party_ek,
+            &self.local_key.h1_h2_n_tilde_vec,
+        );
 
         output.push(Msg {
             sender: self.i,
@@ -128,7 +141,10 @@ impl Round1 {
         O: Push<Msg<(GammaI, WI)>>,
     {
         let (m_a_vec, bc_vec): (Vec<_>, Vec<_>) = input
-            .into_vec_including_me((self.m_a.0.clone(), self.phase1_com.clone()))
+            .into_vec_including_me((
+                self.m_a.0.clone(),
+                self.phase1_com.clone(),
+            ))
             .into_iter()
             .unzip();
 
@@ -138,29 +154,26 @@ impl Round1 {
         let mut ni_vec = Vec::new();
 
         let ttag = self.s_l.len();
-        let l_s: Vec<_> = self
-            .s_l
-            .iter()
-            .cloned()
-            .map(|i| usize::from(i) - 1)
-            .collect();
+        let l_s: Vec<_> =
+            self.s_l.iter().cloned().map(|i| usize::from(i) - 1).collect();
         let i = usize::from(self.i - 1);
         for j in 0..ttag - 1 {
             let ind = if j < i { j } else { j + 1 };
 
-            let (m_b_gamma, beta_gamma, _beta_randomness, _beta_tag) = MessageB::b(
-                &self.sign_keys.gamma_i,
-                &self.local_key.paillier_key_vec[l_s[ind]],
-                m_a_vec[ind].clone(),
-                &self.local_key.h1_h2_n_tilde_vec,
-            )
-            .map_err(|e| {
-                Error::Round1(ErrorType {
-                    error_type: e.to_string(),
-                    bad_actors: vec![ind],
-                    data: vec![],
-                })
-            })?;
+            let (m_b_gamma, beta_gamma, _beta_randomness, _beta_tag) =
+                MessageB::b(
+                    &self.sign_keys.gamma_i,
+                    &self.local_key.paillier_key_vec[l_s[ind]],
+                    m_a_vec[ind].clone(),
+                    &self.local_key.h1_h2_n_tilde_vec,
+                )
+                .map_err(|e| {
+                    Error::Round1(ErrorType {
+                        error_type: e.to_string(),
+                        bad_actors: vec![ind],
+                        data: vec![],
+                    })
+                })?;
 
             let (m_b_w, beta_wi, _, _) = MessageB::b(
                 &self.sign_keys.w_i,
@@ -185,7 +198,9 @@ impl Round1 {
         let party_indices = (1..=self.s_l.len())
             .map(|j| u16::try_from(j).unwrap())
             .filter(|&j| j != self.i);
-        for ((j, gamma_i), w_i) in party_indices.zip(m_b_gamma_vec).zip(m_b_w_vec) {
+        for ((j, gamma_i), w_i) in
+            party_indices.zip(m_b_gamma_vec).zip(m_b_w_vec)
+        {
             output.push(Msg {
                 sender: self.i,
                 receiver: Some(j),
@@ -233,7 +248,11 @@ pub struct Round2 {
 }
 
 impl Round2 {
-    pub fn proceed<O>(self, input_p2p: P2PMsgs<(GammaI, WI)>, mut output: O) -> Result<Round3>
+    pub fn proceed<O>(
+        self,
+        input_p2p: P2PMsgs<(GammaI, WI)>,
+        mut output: O,
+    ) -> Result<Round3>
     where
         O: Push<Msg<(DeltaI, TI, TIProof)>>, // TODO: unify TI and TIProof
     {
@@ -248,12 +267,8 @@ impl Round2 {
 
         let ttag = self.s_l.len();
         let index = usize::from(self.i) - 1;
-        let l_s: Vec<_> = self
-            .s_l
-            .iter()
-            .cloned()
-            .map(|i| usize::from(i) - 1)
-            .collect();
+        let l_s: Vec<_> =
+            self.s_l.iter().cloned().map(|i| usize::from(i) - 1).collect();
         let g_w_vec = SignKeys::g_w_vec(
             &self.local_key.pk_vec[..],
             &l_s[..],
@@ -264,7 +279,10 @@ impl Round2 {
             let m_b = m_b_gamma_s[j].clone();
 
             let alpha_ij_gamma = m_b
-                .verify_proofs_get_alpha(&self.local_key.paillier_dk, &self.sign_keys.k_i)
+                .verify_proofs_get_alpha(
+                    &self.local_key.paillier_dk,
+                    &self.sign_keys.k_i,
+                )
                 .map_err(|e| {
                     Error::Round3(ErrorType {
                         error_type: e.to_string(),
@@ -274,7 +292,10 @@ impl Round2 {
                 })?;
             let m_b = m_b_w_s[j].clone();
             let alpha_ij_wi = m_b
-                .verify_proofs_get_alpha(&self.local_key.paillier_dk, &self.sign_keys.k_i)
+                .verify_proofs_get_alpha(
+                    &self.local_key.paillier_dk,
+                    &self.sign_keys.k_i,
+                )
                 .map_err(|e| {
                     Error::Round3(ErrorType {
                         error_type: e.to_string(),
@@ -406,7 +427,10 @@ impl Round3 {
         })
     }
 
-    pub fn expects_messages(i: u16, n: u16) -> Store<BroadcastMsgs<(DeltaI, TI, TIProof)>> {
+    pub fn expects_messages(
+        i: u16,
+        n: u16,
+    ) -> Store<BroadcastMsgs<(DeltaI, TI, TIProof)>> {
         containers::BroadcastMsgsStore::new(i, n)
     }
 
@@ -441,10 +465,12 @@ impl Round4 {
     where
         O: Push<Msg<(RDash, Vec<PDLwSlackProof>)>>,
     {
-        let decom_vec: Vec<_> = decommit_round1.into_vec_including_me(self.phase1_decom.clone());
+        let decom_vec: Vec<_> =
+            decommit_round1.into_vec_including_me(self.phase1_decom.clone());
 
         let ttag = self.s_l.len();
-        let b_proof_vec: Vec<_> = (0..ttag - 1).map(|i| &self.mb_gamma_s[i].b_proof).collect();
+        let b_proof_vec: Vec<_> =
+            (0..ttag - 1).map(|i| &self.mb_gamma_s[i].b_proof).collect();
         let R = SignKeys::phase4(
             &self.delta_inv,
             &b_proof_vec[..],
@@ -458,12 +484,8 @@ impl Round4 {
 
         // each party sends first message to all other parties
         let mut phase5_proofs_vec = Vec::new();
-        let l_s: Vec<_> = self
-            .s_l
-            .iter()
-            .cloned()
-            .map(|i| usize::from(i) - 1)
-            .collect();
+        let l_s: Vec<_> =
+            self.s_l.iter().cloned().map(|i| usize::from(i) - 1).collect();
         let index = usize::from(self.i - 1);
         for j in 0..ttag - 1 {
             let ind = if j < index { j } else { j + 1 };
@@ -502,7 +524,10 @@ impl Round4 {
         })
     }
 
-    pub fn expects_messages(i: u16, n: u16) -> Store<BroadcastMsgs<SignDecommitPhase1>> {
+    pub fn expects_messages(
+        i: u16,
+        n: u16,
+    ) -> Store<BroadcastMsgs<SignDecommitPhase1>> {
         containers::BroadcastMsgsStore::new(i, n)
     }
 
@@ -541,12 +566,8 @@ impl Round5 {
             .map(|(r_dash, pdl_proof)| (r_dash.0, pdl_proof))
             .unzip();
 
-        let l_s: Vec<_> = self
-            .s_l
-            .iter()
-            .cloned()
-            .map(|i| usize::from(i) - 1)
-            .collect();
+        let l_s: Vec<_> =
+            self.s_l.iter().cloned().map(|i| usize::from(i) - 1).collect();
         let ttag = self.s_l.len();
         for i in 0..ttag {
             LocalSignature::phase5_verify_pdl(
@@ -569,12 +590,13 @@ impl Round5 {
             })
         })?;
 
-        let (S_i, homo_elgamal_proof) = LocalSignature::phase6_compute_S_i_and_proof_of_consistency(
-            &self.R,
-            &self.t_i,
-            &self.sigma_i,
-            &self.l_i,
-        );
+        let (S_i, homo_elgamal_proof) =
+            LocalSignature::phase6_compute_S_i_and_proof_of_consistency(
+                &self.R,
+                &self.t_i,
+                &self.sigma_i,
+                &self.l_i,
+            );
 
         output.push(Msg {
             sender: self.i,
@@ -597,7 +619,10 @@ impl Round5 {
         })
     }
 
-    pub fn expects_messages(i: u16, n: u16) -> Store<BroadcastMsgs<(RDash, Vec<PDLwSlackProof>)>> {
+    pub fn expects_messages(
+        i: u16,
+        n: u16,
+    ) -> Store<BroadcastMsgs<(RDash, Vec<PDLwSlackProof>)>> {
         containers::BroadcastMsgsStore::new(i, n)
     }
 
@@ -620,7 +645,10 @@ impl Round6 {
         input: BroadcastMsgs<(SI, HEGProof)>,
     ) -> Result<CompletedOfflineStage, Error> {
         let (S_i_vec, hegp_vec): (Vec<_>, Vec<_>) = input
-            .into_vec_including_me((SI(self.S_i), HEGProof(self.homo_elgamal_proof)))
+            .into_vec_including_me((
+                SI(self.S_i),
+                HEGProof(self.homo_elgamal_proof),
+            ))
             .into_iter()
             .map(|(s_i, hegp_i)| (s_i.0, hegp_i.0))
             .unzip();
@@ -635,13 +663,19 @@ impl Round6 {
             &self.protocol_output.t_vec,
         )
         .map_err(Error::Round6VerifyProof)?;
-        LocalSignature::phase6_check_S_i_sum(&self.protocol_output.local_key.y_sum_s, &S_i_vec)
-            .map_err(Error::Round6CheckSig)?;
+        LocalSignature::phase6_check_S_i_sum(
+            &self.protocol_output.local_key.y_sum_s,
+            &S_i_vec,
+        )
+        .map_err(Error::Round6CheckSig)?;
 
         Ok(self.protocol_output)
     }
 
-    pub fn expects_messages(i: u16, n: u16) -> Store<BroadcastMsgs<(SI, HEGProof)>> {
+    pub fn expects_messages(
+        i: u16,
+        n: u16,
+    ) -> Store<BroadcastMsgs<(SI, HEGProof)>> {
         containers::BroadcastMsgsStore::new(i, n)
     }
 
@@ -691,11 +725,12 @@ impl Round7 {
         Ok((Self { local_signature }, partial))
     }
 
-    pub fn proceed_manual(self, sigs: &[PartialSignature]) -> Result<SignatureRecid> {
+    pub fn proceed_manual(
+        self,
+        sigs: &[PartialSignature],
+    ) -> Result<SignatureRecid> {
         let sigs = sigs.iter().map(|s_i| s_i.0.clone()).collect::<Vec<_>>();
-        self.local_signature
-            .output_signature(&sigs)
-            .map_err(Error::Round7)
+        self.local_signature.output_signature(&sigs).map_err(Error::Round7)
     }
 }
 

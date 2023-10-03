@@ -4,8 +4,7 @@ use anyhow::{anyhow, Context, Result};
 use futures::{SinkExt, StreamExt, TryStreamExt};
 use structopt::StructOpt;
 
-use curv::arithmetic::Converter;
-use curv::BigInt;
+use curv::{arithmetic::Converter, BigInt};
 
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::sign::{
     OfflineStage, SignManual,
@@ -37,27 +36,31 @@ async fn main() -> Result<()> {
     let local_share = tokio::fs::read(args.local_share)
         .await
         .context("cannot read local share")?;
-    let local_share = serde_json::from_slice(&local_share).context("parse local share")?;
+    let local_share =
+        serde_json::from_slice(&local_share).context("parse local share")?;
     let number_of_parties = args.parties.len();
 
-    let (i, incoming, outgoing) =
-        join_computation(args.address.clone(), &format!("{}-offline", args.room))
-            .await
-            .context("join offline computation")?;
+    let (i, incoming, outgoing) = join_computation(
+        args.address.clone(),
+        &format!("{}-offline", args.room),
+    )
+    .await
+    .context("join offline computation")?;
 
     let incoming = incoming.fuse();
     tokio::pin!(incoming);
     tokio::pin!(outgoing);
 
     let signing = OfflineStage::new(i, args.parties, local_share)?;
-    let completed_offline_stage = AsyncProtocol::new(signing, incoming, outgoing)
-        .run()
-        .await
-        .map_err(|e| anyhow!("protocol execution terminated with error: {}", e))?;
+    let completed_offline_stage =
+        AsyncProtocol::new(signing, incoming, outgoing).run().await.map_err(
+            |e| anyhow!("protocol execution terminated with error: {}", e),
+        )?;
 
-    let (i, incoming, outgoing) = join_computation(args.address, &format!("{}-online", args.room))
-        .await
-        .context("join online computation")?;
+    let (i, incoming, outgoing) =
+        join_computation(args.address, &format!("{}-online", args.room))
+            .await
+            .context("join online computation")?;
 
     tokio::pin!(incoming);
     tokio::pin!(outgoing);
@@ -68,11 +71,7 @@ async fn main() -> Result<()> {
     )?;
 
     outgoing
-        .send(Msg {
-            sender: i,
-            receiver: None,
-            body: partial_signature,
-        })
+        .send(Msg { sender: i, receiver: None, body: partial_signature })
         .await?;
 
     let partial_signatures: Vec<_> = incoming
@@ -80,10 +79,10 @@ async fn main() -> Result<()> {
         .map_ok(|msg| msg.body)
         .try_collect()
         .await?;
-    let signature = signing
-        .complete(&partial_signatures)
-        .context("online stage failed")?;
-    let signature = serde_json::to_string(&signature).context("serialize signature")?;
+    let signature =
+        signing.complete(&partial_signatures).context("online stage failed")?;
+    let signature =
+        serde_json::to_string(&signature).context("serialize signature")?;
     println!("{}", signature);
 
     Ok(())

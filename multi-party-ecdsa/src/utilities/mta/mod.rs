@@ -16,25 +16,32 @@
 
 /// MtA is described in https://eprint.iacr.org/2019/114.pdf section 3
 use curv::arithmetic::traits::Samplable;
-use curv::cryptographic_primitives::proofs::sigma_dlog::DLogProof;
-use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
-use curv::BigInt;
-use paillier::traits::EncryptWithChosenRandomness;
-use paillier::{Add, Decrypt, Mul};
-use paillier::{DecryptionKey, EncryptionKey, Paillier, Randomness, RawCiphertext, RawPlaintext};
+use curv::{
+    cryptographic_primitives::proofs::sigma_dlog::DLogProof,
+    elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar},
+    BigInt,
+};
+use paillier::{
+    traits::EncryptWithChosenRandomness, Add, Decrypt, DecryptionKey,
+    EncryptionKey, Mul, Paillier, Randomness, RawCiphertext, RawPlaintext,
+};
 use zk_paillier::zkproofs::DLogStatement;
 
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
-use crate::protocols::multi_party_ecdsa::gg_2020::party_i::PartyPrivate;
-use crate::utilities::mta::range_proofs::AliceProof;
-use crate::Error::{self, InvalidKey};
+use crate::{
+    protocols::multi_party_ecdsa::gg_2020::party_i::PartyPrivate,
+    utilities::mta::range_proofs::AliceProof,
+    Error::{self, InvalidKey},
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageA {
     pub c: BigInt,                     // paillier encryption
-    pub range_proofs: Vec<AliceProof>, // proofs (using other parties' h1,h2,N_tilde) that the plaintext is small
+    pub range_proofs: Vec<AliceProof>, /* proofs (using other parties'
+                                        * h1,h2,N_tilde) that the plaintext
+                                        * is small */
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -45,17 +52,24 @@ pub struct MessageB {
 }
 
 impl MessageA {
-    /// Creates a new `messageA` using Alice's Paillier encryption key and `dlog_statements`
+    /// Creates a new `messageA` using Alice's Paillier encryption key and
+    /// `dlog_statements`
     /// - other parties' `h1,h2,N_tilde`s for range proofs.
-    /// If range proofs are not needed (one example is identification of aborts where we
-    /// only want to reconstruct a ciphertext), `dlog_statements` can be an empty slice.
+    /// If range proofs are not needed (one example is identification of aborts
+    /// where we only want to reconstruct a ciphertext), `dlog_statements`
+    /// can be an empty slice.
     pub fn a(
         a: &Scalar<Secp256k1>,
         alice_ek: &EncryptionKey,
         dlog_statements: &[DLogStatement],
     ) -> (Self, BigInt) {
         let randomness = BigInt::sample_below(&alice_ek.n);
-        let m_a = MessageA::a_with_predefined_randomness(a, alice_ek, &randomness, dlog_statements);
+        let m_a = MessageA::a_with_predefined_randomness(
+            a,
+            alice_ek,
+            &randomness,
+            dlog_statements,
+        );
         (m_a, randomness)
     }
 
@@ -76,14 +90,17 @@ impl MessageA {
         let alice_range_proofs = dlog_statements
             .iter()
             .map(|dlog_statement| {
-                AliceProof::generate(&a.to_bigint(), &c_a, alice_ek, dlog_statement, randomness)
+                AliceProof::generate(
+                    &a.to_bigint(),
+                    &c_a,
+                    alice_ek,
+                    dlog_statement,
+                    randomness,
+                )
             })
             .collect::<Vec<AliceProof>>();
 
-        Self {
-            c: c_a,
-            range_proofs: alice_range_proofs,
-        }
+        Self { c: c_a, range_proofs: alice_range_proofs }
     }
 }
 
@@ -117,18 +134,20 @@ impl MessageB {
         dlog_statements: &[DLogStatement],
     ) -> Result<(Self, Scalar<Secp256k1>), Error> {
         if m_a.range_proofs.len() != dlog_statements.len() {
-            return Err(InvalidKey);
+            return Err(InvalidKey)
         }
         // verify proofs
         if !m_a
             .range_proofs
             .iter()
             .zip(dlog_statements)
-            .map(|(proof, dlog_statement)| proof.verify(&m_a.c, alice_ek, dlog_statement))
+            .map(|(proof, dlog_statement)| {
+                proof.verify(&m_a.c, alice_ek, dlog_statement)
+            })
             .all(|x| x)
         {
             log::info!("MP-ECDSA : Proof Mismatch");
-            return Err(InvalidKey);
+            return Err(InvalidKey)
         };
         let beta_tag_fe = Scalar::<Secp256k1>::from(beta_tag);
         let c_beta_tag = Paillier::encrypt_with_chosen_randomness(
@@ -163,7 +182,8 @@ impl MessageB {
         dk: &DecryptionKey,
         a: &Scalar<Secp256k1>,
     ) -> Result<(Scalar<Secp256k1>, BigInt), Error> {
-        let alice_share = Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
+        let alice_share =
+            Paillier::decrypt(dk, &RawCiphertext::from(self.c.clone()));
         let g = Point::generator();
         let alpha = Scalar::<Secp256k1>::from(alice_share.0.as_ref());
         let g_alpha = g * &alpha;
@@ -192,9 +212,9 @@ impl MessageB {
         let g_alpha = g * &alpha;
         let ba_btag = &self.b_proof.pk * a + &self.beta_tag_proof.pk;
 
-        if DLogProof::verify(&self.b_proof).is_ok()
-            && DLogProof::verify(&self.beta_tag_proof).is_ok()
-            && ba_btag == g_alpha
+        if DLogProof::verify(&self.b_proof).is_ok() &&
+            DLogProof::verify(&self.beta_tag_proof).is_ok() &&
+            ba_btag == g_alpha
         {
             Ok(alpha)
         } else {
