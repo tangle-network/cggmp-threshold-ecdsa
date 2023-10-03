@@ -13,33 +13,42 @@ members = [
   "fs-dkr",
 ]
 
+[workspace.dependencies]
+curv-kzen = { version = "0.10", default-features = false }
+centipede = { version = "0.3.1", default-features = false }
+zk-paillier = { version = "0.4.4", default-features = false }
+sha2 = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+zeroize = "1"
+
 [workspace.dependencies.multi-party-ecdsa]
 version = "0.8"
 path = "multi-party-ecdsa"
 default-features = false
 
+[workspace.dependencies.paillier]
+version = "0.4.3"
+package = "kzen-paillier"
+default-features = false
+
 [dependencies]
 multi-party-ecdsa.workspace = true
-bincode = "1.3.3"
-serde = { version = "1.0", features = ["derive"] }
-zeroize = "1"
-curv-kzen = { version = "0.10", default-features = false }
-centipede = { version = "0.3.1", default-features = false }
-zk-paillier = { version = "0.4.4", default-features = false }
+curv-kzen.workspace = true
+centipede.workspace = true
+zk-paillier.workspace = true
+sha2.workspace = true
+serde.workspace = true
+zeroize.workspace = true
+paillier.workspace = true
 fs-dkr = { path = "fs-dkr", default-features = false }
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", version = "0.1.4", features = ["dev"] }
+bincode = "1.3.3"
 thiserror = "1.0.23"
-sha2 = "0.9"
 digest = "0.9"
 generic-array = "0.14"
 rand_chacha = "0.3.1"
 rand = "0.8.5"
-getrandom = {version = "0.2", optional = true}
-
-[dependencies.paillier]
-version = "0.4.3"
-package = "kzen-paillier"
-default-features = false
+getrandom = { version = "0.2", optional = true }
 
 [dev-dependencies]
 criterion = "0.3"
