@@ -19,6 +19,7 @@
 #![allow(clippy::type_complexity)]
 
 pub mod gg_2020;
+#[deprecated(note = "Use top-level protocol namespace (eg: gg_2020)")]
 pub mod protocols;
 pub mod utilities;
 use std::fmt;
