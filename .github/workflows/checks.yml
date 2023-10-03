@@ -88,4 +88,4 @@ jobs:
       - name: Run Linters
         run: |
           cargo fmt --all -- --check
-          cargo clippy -Zunstable-options -- -D warnings
+          cargo clippy -- -D warnings
