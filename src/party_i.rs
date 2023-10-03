@@ -56,13 +56,8 @@ use curv::cryptographic_primitives::proofs::sigma_valid_pedersen::PedersenProof;
 use std::convert::TryInto;
 
 pub use crate::mpc_ecdsa::gg_2020::party_i::{
-    Parameters,
-    KeyGenBroadcastMessage1,
-    SharedKeys,
-    KeyGenDecommitMessage1,
-    SignBroadcastPhase1,
-    SignDecommitPhase1,
-    SignatureRecid,
+    KeyGenBroadcastMessage1, KeyGenDecommitMessage1, Parameters, SharedKeys,
+    SignBroadcastPhase1, SignDecommitPhase1, SignatureRecid,
 };
 
 const SECURITY: usize = 256;
