@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use crate::protocols::multi_party_ecdsa::gg_2018::VerifiableSS;
+use crate::protocols::multi_party_ecdsa::gg_2020::VerifiableSS;
 /*
     Multi-party ECDSA
 

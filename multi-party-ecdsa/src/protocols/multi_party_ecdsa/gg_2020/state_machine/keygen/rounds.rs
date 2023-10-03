@@ -15,10 +15,9 @@ use round_based::containers::{self, BroadcastMsgs, MessageStore, P2PMsgs, P2PMsg
 use round_based::{IsCritical, Msg};
 use zk_paillier::zkproofs::DLogStatement;
 
-use crate::protocols::multi_party_ecdsa::gg_2018::VerifiableSS;
-use crate::protocols::multi_party_ecdsa::gg_2020::party_i::{
+use crate::protocols::multi_party_ecdsa::gg_2020::{VerifiableSS, party_i::{
     KeyGenBroadcastMessage1, KeyGenDecommitMessage1, Keys,
-};
+},};
 use crate::protocols::multi_party_ecdsa::gg_2020::{self, ErrorType};
 
 pub struct Round0 {

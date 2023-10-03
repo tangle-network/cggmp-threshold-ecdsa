@@ -27,7 +27,7 @@ use zk_paillier::zkproofs::DLogStatement;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
-use crate::protocols::multi_party_ecdsa::gg_2018::party_i::PartyPrivate;
+use crate::protocols::multi_party_ecdsa::gg_2020::party_i::PartyPrivate;
 use crate::utilities::mta::range_proofs::AliceProof;
 use crate::Error::{self, InvalidKey};
 

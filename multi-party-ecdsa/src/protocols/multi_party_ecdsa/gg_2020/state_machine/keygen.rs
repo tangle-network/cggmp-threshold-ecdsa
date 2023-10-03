@@ -15,8 +15,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use thiserror::Error;
 
-use crate::protocols::multi_party_ecdsa::gg_2018::VerifiableSS;
-use crate::protocols::multi_party_ecdsa::gg_2020;
+use crate::protocols::multi_party_ecdsa::gg_2020::{self, VerifiableSS};
 
 mod rounds;
 

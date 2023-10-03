@@ -29,7 +29,7 @@ use curv::elliptic::curves::{secp256_k1::Secp256k1, Curve, Point, Scalar};
 use curv::BigInt;
 use sha2::Sha256;
 
-use crate::protocols::multi_party_ecdsa::gg_2018::VerifiableSS;
+use super::VerifiableSS;
 use crate::Error::{self, InvalidSig, Phase5BadSum, Phase6Error};
 use paillier::{
     Decrypt, DecryptionKey, EncryptionKey, KeyGeneration, Paillier, RawCiphertext, RawPlaintext,
