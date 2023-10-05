@@ -1,0 +1,33 @@
+[package]
+name = "fs-dkr"
+version = "0.1.0"
+authors = [
+    "Omer Shlomovits <omer.shlomovits@gmail.com>",
+    "Tudor Cebere <tudorcebere@gmail.com>",
+    "Drew Stone <drew@webb.tools>",
+]
+edition = "2021"
+
+[dependencies]
+curv-kzen.workspace = true
+zk-paillier.workspace = true
+sha2.workspace = true
+paillier.workspace = true
+round-based.workspace = true
+serde.workspace = true
+zeroize.workspace = true
+thiserror.workspace = true
+
+[dependencies.multi-party-ecdsa]
+workspace = true
+default-features = false
+
+[dependencies.bitvec]
+version = "1"
+default-features = false
+features = ["atomic", "alloc"]
+
+[features]
+default = ["rust-gmp-kzen"]
+rust-gmp-kzen = ["curv-kzen/rust-gmp-kzen"]
+num-bigint = ["curv-kzen/num-bigint"]

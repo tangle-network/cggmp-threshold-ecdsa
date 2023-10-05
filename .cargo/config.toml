@@ -1,0 +1,17 @@
+# For people on MacOS that have installed gmp
+# using homebrew this means we don't always have to:
+# 
+# RUSTFLAGS="-L/opt/homebrew/lib" cargo test
+#
+# To get the curz-kzen library compiling with the system GMP
+# library.
+
+[target.aarch64-apple-darwin]
+rustflags = [
+    "-L", "/opt/homebrew/lib",
+]
+
+[target.x86_64-apple-darwin]
+rustflags = [
+    "-L", "/opt/homebrew/lib",
+]
