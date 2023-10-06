@@ -219,35 +219,32 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
         ek: &'a EncryptionKey,
         current_t: u16,
     ) -> (RawCiphertext<'a>, Vec<Scalar<E>>) {
-        // TODO: check we have large enough qualified set , at least t+1
-        //decrypt the new share
         // we first homomorphically add all ciphertext encrypted using our
         // encryption key
-        let ciphertext_vec: Vec<_> = (0..refresh_messages.len())
-            .map(|k| {
-                refresh_messages[k].points_encrypted_vec
-                    [(party_index - 1) as usize]
-                    .clone()
-            })
-            .collect();
-
-        let indices: Vec<u16> = (0..(current_t + 1) as usize)
+        let indices: Vec<u16> = (0..refresh_messages.len())
             .map(|i| refresh_messages[i].old_party_index - 1)
             .collect();
 
+        let ciphertext_vec: Vec<_> = refresh_messages
+            .iter()
+            .map(|msg| {
+                msg.points_encrypted_vec[(party_index - 1) as usize].clone()
+            })
+            .collect();
+
         // optimization - one decryption
-        let li_vec: Vec<_> = (0..current_t as usize + 1)
+        let li_vec: Vec<_> = indices
+            .iter()
             .map(|i| {
                 VerifiableSS::<E, sha2::Sha256>::map_share_to_new_params(
                     parameters.clone().borrow(),
-                    indices[i],
+                    *i,
                     &indices,
                 )
             })
             .collect();
 
-        let ciphertext_vec_at_indices_mapped: Vec<_> = (0..(current_t + 1)
-            as usize)
+        let ciphertext_vec_at_indices_mapped: Vec<_> = (0..indices.len())
             .map(|i| {
                 Paillier::mul(
                     ek,
@@ -515,7 +512,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
                 refresh_messages[0].points_committed_vec[i].clone()
                     * li_vec[0].clone(),
             );
-            for j in 1..current_t as usize + 1 {
+            for j in 1..refresh_messages.len() as usize {
                 local_key.pk_vec[i] = local_key.pk_vec[i].clone()
                     + refresh_messages[j].points_committed_vec[i].clone()
                         * li_vec[j].clone();
