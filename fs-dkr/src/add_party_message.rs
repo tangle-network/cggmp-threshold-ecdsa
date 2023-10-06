@@ -221,7 +221,6 @@ impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
             party_index,
             &parameters,
             &paillier_key.ek,
-            current_t,
         );
         let new_share = Paillier::decrypt(&paillier_key.dk, cipher_text_sum)
             .0

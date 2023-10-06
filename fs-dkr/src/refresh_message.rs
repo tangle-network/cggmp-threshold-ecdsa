@@ -217,7 +217,6 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
         party_index: u16,
         parameters: &'a ShamirSecretSharing,
         ek: &'a EncryptionKey,
-        current_t: u16,
     ) -> (RawCiphertext<'a>, Vec<Scalar<E>>) {
         // we first homomorphically add all ciphertext encrypted using our
         // encryption key
@@ -409,7 +408,6 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
             local_key.i,
             &local_key.vss_scheme.parameters,
             &old_ek,
-            current_t,
         );
 
         for refresh_message in refresh_messages.iter() {
