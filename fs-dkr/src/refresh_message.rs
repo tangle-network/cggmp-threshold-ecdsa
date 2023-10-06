@@ -510,7 +510,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
                 refresh_messages[0].points_committed_vec[i].clone()
                     * li_vec[0].clone(),
             );
-            for j in 1..refresh_messages.len() as usize {
+            for j in 1..refresh_messages.len() {
                 local_key.pk_vec[i] = local_key.pk_vec[i].clone()
                     + refresh_messages[j].points_committed_vec[i].clone()
                         * li_vec[j].clone();
