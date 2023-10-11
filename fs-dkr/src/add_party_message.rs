@@ -221,7 +221,6 @@ impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
             party_index,
             &parameters,
             &paillier_key.ek,
-            current_t,
         );
         let new_share = Paillier::decrypt(&paillier_key.dk, cipher_text_sum)
             .0
@@ -244,7 +243,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
 
         #[allow(clippy::needless_range_loop)]
         for i in 0..new_n as usize {
-            for j in 1..(current_t + 1) as usize {
+            for j in 1..refresh_messages.len() {
                 pk_vec[i] = pk_vec[i].clone()
                     + refresh_messages[j].points_committed_vec[i].clone()
                         * li_vec[j].clone();
