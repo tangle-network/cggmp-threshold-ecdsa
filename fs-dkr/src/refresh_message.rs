@@ -22,7 +22,8 @@ use paillier::{
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, collections::HashMap, fmt::Debug};
 use zeroize::Zeroize;
-use zk_paillier::zkproofs::{DLogStatement, NiCorrectKeyProof, SALT_STRING};
+use zk_paillier::zkproofs::{NiCorrectKeyProof, SALT_STRING};
+use multi_party_ecdsa::utilities::zk_composite_dlog::CompositeDLogStatement;
 
 use crate::ring_pedersen_proof::{RingPedersenProof, RingPedersenStatement};
 
@@ -38,7 +39,7 @@ pub struct RefreshMessage<E: Curve, H: Digest + Clone, const M: usize> {
     pub(crate) points_committed_vec: Vec<Point<E>>,
     points_encrypted_vec: Vec<BigInt>,
     dk_correctness_proof: NiCorrectKeyProof,
-    pub(crate) dlog_statement: DLogStatement,
+    pub(crate) dlog_statement: CompositeDLogStatement,
     pub(crate) ek: EncryptionKey,
     pub(crate) remove_party_indices: Vec<u16>,
     pub(crate) public_key: Point<E>,
@@ -100,9 +101,9 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
                     ek: local_key.paillier_key_vec[i].clone(),
                     Q: points_committed_vec[i].clone(),
                     G: Point::<E>::generator().to_point(),
-                    h1: local_key.h1_h2_n_tilde_vec[i].g.clone(),
-                    h2: local_key.h1_h2_n_tilde_vec[i].ni.clone(),
-                    N_tilde: local_key.h1_h2_n_tilde_vec[i].N.clone(),
+                    h1: local_key.h1_h2_n_tilde_vec[i].base.clone(),
+                    h2: local_key.h1_h2_n_tilde_vec[i].value.clone(),
+                    N_tilde: local_key.h1_h2_n_tilde_vec[i].modulus.clone(),
                 };
                 PDLwSlackProof::prove(&witness, &statement)
             })
@@ -271,7 +272,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
         let current_len = key.paillier_key_vec.len() as u16;
         let mut paillier_key_h1_h2_n_tilde_hash_map: HashMap<
             u16,
-            (EncryptionKey, DLogStatement),
+            (EncryptionKey, CompositeDLogStatement),
         > = HashMap::new();
         for old_party_index in old_to_new_map.keys() {
             let paillier_key = key
@@ -371,9 +372,9 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
                     ek: local_key.paillier_key_vec[i].clone(),
                     Q: refresh_message.points_committed_vec[i].clone(),
                     G: Point::<E>::generator().to_point(),
-                    h1: local_key.h1_h2_n_tilde_vec[i].g.clone(),
-                    h2: local_key.h1_h2_n_tilde_vec[i].ni.clone(),
-                    N_tilde: local_key.h1_h2_n_tilde_vec[i].N.clone(),
+                    h1: local_key.h1_h2_n_tilde_vec[i].base.clone(),
+                    h2: local_key.h1_h2_n_tilde_vec[i].value.clone(),
+                    N_tilde: local_key.h1_h2_n_tilde_vec[i].modulus.clone(),
                 };
                 refresh_message.pdl_proof_vec[i].verify(&statement)?;
                 if !refresh_message.range_proofs[i].verify(
@@ -451,10 +452,11 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
             }
 
             // creating an inverse dlog statement
-            let dlog_statement_base_h2 = DLogStatement {
-                N: join_message.dlog_statement.N.clone(),
-                g: join_message.dlog_statement.ni.clone(),
-                ni: join_message.dlog_statement.g.clone(),
+            let dlog_statement_base_h2 = CompositeDLogStatement {
+                modulus: join_message.dlog_statement.modulus.clone(),
+                // Base and value are swapped because we're using h1's statement.
+                base: join_message.dlog_statement.value.clone(),
+                value: join_message.dlog_statement.base.clone(),
             };
             if join_message
                 .composite_dlog_proof_base_h1

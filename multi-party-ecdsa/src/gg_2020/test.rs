@@ -33,6 +33,7 @@ use curv::arithmetic::traits::Converter;
 
 use crate::{
     protocols::multi_party_ecdsa::gg_2020::ErrorType,
+    utilities::zk_composite_dlog::CompositeDLogStatement,
     utilities::zk_pdl_with_slack::PDLwSlackProof,
 };
 use curv::{
@@ -44,7 +45,6 @@ use curv::{
 };
 use paillier::*;
 use sha2::Sha256;
-use zk_paillier::zkproofs::DLogStatement;
 
 #[test]
 fn test_keygen_t1_n2() {
@@ -167,7 +167,7 @@ fn keygen_t_n_parties(
         Point<Secp256k1>,
         VerifiableSS<Secp256k1>,
         Vec<EncryptionKey>,
-        Vec<DLogStatement>,
+        Vec<CompositeDLogStatement>,
     ),
     ErrorType,
 > {
@@ -190,7 +190,7 @@ fn keygen_t_n_parties(
     let h1_h2_N_tilde_vec = bc1_vec
         .iter()
         .map(|bc1| bc1.dlog_statement.clone())
-        .collect::<Vec<DLogStatement>>();
+        .collect::<Vec<CompositeDLogStatement>>();
     let y_vec = (0..n)
         .map(|i| decom_vec[i].y_i.clone())
         .collect::<Vec<Point<Secp256k1>>>();
@@ -340,7 +340,7 @@ fn sign(
     // for simplicity
     let signers_dlog_statements = (0..ttag)
         .map(|i| dlog_statement_vec[s[i]].clone())
-        .collect::<Vec<DLogStatement>>();
+        .collect::<Vec<CompositeDLogStatement>>();
 
     // each party i BROADCASTS encryption of k_i under her Paillier key
     // m_a_vec = [ma_0;ma_1;,...]

@@ -88,9 +88,9 @@ impl<E: Curve> Zeroize for SSID<E> {
         // TODO: Zeroize directly if this is insufficient
         self.X.y_sum_s = Point::zero();
         for dlog_statement in self.X.h1_h2_n_tilde_vec.iter_mut() {
-            dlog_statement.N.zeroize();
-            dlog_statement.g.zeroize();
-            dlog_statement.ni.zeroize();
+            dlog_statement.modulus.zeroize();
+            dlog_statement.base.zeroize();
+            dlog_statement.value.zeroize();
         }
         self.X.vss_scheme.parameters.threshold.zeroize();
         self.X.vss_scheme.parameters.share_count.zeroize();

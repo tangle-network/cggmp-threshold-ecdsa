@@ -27,6 +27,11 @@ version = "1"
 default-features = false
 features = ["atomic", "alloc"]
 
+[dev-dependencies.multi-party-ecdsa]
+workspace = true
+default-features = false
+features = ["dev"]
+
 [features]
 default = ["rust-gmp-kzen"]
 rust-gmp-kzen = ["curv-kzen/rust-gmp-kzen"]

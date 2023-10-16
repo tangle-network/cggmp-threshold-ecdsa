@@ -19,13 +19,13 @@ use round_based::{
     },
     IsCritical, Msg,
 };
-use zk_paillier::zkproofs::DLogStatement;
 
 use crate::protocols::multi_party_ecdsa::gg_2020::{
     self,
     party_i::{KeyGenBroadcastMessage1, KeyGenDecommitMessage1, Keys},
     ErrorType, VerifiableSS,
 };
+use crate::utilities::zk_composite_dlog::CompositeDLogStatement;
 
 pub struct Round0 {
     pub party_i: u16,
@@ -315,7 +315,7 @@ impl Round4 {
             .bc_vec
             .iter()
             .map(|bc1| bc1.dlog_statement.clone())
-            .collect::<Vec<DLogStatement>>();
+            .collect::<Vec<CompositeDLogStatement>>();
 
         let (head, tail) = self.y_vec.split_at(1);
         let y_sum = tail.iter().fold(head[0].clone(), |acc, x| acc + x);
@@ -358,7 +358,7 @@ pub struct LocalKey<E: Curve> {
     pub keys_linear: gg_2020::party_i::SharedKeys<E>,
     pub paillier_key_vec: Vec<EncryptionKey>,
     pub y_sum_s: Point<E>,
-    pub h1_h2_n_tilde_vec: Vec<DLogStatement>,
+    pub h1_h2_n_tilde_vec: Vec<CompositeDLogStatement>,
     pub vss_scheme: VerifiableSS<E>,
     pub i: u16,
     pub t: u16,

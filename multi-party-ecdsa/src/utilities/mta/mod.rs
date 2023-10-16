@@ -25,7 +25,6 @@ use paillier::{
     traits::EncryptWithChosenRandomness, Add, Decrypt, DecryptionKey,
     EncryptionKey, Mul, Paillier, Randomness, RawCiphertext, RawPlaintext,
 };
-use zk_paillier::zkproofs::DLogStatement;
 
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -33,6 +32,7 @@ use sha2::Sha256;
 use crate::{
     protocols::multi_party_ecdsa::gg_2020::party_i::PartyPrivate,
     utilities::mta::range_proofs::AliceProof,
+    utilities::zk_composite_dlog::CompositeDLogStatement,
     Error::{self, InvalidKey},
 };
 
@@ -61,7 +61,7 @@ impl MessageA {
     pub fn a(
         a: &Scalar<Secp256k1>,
         alice_ek: &EncryptionKey,
-        dlog_statements: &[DLogStatement],
+        dlog_statements: &[CompositeDLogStatement],
     ) -> (Self, BigInt) {
         let randomness = BigInt::sample_below(&alice_ek.n);
         let m_a = MessageA::a_with_predefined_randomness(
@@ -77,7 +77,7 @@ impl MessageA {
         a: &Scalar<Secp256k1>,
         alice_ek: &EncryptionKey,
         randomness: &BigInt,
-        dlog_statements: &[DLogStatement],
+        dlog_statements: &[CompositeDLogStatement],
     ) -> Self {
         let c_a = Paillier::encrypt_with_chosen_randomness(
             alice_ek,
@@ -112,7 +112,7 @@ impl MessageB {
         b: &Scalar<Secp256k1>,
         alice_ek: &EncryptionKey,
         m_a: MessageA,
-        dlog_statements: &[DLogStatement],
+        dlog_statements: &[CompositeDLogStatement],
     ) -> Result<(Self, Scalar<Secp256k1>, BigInt, BigInt), Error> {
         let beta_tag = BigInt::sample_below(&alice_ek.n);
         let randomness = BigInt::sample_below(&alice_ek.n);
@@ -134,7 +134,7 @@ impl MessageB {
         m_a: MessageA,
         randomness: &BigInt,
         beta_tag: &BigInt,
-        dlog_statements: &[DLogStatement],
+        dlog_statements: &[CompositeDLogStatement],
     ) -> Result<(Self, Scalar<Secp256k1>), Error> {
         if m_a.range_proofs.len() != dlog_statements.len() {
             return Err(InvalidKey);
