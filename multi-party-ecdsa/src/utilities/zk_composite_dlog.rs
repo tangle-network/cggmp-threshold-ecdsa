@@ -21,6 +21,7 @@ use merlin::Transcript;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use serde_with::serde_as;
+use zeroize::ZeroizeOnDrop;
 
 /// Statistical security parameter (i.e. m=80 in CGGMP20).
 const STAT_SECURITY: usize = 80;
@@ -32,7 +33,7 @@ pub struct CompositeDLogStatement {
     pub value: BigInt,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ZeroizeOnDrop)]
 pub struct CompositeDLogWitness {
     pub exponent: BigInt,
     pub totient: BigInt,
