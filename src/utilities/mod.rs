@@ -14,6 +14,27 @@ pub mod sha2;
 pub mod zk_pdl;
 pub mod zk_pdl_with_slack;
 
+/// Extend or truncate a vector of bytes to a fixed length array.
+///
+/// If the length is less than the target amount `N` leading zeroes 
+/// are prepended, if the length exceeds `N` it is truncated.
+///
+/// The `ChaChaRng::from_seed()` function requires a `[u8; 32]` but the 
+/// chaining of the BigInt's does not guarantee the length 
+/// of the underlying bytes so we use this to ensure we seed the RNG 
+/// using the correct number of bytes.
+pub fn fixed_array<const N: usize>(
+    mut seed: Vec<u8>,
+) -> Result<[u8; 32], Vec<u8>> {
+    if seed.len() < N {
+        let padding = vec![0; N - seed.len()];
+        seed.splice(..0, padding.iter().cloned());
+    } else if seed.len() > N {
+        seed.truncate(N);
+    }
+    Ok(seed.try_into()?)
+}
+
 pub fn sample_relatively_prime_integer(n: &BigInt) -> BigInt {
     let mut sample = BigInt::sample_below(n);
     while BigInt::gcd(&sample, n) != BigInt::from(1) {

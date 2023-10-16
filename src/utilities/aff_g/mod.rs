@@ -36,7 +36,8 @@
 use super::sample_relatively_prime_integer;
 use crate::{
     utilities::{
-        mod_pow_with_negative, L, L_PLUS_EPSILON, L_PRIME, L_PRIME_PLUS_EPSILON,
+        mod_pow_with_negative, fixed_array, L, L_PLUS_EPSILON, L_PRIME,
+        L_PRIME_PLUS_EPSILON,
     },
     Error,
 };
@@ -307,7 +308,7 @@ impl<E: Curve, H: Digest + Clone>
             .chain_bigint(&F)
             .result_bigint();
         let mut rng: ChaChaRng =
-            ChaChaRng::from_seed(e.to_bytes().try_into().unwrap());
+            ChaChaRng::from_seed(fixed_array::<32>(e.to_bytes()).unwrap());
         let val = rng.gen_range(0..2);
         e = BigInt::from(val)
             .mul(&BigInt::from(-2))
@@ -371,7 +372,7 @@ impl<E: Curve, H: Digest + Clone>
             .chain_bigint(&proof.commitment.F.clone())
             .result_bigint();
         let mut rng: ChaChaRng =
-            ChaChaRng::from_seed(e.to_bytes().try_into().unwrap());
+            ChaChaRng::from_seed(fixed_array::<32>(e.to_bytes()).unwrap());
         let val = rng.gen_range(0..2);
         e = BigInt::from(val)
             .mul(&BigInt::from(-2))

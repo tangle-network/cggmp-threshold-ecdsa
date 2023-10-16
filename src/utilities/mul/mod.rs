@@ -16,7 +16,10 @@
 */
 
 use super::sample_relatively_prime_integer;
-use crate::{utilities::mod_pow_with_negative, Error};
+use crate::{
+    utilities::{mod_pow_with_negative, fixed_array},
+    Error,
+};
 use curv::{
     arithmetic::{traits::*, Modulo},
     cryptographic_primitives::hashing::{Digest, DigestExt},
@@ -149,7 +152,7 @@ impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
         // e = H(A,B)
         let mut e = H::new().chain_bigint(&A).chain_bigint(&B).result_bigint();
         let mut rng: ChaChaRng =
-            ChaChaRng::from_seed(e.to_bytes().try_into().unwrap());
+            ChaChaRng::from_seed(fixed_array::<32>(e.to_bytes()).unwrap());
         let val = rng.gen_range(0..2);
         e = BigInt::from(val)
             .mul(&BigInt::from(-2))
@@ -190,7 +193,7 @@ impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
             .chain_bigint(&proof.commitment.B)
             .result_bigint();
         let mut rng: ChaChaRng =
-            ChaChaRng::from_seed(e.to_bytes().try_into().unwrap());
+            ChaChaRng::from_seed(fixed_array::<32>(e.to_bytes()).unwrap());
         let val = rng.gen_range(0..2);
         e = BigInt::from(val)
             .mul(&BigInt::from(-2))
