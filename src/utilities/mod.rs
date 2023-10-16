@@ -26,13 +26,18 @@ pub mod zk_pdl_with_slack;
 pub fn fixed_array<const N: usize>(
     mut seed: Vec<u8>,
 ) -> Result<[u8; 32], Vec<u8>> {
-    if seed.len() < N {
-        let padding = vec![0; N - seed.len()];
-        seed.splice(..0, padding.iter().cloned());
-    } else if seed.len() > N {
-        seed.truncate(N);
+    use std::cmp::Ordering;
+    match seed.len().cmp(&N) {
+        Ordering::Greater => {
+            seed.truncate(N);
+        }
+        Ordering::Less => {
+            let padding = vec![0; N - seed.len()];
+            seed.splice(..0, padding.iter().cloned());
+        }
+        _ => {}
     }
-    Ok(seed.try_into()?)
+    seed.try_into()
 }
 
 pub fn sample_relatively_prime_integer(n: &BigInt) -> BigInt {
