@@ -7,12 +7,13 @@ pub mod aff_g;
 pub mod dec_q;
 pub mod enc;
 pub mod log_star;
-pub mod mta;
 pub mod mul;
 pub mod mul_star;
 pub mod sha2;
-pub mod zk_pdl;
-pub mod zk_pdl_with_slack;
+
+pub use multi_party_ecdsa::utilities::mta;
+pub use multi_party_ecdsa::utilities::zk_pdl;
+pub use multi_party_ecdsa::utilities::zk_pdl_with_slack;
 
 pub fn sample_relatively_prime_integer(n: &BigInt) -> BigInt {
     let mut sample = BigInt::sample_below(n);
