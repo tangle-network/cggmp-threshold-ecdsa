@@ -16,12 +16,12 @@ pub mod zk_pdl_with_slack;
 
 /// Extend or truncate a vector of bytes to a fixed length array.
 ///
-/// If the length is less than the target amount `N` leading zeroes 
+/// If the length is less than the target amount `N` leading zeroes
 /// are prepended, if the length exceeds `N` it is truncated.
 ///
-/// The `ChaChaRng::from_seed()` function requires a `[u8; 32]` but the 
-/// chaining of the BigInt's does not guarantee the length 
-/// of the underlying bytes so we use this to ensure we seed the RNG 
+/// The `ChaChaRng::from_seed()` function requires a `[u8; 32]` but the
+/// chaining of the BigInt's does not guarantee the length
+/// of the underlying bytes so we use this to ensure we seed the RNG
 /// using the correct number of bytes.
 pub fn fixed_array<const N: usize>(
     mut seed: Vec<u8>,

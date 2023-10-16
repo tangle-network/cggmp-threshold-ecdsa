@@ -17,7 +17,7 @@
 
 use super::sample_relatively_prime_integer;
 use crate::{
-    utilities::{mod_pow_with_negative, fixed_array},
+    utilities::{fixed_array, mod_pow_with_negative},
     Error,
 };
 use curv::{

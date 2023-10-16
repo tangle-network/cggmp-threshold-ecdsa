@@ -36,7 +36,7 @@
 use super::sample_relatively_prime_integer;
 use crate::{
     utilities::{
-        mod_pow_with_negative, fixed_array, L, L_PLUS_EPSILON, L_PRIME,
+        fixed_array, mod_pow_with_negative, L, L_PLUS_EPSILON, L_PRIME,
         L_PRIME_PLUS_EPSILON,
     },
     Error,
