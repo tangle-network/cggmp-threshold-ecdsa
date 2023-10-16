@@ -16,7 +16,10 @@
 */
 
 use super::{sample_relatively_prime_integer, L, L_PLUS_EPSILON};
-use crate::{utilities::mod_pow_with_negative, Error};
+use crate::{
+    utilities::{fixed_array, mod_pow_with_negative},
+    Error,
+};
 use curv::{
     arithmetic::{traits::*, Modulo},
     cryptographic_primitives::hashing::{Digest, DigestExt},
@@ -179,7 +182,7 @@ impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQProof<E, H> {
             .chain_bigint(&big_T)
             .result_bigint();
         let mut rng: ChaChaRng =
-            ChaChaRng::from_seed(e.to_bytes().try_into().unwrap());
+            ChaChaRng::from_seed(fixed_array::<32>(e.to_bytes()).unwrap());
         let val = rng.gen_range(0..2);
         e = BigInt::from(val)
             .mul(&BigInt::from(-2))
@@ -223,7 +226,7 @@ impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQProof<E, H> {
             .chain_bigint(&proof.commitment.big_T)
             .result_bigint();
         let mut rng: ChaChaRng =
-            ChaChaRng::from_seed(e.to_bytes().try_into().unwrap());
+            ChaChaRng::from_seed(fixed_array::<32>(e.to_bytes()).unwrap());
         let val = rng.gen_range(0..2);
         e = BigInt::from(val)
             .mul(&BigInt::from(-2))
