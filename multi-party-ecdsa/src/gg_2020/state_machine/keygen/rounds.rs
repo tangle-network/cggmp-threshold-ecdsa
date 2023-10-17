@@ -41,7 +41,8 @@ impl Round0 {
         let party_keys = Keys::create(self.party_i as usize);
         let (bc1, decom1) = party_keys
             .phase1_broadcast_phase3_proof_of_correct_key_proof_of_correct_h1h2(
-            );
+            )
+            .map_err(ProceedError::Round0GenerateCompositeDlogProof)?;
 
         output.push(Msg {
             sender: self.party_i,
@@ -382,6 +383,8 @@ type Result<T> = std::result::Result<T, ProceedError>;
 /// proceeding (i.e. after every message was received and pre-validated).
 #[derive(Debug, Error)]
 pub enum ProceedError {
+    #[error("round 2: generate composite dlog proof: {0:?}")]
+    Round0GenerateCompositeDlogProof(ErrorType),
     #[error("round 2: verify commitments: {0:?}")]
     Round2VerifyCommitments(ErrorType),
     #[error("round 3: verify vss construction: {0:?}")]

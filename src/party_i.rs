@@ -197,7 +197,8 @@ impl Keys {
 
     pub fn phase1_broadcast_phase3_proof_of_correct_key_proof_of_correct_h1h2(
         &self,
-    ) -> (KeyGenBroadcastMessage1, KeyGenDecommitMessage1) {
+    ) -> Result<(KeyGenBroadcastMessage1, KeyGenDecommitMessage1), ErrorType>
+    {
         let blind_factor = BigInt::sample(SECURITY);
         let correct_key_proof = NiCorrectKeyProof::proof(&self.dk, None);
 
@@ -221,16 +222,21 @@ impl Keys {
             totient: self.phi.clone(),
         };
 
+        let dlog_proof_error = ErrorType {
+            error_type: "Composite DLog Proof Generation Failed".to_string(),
+            bad_actors: vec![],
+            data: vec![],
+        };
         let composite_dlog_proof_base_h1 = CompositeDLogProof::prove(
             &dlog_statement_base_h1,
             &dlog_witness_base_h1,
         )
-        .unwrap();
+        .map_err(|_| dlog_proof_error.clone())?;
         let composite_dlog_proof_base_h2 = CompositeDLogProof::prove(
             &dlog_statement_base_h2,
             &dlog_witness_base_h2,
         )
-        .unwrap();
+        .map_err(|_| dlog_proof_error)?;
 
         let com = HashCommitment::<Sha256>::create_commitment_with_user_defined_randomness(
 			&BigInt::from_bytes(self.y_i.to_bytes(true).as_ref()),
@@ -248,7 +254,7 @@ impl Keys {
             blind_factor,
             y_i: self.y_i.clone(),
         };
-        (bcm1, decom1)
+        Ok((bcm1, decom1))
     }
 
     #[allow(clippy::type_complexity)]

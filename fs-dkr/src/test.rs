@@ -123,7 +123,7 @@ mod tests {
                 // the new party generates it's join message to start joining
                 // the computation
                 (0..number_of_new_parties)
-                    .map(|_| JoinMessage::distribute())
+                    .map(|_| JoinMessage::distribute().unwrap())
                     .unzip()
             }
 

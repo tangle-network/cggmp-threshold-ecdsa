@@ -59,4 +59,7 @@ pub enum FsDkrError {
 
     #[error("Ring pedersen proof failed for party {party_index:?}")]
     RingPedersenProofValidation { party_index: u16 },
+
+    #[error("Composite DLog proof generation failed.")]
+    CompositeDLogProofGeneration,
 }

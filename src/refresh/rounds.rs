@@ -70,7 +70,7 @@ impl Round0 {
             }
             None => {
                 let (mut join_message, paillier_keys) =
-                    JoinMessage::distribute();
+                    JoinMessage::distribute()?;
                 match self.new_party_index_option {
                     Some(new_party_index) => {
                         join_message.set_party_index(new_party_index);
