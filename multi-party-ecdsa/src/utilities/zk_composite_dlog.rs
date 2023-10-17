@@ -96,10 +96,14 @@ fn compute_challenges(
     for (idx, byte) in challenge_bytes.iter().enumerate() {
         // We're only looking for non-zero bits (i.e. 1)
         // since the rest are already set to zero by default.
-        let bits = format!("{byte:08b}");
-        for (i, char) in bits.chars().enumerate() {
-            if char == '1' {
-                challenge_bits[idx * 8 + i] = ChallengeBit::ONE;
+        let start = byte.leading_zeros(); // inclusive.
+        if start < 8 {
+            // Skips case of all zeros.
+            let end = 8 - byte.trailing_zeros(); // exclusive.
+            for i in start..end {
+                if (byte >> (7 - i)) & 1 == 1 {
+                    challenge_bits[(idx * 8) + i as usize] = ChallengeBit::ONE
+                }
             }
         }
     }
