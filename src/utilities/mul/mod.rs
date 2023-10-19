@@ -237,8 +237,9 @@ impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utilities::{
-        mta::range_proofs::SampleFromMultiplicativeGroup, BITS_PAILLIER,
+    use crate::{
+        mpc_ecdsa::utilities::mta::range_proofs::SampleFromMultiplicativeGroup,
+        utilities::BITS_PAILLIER,
     };
     use curv::elliptic::curves::secp256_k1::Secp256k1;
     use paillier::{Encrypt, KeyGeneration, Paillier, RawPlaintext};

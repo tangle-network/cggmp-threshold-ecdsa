@@ -43,19 +43,19 @@ use paillier::{
 use serde::{Deserialize, Serialize};
 use zk_paillier::zkproofs::{DLogStatement, NiCorrectKeyProof};
 
-use crate::{
-    utilities::zk_pdl_with_slack::{
-        PDLwSlackProof, PDLwSlackStatement, PDLwSlackWitness,
-    },
-    ErrorType,
-};
+use crate::ErrorType;
 use curv::cryptographic_primitives::proofs::sigma_valid_pedersen::PedersenProof;
 
 use std::convert::TryInto;
 
-pub use crate::mpc_ecdsa::gg_2020::party_i::{
-    KeyGenBroadcastMessage1, KeyGenDecommitMessage1, Parameters, SharedKeys,
-    SignBroadcastPhase1, SignDecommitPhase1, SignatureRecid,
+pub use crate::mpc_ecdsa::{
+    gg_2020::party_i::{
+        KeyGenBroadcastMessage1, KeyGenDecommitMessage1, Parameters,
+        SharedKeys, SignBroadcastPhase1, SignDecommitPhase1, SignatureRecid,
+    },
+    utilities::zk_pdl_with_slack::{
+        PDLwSlackProof, PDLwSlackStatement, PDLwSlackWitness,
+    },
 };
 use multi_party_ecdsa::gg_2020::party_i::generate_h1_h2_N_tilde;
 use multi_party_ecdsa::utilities::zk_composite_dlog::{

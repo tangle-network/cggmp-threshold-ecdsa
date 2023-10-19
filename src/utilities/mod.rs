@@ -7,12 +7,9 @@ pub mod aff_g;
 pub mod dec_q;
 pub mod enc;
 pub mod log_star;
-pub mod mta;
 pub mod mul;
 pub mod mul_star;
 pub mod sha2;
-pub mod zk_pdl;
-pub mod zk_pdl_with_slack;
 
 /// Extend or truncate a vector of bytes to a fixed length array.
 ///
