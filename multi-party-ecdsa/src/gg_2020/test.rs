@@ -33,6 +33,7 @@ use curv::arithmetic::traits::Converter;
 
 use crate::{
     protocols::multi_party_ecdsa::gg_2020::ErrorType,
+    utilities::zk_composite_dlog::CompositeDLogStatement,
     utilities::zk_pdl_with_slack::PDLwSlackProof,
 };
 use curv::{
@@ -44,7 +45,6 @@ use curv::{
 };
 use paillier::*;
 use sha2::Sha256;
-use zk_paillier::zkproofs::DLogStatement;
 
 #[test]
 fn test_keygen_t1_n2() {
@@ -167,7 +167,7 @@ fn keygen_t_n_parties(
         Point<Secp256k1>,
         VerifiableSS<Secp256k1>,
         Vec<EncryptionKey>,
-        Vec<DLogStatement>,
+        Vec<CompositeDLogStatement>,
     ),
     ErrorType,
 > {
@@ -180,7 +180,7 @@ fn keygen_t_n_parties(
 
     let (bc1_vec, decom_vec): (Vec<_>, Vec<_>) = party_keys_vec
         .iter()
-        .map(|k| k.phase1_broadcast_phase3_proof_of_correct_key_proof_of_correct_h1h2())
+        .map(|k| k.phase1_broadcast_phase3_proof_of_correct_key_proof_of_correct_h1h2().unwrap())
         .unzip();
 
     let e_vec = bc1_vec
@@ -190,7 +190,7 @@ fn keygen_t_n_parties(
     let h1_h2_N_tilde_vec = bc1_vec
         .iter()
         .map(|bc1| bc1.dlog_statement.clone())
-        .collect::<Vec<DLogStatement>>();
+        .collect::<Vec<CompositeDLogStatement>>();
     let y_vec = (0..n)
         .map(|i| decom_vec[i].y_i.clone())
         .collect::<Vec<Point<Secp256k1>>>();
@@ -340,7 +340,7 @@ fn sign(
     // for simplicity
     let signers_dlog_statements = (0..ttag)
         .map(|i| dlog_statement_vec[s[i]].clone())
-        .collect::<Vec<DLogStatement>>();
+        .collect::<Vec<CompositeDLogStatement>>();
 
     // each party i BROADCASTS encryption of k_i under her Paillier key
     // m_a_vec = [ma_0;ma_1;,...]
@@ -818,8 +818,9 @@ fn test_serialize_deserialize() {
     use serde_json;
 
     let k = Keys::create(0);
-    let (commit, decommit) =
-        k.phase1_broadcast_phase3_proof_of_correct_key_proof_of_correct_h1h2();
+    let (commit, decommit) = k
+        .phase1_broadcast_phase3_proof_of_correct_key_proof_of_correct_h1h2()
+        .unwrap();
 
     let encoded = serde_json::to_string(&commit).unwrap();
     let decoded: KeyGenBroadcastMessage1 =
@@ -839,8 +840,9 @@ fn test_small_paillier() {
     let (ek, dk) = Paillier::keypair_with_modulus_size(2046).keys();
     k.dk = dk;
     k.ek = ek;
-    let (commit, decommit) =
-        k.phase1_broadcast_phase3_proof_of_correct_key_proof_of_correct_h1h2();
+    let (commit, decommit) = k
+        .phase1_broadcast_phase3_proof_of_correct_key_proof_of_correct_h1h2()
+        .unwrap();
     assert!(k
         .phase1_verify_com_phase3_verify_correct_key_verify_dlog_phase2_distribute(
             &Parameters {

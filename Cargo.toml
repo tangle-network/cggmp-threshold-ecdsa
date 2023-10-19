@@ -67,6 +67,11 @@ anyhow = "1"
 structopt = "0.3"
 secp256k1 = { version = "0.20", features = ["global-context"]}
 
+[dev-dependencies.multi-party-ecdsa]
+workspace = true
+default-features = false
+features = ["dev"]
+
 [features]
 default = ["rust-gmp-kzen"]
 rust-gmp-kzen = ["fs-dkr/rust-gmp-kzen"]
