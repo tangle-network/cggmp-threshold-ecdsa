@@ -619,6 +619,7 @@ dependencies = [
  "structopt",
  "thiserror",
  "tokio 1.32.0",
+ "tss-core",
  "uuid 0.8.2",
  "zeroize",
  "zk-paillier",
@@ -1429,6 +1430,7 @@ dependencies = [
  "serde",
  "sha2 0.9.9",
  "thiserror",
+ "tss-core",
  "zeroize",
  "zk-paillier",
 ]
@@ -2456,6 +2458,7 @@ dependencies = [
  "surf",
  "thiserror",
  "tokio 1.32.0",
+ "tss-core",
  "uuid 0.8.2",
  "zeroize",
  "zk-paillier",
@@ -4466,6 +4469,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "283d3b89e1368717881a9d51dad843cc435380d8109c9e47d38780a324698d8b"
 dependencies = [
  "cfg-if 0.1.10",
+]
+
+[[package]]
+name = "tss-core"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "curv-kzen",
+ "kzen-paillier",
+ "merlin",
+ "serde",
+ "serde_repr",
+ "serde_with",
+ "zeroize",
 ]
 
 [[package]]

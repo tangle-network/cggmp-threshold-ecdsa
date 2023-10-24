@@ -19,10 +19,10 @@ use curv::{
     elliptic::curves::{Curve, Point, Scalar, Secp256k1},
     BigInt,
 };
-use multi_party_ecdsa::utilities::zk_composite_dlog::CompositeDLogStatement;
 use paillier::{EncryptionKey, Randomness};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, marker::PhantomData};
+use tss_core::zkproof::prm::CompositeDLogStatement;
 use zeroize::Zeroize;
 
 /// Represents the first round of the interactive version of the proof

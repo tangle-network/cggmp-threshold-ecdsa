@@ -58,8 +58,10 @@ pub use crate::mpc_ecdsa::{
     },
 };
 use multi_party_ecdsa::gg_2020::party_i::generate_h1_h2_N_tilde;
-use multi_party_ecdsa::utilities::zk_composite_dlog::{
-    CompositeDLogProof, CompositeDLogStatement, CompositeDLogWitness,
+use tss_core::{
+    zkproof::prm::{
+        CompositeDLogProof, CompositeDLogStatement, CompositeDLogWitness,
+    },
 };
 
 const SECURITY: usize = 256;

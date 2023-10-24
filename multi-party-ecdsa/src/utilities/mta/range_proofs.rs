@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use zeroize::Zeroize;
 
-use crate::utilities::zk_composite_dlog::CompositeDLogStatement;
+use tss_core::zkproof::prm::CompositeDLogStatement;
 
 /// Represents the first round of the interactive version of the proof
 #[derive(Zeroize)]

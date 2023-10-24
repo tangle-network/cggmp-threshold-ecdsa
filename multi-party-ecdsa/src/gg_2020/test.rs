@@ -33,7 +33,6 @@ use curv::arithmetic::traits::Converter;
 
 use crate::{
     protocols::multi_party_ecdsa::gg_2020::ErrorType,
-    utilities::zk_composite_dlog::CompositeDLogStatement,
     utilities::zk_pdl_with_slack::PDLwSlackProof,
 };
 use curv::{
@@ -45,6 +44,7 @@ use curv::{
 };
 use paillier::*;
 use sha2::Sha256;
+use tss_core::zkproof::prm::CompositeDLogStatement;
 
 #[test]
 fn test_keygen_t1_n2() {

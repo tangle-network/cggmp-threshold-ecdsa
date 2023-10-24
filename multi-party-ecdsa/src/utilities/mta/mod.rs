@@ -32,9 +32,9 @@ use sha2::Sha256;
 use crate::{
     protocols::multi_party_ecdsa::gg_2020::party_i::PartyPrivate,
     utilities::mta::range_proofs::AliceProof,
-    utilities::zk_composite_dlog::CompositeDLogStatement,
     Error::{self, InvalidKey},
 };
+use tss_core::zkproof::prm::CompositeDLogStatement;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageA {

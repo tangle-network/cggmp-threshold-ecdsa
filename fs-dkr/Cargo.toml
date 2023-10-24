@@ -17,6 +17,7 @@ round-based.workspace = true
 serde.workspace = true
 zeroize.workspace = true
 thiserror.workspace = true
+tss-core.workspace = true
 
 [dependencies.multi-party-ecdsa]
 workspace = true

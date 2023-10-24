@@ -47,17 +47,19 @@ use zk_paillier::zkproofs::NiCorrectKeyProof;
 
 use crate::{
     protocols::multi_party_ecdsa::gg_2020::ErrorType,
-    utilities::zk_composite_dlog::{
-        CompositeDLogProof, CompositeDLogStatement,
-    },
     utilities::zk_pdl_with_slack::{
         PDLwSlackProof, PDLwSlackStatement, PDLwSlackWitness,
     },
 };
 use curv::cryptographic_primitives::proofs::sigma_valid_pedersen::PedersenProof;
 
-use crate::utilities::zk_composite_dlog::CompositeDLogWitness;
 use std::convert::TryInto;
+
+use tss_core::{
+    zkproof::prm::{
+        CompositeDLogProof, CompositeDLogStatement, CompositeDLogWitness,
+    },
+};
 
 const SECURITY: usize = 256;
 const PAILLIER_MIN_BIT_LENGTH: usize = 2047;

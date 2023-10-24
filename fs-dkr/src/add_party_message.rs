@@ -29,13 +29,9 @@ use curv::{
     elliptic::curves::{Curve, Point, Scalar},
     BigInt,
 };
-use multi_party_ecdsa::gg_2020::party_i::generate_h1_h2_N_tilde;
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
     party_i::{Keys, SharedKeys},
     state_machine::keygen::LocalKey,
-};
-use multi_party_ecdsa::utilities::zk_composite_dlog::{
-    CompositeDLogProof, CompositeDLogStatement, CompositeDLogWitness,
 };
 use paillier::{Decrypt, EncryptionKey, Paillier};
 use serde::{Deserialize, Serialize};
@@ -43,6 +39,9 @@ use std::{collections::HashMap, fmt::Debug};
 use zk_paillier::zkproofs::NiCorrectKeyProof;
 
 use crate::ring_pedersen_proof::{RingPedersenProof, RingPedersenStatement};
+use tss_core::zkproof::prm::{
+    CompositeDLogProof, CompositeDLogStatement, CompositeDLogWitness,
+};
 
 /// Message used by new parties to join the protocol.
 #[derive(Clone, Deserialize, Serialize, Debug)]

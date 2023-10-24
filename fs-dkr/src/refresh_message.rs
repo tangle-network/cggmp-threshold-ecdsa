@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, collections::HashMap, fmt::Debug};
 use zeroize::Zeroize;
 use zk_paillier::zkproofs::{NiCorrectKeyProof, SALT_STRING};
-use multi_party_ecdsa::utilities::zk_composite_dlog::CompositeDLogStatement;
+use tss_core::zkproof::prm::CompositeDLogStatement;
 
 use crate::ring_pedersen_proof::{RingPedersenProof, RingPedersenStatement};
 

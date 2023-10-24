@@ -25,7 +25,7 @@ use crate::protocols::multi_party_ecdsa::gg_2020::{
     party_i::{KeyGenBroadcastMessage1, KeyGenDecommitMessage1, Keys},
     ErrorType, VerifiableSS,
 };
-use crate::utilities::zk_composite_dlog::CompositeDLogStatement;
+use tss_core::zkproof::prm::CompositeDLogStatement;
 
 pub struct Round0 {
     pub party_i: u16,
