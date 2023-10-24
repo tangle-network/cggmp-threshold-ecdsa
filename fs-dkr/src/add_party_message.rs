@@ -39,6 +39,7 @@ use std::{collections::HashMap, fmt::Debug};
 use zk_paillier::zkproofs::NiCorrectKeyProof;
 
 use crate::ring_pedersen_proof::{RingPedersenProof, RingPedersenStatement};
+use tss_core::utilities::generate_h1_h2_N_tilde;
 use tss_core::zkproof::prm::{
     CompositeDLogProof, CompositeDLogStatement, CompositeDLogWitness,
 };

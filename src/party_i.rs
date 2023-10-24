@@ -57,8 +57,8 @@ pub use crate::mpc_ecdsa::{
         PDLwSlackProof, PDLwSlackStatement, PDLwSlackWitness,
     },
 };
-use multi_party_ecdsa::gg_2020::party_i::generate_h1_h2_N_tilde;
 use tss_core::{
+    utilities::generate_h1_h2_N_tilde,
     zkproof::prm::{
         CompositeDLogProof, CompositeDLogStatement, CompositeDLogWitness,
     },
