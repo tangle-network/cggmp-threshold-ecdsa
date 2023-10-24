@@ -202,7 +202,7 @@ impl CompositeDLogProof {
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
-    use crate::gg_2020::party_i::generate_h1_h2_N_tilde;
+    use crate::utilities::generate_h1_h2_N_tilde;
 
     #[test]
     fn valid_composite_dlog_proof_works() {
