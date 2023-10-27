@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use curv::arithmetic::traits::*;
 use curv::BigInt;
 use paillier::{KeyGeneration, Paillier};
