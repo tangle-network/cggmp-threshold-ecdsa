@@ -56,10 +56,8 @@ use curv::cryptographic_primitives::proofs::sigma_valid_pedersen::PedersenProof;
 use std::convert::TryInto;
 
 use tss_core::{
-    utilities::generate_h1_h2_N_tilde,
-    zkproof::prm::{
-        CompositeDLogProof, CompositeDLogStatement, CompositeDLogWitness,
-    },
+    utilities::generate_safe_h1_h2_N_tilde,
+    zkproof::prm::{PiPrmProof, PiPrmStatement, PiPrmWitness},
 };
 
 const SECURITY: usize = 256;
@@ -97,11 +95,11 @@ pub struct PartyPrivate {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct KeyGenBroadcastMessage1 {
     pub e: EncryptionKey,
-    pub dlog_statement: CompositeDLogStatement,
+    pub dlog_statement: PiPrmStatement,
     pub com: BigInt,
     pub correct_key_proof: NiCorrectKeyProof,
-    pub composite_dlog_proof_base_h1: CompositeDLogProof,
-    pub composite_dlog_proof_base_h2: CompositeDLogProof,
+    pub composite_dlog_proof_base_h1: PiPrmProof,
+    pub composite_dlog_proof_base_h2: PiPrmProof,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -157,7 +155,8 @@ impl Keys {
         let u = Scalar::<Secp256k1>::random();
         let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair().keys();
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) = generate_h1_h2_N_tilde();
+        let (N_tilde, h1, h2, xhi, xhi_inv, phi) =
+            generate_safe_h1_h2_N_tilde();
 
         Self {
             u_i: u,
@@ -180,7 +179,8 @@ impl Keys {
         let y = Point::generator() * &u;
 
         let (ek, dk) = Paillier::keypair_safe_primes().keys();
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) = generate_h1_h2_N_tilde();
+        let (N_tilde, h1, h2, xhi, xhi_inv, phi) =
+            generate_safe_h1_h2_N_tilde();
 
         Self {
             u_i: u,
@@ -199,7 +199,8 @@ impl Keys {
     pub fn create_from(u: Scalar<Secp256k1>, index: usize) -> Self {
         let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair().keys();
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) = generate_h1_h2_N_tilde();
+        let (N_tilde, h1, h2, xhi, xhi_inv, phi) =
+            generate_safe_h1_h2_N_tilde();
 
         Self {
             u_i: u,
@@ -223,22 +224,22 @@ impl Keys {
         let blind_factor = BigInt::sample(SECURITY);
         let correct_key_proof = NiCorrectKeyProof::proof(&self.dk, None);
 
-        let dlog_statement_base_h1 = CompositeDLogStatement {
+        let dlog_statement_base_h1 = PiPrmStatement {
             modulus: self.N_tilde.clone(),
             base: self.h1.clone(),
             value: self.h2.clone(),
         };
-        let dlog_witness_base_h1 = CompositeDLogWitness {
+        let dlog_witness_base_h1 = PiPrmWitness {
             exponent: self.xhi.clone(),
             totient: self.phi.clone(),
         };
 
-        let dlog_statement_base_h2 = CompositeDLogStatement {
+        let dlog_statement_base_h2 = PiPrmStatement {
             modulus: self.N_tilde.clone(),
             base: self.h2.clone(),
             value: self.h1.clone(),
         };
-        let dlog_witness_base_h2 = CompositeDLogWitness {
+        let dlog_witness_base_h2 = PiPrmWitness {
             exponent: self.xhi_inv.clone(),
             totient: self.phi.clone(),
         };
@@ -248,16 +249,12 @@ impl Keys {
             bad_actors: vec![],
             data: vec![],
         };
-        let composite_dlog_proof_base_h1 = CompositeDLogProof::prove(
-            &dlog_statement_base_h1,
-            &dlog_witness_base_h1,
-        )
-        .map_err(|_| dlog_proof_error.clone())?;
-        let composite_dlog_proof_base_h2 = CompositeDLogProof::prove(
-            &dlog_statement_base_h2,
-            &dlog_witness_base_h2,
-        )
-        .map_err(|_| dlog_proof_error)?;
+        let composite_dlog_proof_base_h1 =
+            PiPrmProof::prove(&dlog_statement_base_h1, &dlog_witness_base_h1)
+                .map_err(|_| dlog_proof_error.clone())?;
+        let composite_dlog_proof_base_h2 =
+            PiPrmProof::prove(&dlog_statement_base_h2, &dlog_witness_base_h2)
+                .map_err(|_| dlog_proof_error)?;
 
         let com = HashCommitment::<Sha256>::create_commitment_with_user_defined_randomness(
             &BigInt::from_bytes(self.y_i.to_bytes(true).as_ref()),
@@ -295,7 +292,7 @@ impl Keys {
         // decommitments
         let correct_key_correct_decom_all = (0..bc1_vec.len())
             .map(|i| {
-                let dlog_statement_base_h2 = CompositeDLogStatement {
+                let dlog_statement_base_h2 = PiPrmStatement {
                     modulus: bc1_vec[i].dlog_statement.modulus.clone(),
                     // Base and value are swapped because we're using h1's statement.
                     base: bc1_vec[i].dlog_statement.value.clone(),
@@ -553,7 +550,8 @@ impl PartyPrivate {
         let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair().keys();
 
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) = generate_h1_h2_N_tilde();
+        let (N_tilde, h1, h2, xhi, xhi_inv, phi) =
+            generate_safe_h1_h2_N_tilde();
 
         Keys {
             u_i: u,
@@ -580,7 +578,8 @@ impl PartyPrivate {
         let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair_safe_primes().keys();
 
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) = generate_h1_h2_N_tilde();
+        let (N_tilde, h1, h2, xhi, xhi_inv, phi) =
+            generate_safe_h1_h2_N_tilde();
 
         Keys {
             u_i: u,
@@ -805,7 +804,7 @@ impl LocalSignature {
         ek: &EncryptionKey,
         k_i: &Scalar<Secp256k1>,
         k_enc_randomness: &BigInt,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
     ) -> PDLwSlackProof {
         // Generate PDL with slack statement, witness and proof
         let pdl_w_slack_statement = PDLwSlackStatement {
@@ -832,7 +831,7 @@ impl LocalSignature {
         R: &Point<Secp256k1>,
         k_ciphertext: &BigInt,
         ek: &EncryptionKey,
-        dlog_statement: &[CompositeDLogStatement],
+        dlog_statement: &[PiPrmStatement],
         s: &[usize],
         i: usize,
     ) -> Result<(), ErrorType> {

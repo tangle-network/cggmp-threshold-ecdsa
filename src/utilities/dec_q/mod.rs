@@ -308,24 +308,19 @@ mod tests {
         utilities::BITS_PAILLIER,
     };
     use curv::elliptic::curves::secp256_k1::Secp256k1;
-    use fs_dkr::ring_pedersen_proof::RingPedersenStatement;
     use paillier::{KeyGeneration, Paillier};
     use sha2::Sha256;
+    use tss_core::utilities::generate_safe_h1_h2_N_tilde;
 
     #[test]
     fn test_paillier_decryption_modulo_q() {
-        let (ring_pedersen_statement, _witness) =
-            RingPedersenStatement::<Secp256k1, Sha256>::generate();
+        let (N_hat, S, T, _, _, _) = generate_safe_h1_h2_N_tilde();
         let (ek_prover, _) =
             Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
         let rho: BigInt = BigInt::from_paillier_key(&ek_prover);
         let (statement, witness) =
             PaillierDecryptionModQStatement::<Secp256k1, Sha256>::generate(
-                ring_pedersen_statement.S,
-                ring_pedersen_statement.T,
-                ring_pedersen_statement.N,
-                rho,
-                ek_prover,
+                S, T, N_hat, rho, ek_prover,
             );
         let proof = PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
             &witness, &statement,

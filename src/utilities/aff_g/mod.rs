@@ -523,14 +523,13 @@ mod tests {
         utilities::BITS_PAILLIER,
     };
     use curv::elliptic::curves::secp256_k1::Secp256k1;
-    use fs_dkr::ring_pedersen_proof::RingPedersenStatement;
     use paillier::{Encrypt, KeyGeneration, Paillier, RawPlaintext};
     use sha2::Sha256;
+    use tss_core::utilities::generate_safe_h1_h2_N_tilde;
 
     #[test]
     fn test_affine_g_proof() {
-        let (ring_pedersen_statement, _witness) =
-            RingPedersenStatement::<Secp256k1, Sha256>::generate();
+        let (N_hat, S, T, _, _, _) = generate_safe_h1_h2_N_tilde();
         let (ek_prover, _) =
             Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
         let (ek_verifier, _) =
@@ -546,9 +545,9 @@ mod tests {
             Secp256k1,
             Sha256,
         >::generate(
-            ring_pedersen_statement.S,
-            ring_pedersen_statement.T,
-            ring_pedersen_statement.N,
+            S,
+            T,
+            N_hat,
             rho,
             rho_y,
             ek_prover,

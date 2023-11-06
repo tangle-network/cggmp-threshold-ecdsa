@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, collections::HashMap, fmt::Debug};
 use zeroize::Zeroize;
 use zk_paillier::zkproofs::{NiCorrectKeyProof, SALT_STRING};
-use tss_core::zkproof::prm::CompositeDLogStatement;
+use tss_core::zkproof::prm::PiPrmStatement;
 
 use crate::ring_pedersen_proof::{RingPedersenProof, RingPedersenStatement};
 
@@ -39,7 +39,7 @@ pub struct RefreshMessage<E: Curve, H: Digest + Clone, const M: usize> {
     pub(crate) points_committed_vec: Vec<Point<E>>,
     points_encrypted_vec: Vec<BigInt>,
     dk_correctness_proof: NiCorrectKeyProof,
-    pub(crate) dlog_statement: CompositeDLogStatement,
+    pub(crate) dlog_statement: PiPrmStatement,
     pub(crate) ek: EncryptionKey,
     pub(crate) remove_party_indices: Vec<u16>,
     pub(crate) public_key: Point<E>,
@@ -272,7 +272,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
         let current_len = key.paillier_key_vec.len() as u16;
         let mut paillier_key_h1_h2_n_tilde_hash_map: HashMap<
             u16,
-            (EncryptionKey, CompositeDLogStatement),
+            (EncryptionKey, PiPrmStatement),
         > = HashMap::new();
         for old_party_index in old_to_new_map.keys() {
             let paillier_key = key
@@ -452,7 +452,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
             }
 
             // creating an inverse dlog statement
-            let dlog_statement_base_h2 = CompositeDLogStatement {
+            let dlog_statement_base_h2 = PiPrmStatement {
                 modulus: join_message.dlog_statement.modulus.clone(),
                 // Base and value are swapped because we're using h1's statement.
                 base: join_message.dlog_statement.value.clone(),

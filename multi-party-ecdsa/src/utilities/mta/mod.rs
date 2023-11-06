@@ -34,7 +34,7 @@ use crate::{
     utilities::mta::range_proofs::AliceProof,
     Error::{self, InvalidKey},
 };
-use tss_core::zkproof::prm::CompositeDLogStatement;
+use tss_core::zkproof::prm::PiPrmStatement;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MessageA {
@@ -61,7 +61,7 @@ impl MessageA {
     pub fn a(
         a: &Scalar<Secp256k1>,
         alice_ek: &EncryptionKey,
-        dlog_statements: &[CompositeDLogStatement],
+        dlog_statements: &[PiPrmStatement],
     ) -> (Self, BigInt) {
         let randomness = BigInt::sample_below(&alice_ek.n);
         let m_a = MessageA::a_with_predefined_randomness(
@@ -77,7 +77,7 @@ impl MessageA {
         a: &Scalar<Secp256k1>,
         alice_ek: &EncryptionKey,
         randomness: &BigInt,
-        dlog_statements: &[CompositeDLogStatement],
+        dlog_statements: &[PiPrmStatement],
     ) -> Self {
         let c_a = Paillier::encrypt_with_chosen_randomness(
             alice_ek,
@@ -112,7 +112,7 @@ impl MessageB {
         b: &Scalar<Secp256k1>,
         alice_ek: &EncryptionKey,
         m_a: MessageA,
-        dlog_statements: &[CompositeDLogStatement],
+        dlog_statements: &[PiPrmStatement],
     ) -> Result<(Self, Scalar<Secp256k1>, BigInt, BigInt), Error> {
         let beta_tag = BigInt::sample_below(&alice_ek.n);
         let randomness = BigInt::sample_below(&alice_ek.n);
@@ -134,7 +134,7 @@ impl MessageB {
         m_a: MessageA,
         randomness: &BigInt,
         beta_tag: &BigInt,
-        dlog_statements: &[CompositeDLogStatement],
+        dlog_statements: &[PiPrmStatement],
     ) -> Result<(Self, Scalar<Secp256k1>), Error> {
         if m_a.range_proofs.len() != dlog_statements.len() {
             return Err(InvalidKey);

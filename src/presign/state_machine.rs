@@ -608,11 +608,11 @@ pub mod test {
 		cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS,
 		elliptic::curves::{Point, Scalar},
 	};
-	use fs_dkr::ring_pedersen_proof::RingPedersenStatement;
 	use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::keygen::{
 		Keygen, LocalKey,
 	};
 	use round_based::dev::Simulation;
+	use tss_core::utilities::generate_safe_h1_h2_N_tilde;
 	use std::ops::Deref;
 
     fn simulate_keygen(t: u16, n: u16) -> Vec<LocalKey<Secp256k1>> {
@@ -736,11 +736,10 @@ pub mod test {
         let mut aux_ring_pedersen_s_values = HashMap::with_capacity(keys.len());
         let mut aux_ring_pedersen_t_values = HashMap::with_capacity(keys.len());
         for idx in 1..=p {
-            let (ring_pedersen_params, _) =
-                RingPedersenStatement::<Secp256k1, Sha256>::generate();
-            aux_ring_pedersen_n_hat_values.insert(idx, ring_pedersen_params.N);
-            aux_ring_pedersen_s_values.insert(idx, ring_pedersen_params.S);
-            aux_ring_pedersen_t_values.insert(idx, ring_pedersen_params.T);
+            let (N_hat, S, T, _, _, _) = generate_safe_h1_h2_N_tilde();
+            aux_ring_pedersen_n_hat_values.insert(idx, N_hat);
+            aux_ring_pedersen_s_values.insert(idx, S);
+            aux_ring_pedersen_t_values.insert(idx, T);
         }
 
         // Creates pre-signing inputs and auxiliary parameters for ZK proofs.
