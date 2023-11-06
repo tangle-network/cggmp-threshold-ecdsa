@@ -736,10 +736,10 @@ pub mod test {
         let mut aux_ring_pedersen_s_values = HashMap::with_capacity(keys.len());
         let mut aux_ring_pedersen_t_values = HashMap::with_capacity(keys.len());
         for idx in 1..=p {
-            let (N_hat, S, T, _, _, _) = generate_safe_h1_h2_N_tilde();
-            aux_ring_pedersen_n_hat_values.insert(idx, N_hat);
-            aux_ring_pedersen_s_values.insert(idx, S);
-            aux_ring_pedersen_t_values.insert(idx, T);
+            let (rpparam, _) = generate_safe_h1_h2_N_tilde();
+            aux_ring_pedersen_n_hat_values.insert(idx, rpparam.N);
+            aux_ring_pedersen_s_values.insert(idx, rpparam.s);
+            aux_ring_pedersen_t_values.insert(idx, rpparam.t);
         }
 
         // Creates pre-signing inputs and auxiliary parameters for ZK proofs.

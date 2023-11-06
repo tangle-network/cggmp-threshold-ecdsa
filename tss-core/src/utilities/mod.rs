@@ -3,37 +3,43 @@
 use curv::arithmetic::traits::*;
 use curv::BigInt;
 use paillier::{DecryptionKey, EncryptionKey, KeyGeneration, Paillier};
+use serde::{Deserialize, Serialize};
 
-use crate::security_level::DEFAULT_LEVEL;
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RingPedersenParams {
+    // modulus N = p*q, where p,q are either safe primes or normal primes
+    pub N: BigInt,
+    // s and t such that t is in the subgroup generateb s.
+    pub s: BigInt,
+    pub t: BigInt,
+}
 
-pub fn generate_safe_h1_h2_N_tilde(
-) -> (BigInt, BigInt, BigInt, BigInt, BigInt, BigInt) {
-    let (ek_tilde, dk_tilde) = Paillier::keypair_safe_primes_with_modulus_size(
-        DEFAULT_LEVEL.paillier_key_size,
-    )
-    .keys();
-    let (h1, h2, lambda, lambda_inv, phi) =
-        get_related_values(&ek_tilde, &dk_tilde);
+// RingPedersenWitness provides witness values for proving correctness of RingPedersenParams
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RingPedersenWitness {
+    pub lambda: BigInt,
+    pub lambdaInv: BigInt,
+    pub phi: BigInt,
+}
 
-    (ek_tilde.n, h1, h2, lambda, lambda_inv, phi)
+pub fn generate_safe_h1_h2_N_tilde() -> (RingPedersenParams, RingPedersenWitness)
+{
+    let (ek_tilde, dk_tilde) = Paillier::keypair_safe_primes().keys();
+    return get_related_values(&ek_tilde, &dk_tilde);
 }
 
 // generate_normal_h1_h2_N_tilde generates Paillier modulus N = p*q and related
 // values h1 and h2 such that h2 = h1^lambda and h1=h2^lambda_inv.
 pub fn generate_normal_h1_h2_N_tilde(
-) -> (BigInt, BigInt, BigInt, BigInt, BigInt, BigInt) {
-    let (ek_tilde, dk_tilde) =
-        Paillier::keypair_with_modulus_size(DEFAULT_LEVEL.paillier_key_size)
-            .keys();
-    let (h1, h2, lambda, lambda_inv, phi) =
-        get_related_values(&ek_tilde, &dk_tilde);
-    return (ek_tilde.n, h1, h2, lambda, lambda_inv, phi);
+) -> (RingPedersenParams, RingPedersenWitness) {
+    let (ek_tilde, dk_tilde) = Paillier::keypair().keys();
+    return get_related_values(&ek_tilde, &dk_tilde);
 }
 
 fn get_related_values(
     ek: &EncryptionKey,
     dk: &DecryptionKey,
-) -> (BigInt, BigInt, BigInt, BigInt, BigInt) {
+) -> (RingPedersenParams, RingPedersenWitness) {
     // Generate h1 and h2 (s and t in CGGMP20) following section 6.4.1 (and Figure 6) of CGGMP20 .
     // Ref: <https://eprint.iacr.org/2021/060.pdf#page=38>.
     let one = BigInt::one();
@@ -49,5 +55,16 @@ fn get_related_values(
         }
     };
     let h2 = BigInt::mod_pow(&h1, &lambda, &ek.n);
-    return (h1, h2, lambda, lambda_inv, phi);
+    return (
+        RingPedersenParams {
+            N: ek.n.clone(),
+            s: h1,
+            t: h2,
+        },
+        RingPedersenWitness {
+            lambda: lambda,
+            lambdaInv: lambda_inv,
+            phi: phi,
+        },
+    );
 }

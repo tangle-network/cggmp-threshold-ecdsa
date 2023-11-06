@@ -32,6 +32,7 @@ use curv::{
 use paillier::EncryptionKey;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
+use tss_core::utilities::RingPedersenParams;
 use zk_paillier::zkproofs::IncorrectProof;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -76,9 +77,7 @@ impl<E: Curve, H: Digest + Clone>
     pub fn generate(
         rho: BigInt,
         _C: BigInt,
-        s: BigInt,
-        t: BigInt,
-        N_hat: BigInt,
+        rpparam: RingPedersenParams,
         paillier_key: EncryptionKey,
     ) -> (Self, PaillierMultiplicationVersusGroupWitness<E, H>) {
         // Set up exponents
@@ -102,9 +101,9 @@ impl<E: Curve, H: Digest + Clone>
                 C,
                 D,
                 X,
-                N_hat,
-                s,
-                t,
+                N_hat: rpparam.N,
+                s: rpparam.s,
+                t: rpparam.t,
                 phantom: PhantomData,
             },
             PaillierMultiplicationVersusGroupWitness {
@@ -307,7 +306,7 @@ mod tests {
 
     #[test]
     fn test_mul_star_proof() {
-        let (N_hat, S, T, _, _, _) = generate_safe_h1_h2_N_tilde();
+        let (rpparam, _) = generate_safe_h1_h2_N_tilde();
         let (paillier_key, _) =
             Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
 
@@ -322,7 +321,7 @@ mod tests {
             Secp256k1,
             Sha256,
         >::generate(
-            rho, C, S, T, N_hat, paillier_key
+            rho, C, rpparam, paillier_key
         );
         let proof =
             PaillierMultiplicationVersusGroupProof::<Secp256k1, Sha256>::prove(

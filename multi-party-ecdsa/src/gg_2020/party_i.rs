@@ -56,7 +56,7 @@ use curv::cryptographic_primitives::proofs::sigma_valid_pedersen::PedersenProof;
 use std::convert::TryInto;
 
 use tss_core::{
-    utilities::generate_safe_h1_h2_N_tilde,
+    utilities::{generate_normal_h1_h2_N_tilde, generate_safe_h1_h2_N_tilde},
     zkproof::prm::{PiPrmProof, PiPrmStatement, PiPrmWitness},
 };
 
@@ -155,21 +155,20 @@ impl Keys {
         let u = Scalar::<Secp256k1>::random();
         let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair().keys();
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) =
-            generate_safe_h1_h2_N_tilde();
+        let (rpparam, rpwitness) = generate_safe_h1_h2_N_tilde();
 
         Self {
             u_i: u,
             y_i: y,
-            dk,
-            ek,
+            dk: dk,
+            ek: ek,
             party_index: index,
-            N_tilde,
-            h1,
-            h2,
-            xhi,
-            xhi_inv,
-            phi,
+            N_tilde: rpparam.N,
+            h1: rpparam.s,
+            h2: rpparam.t,
+            xhi: rpwitness.lambda,
+            xhi_inv: rpwitness.lambdaInv,
+            phi: rpwitness.phi,
         }
     }
 
@@ -179,8 +178,7 @@ impl Keys {
         let y = Point::generator() * &u;
 
         let (ek, dk) = Paillier::keypair_safe_primes().keys();
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) =
-            generate_safe_h1_h2_N_tilde();
+        let (rpparam, rpwitness) = generate_safe_h1_h2_N_tilde();
 
         Self {
             u_i: u,
@@ -188,19 +186,18 @@ impl Keys {
             dk,
             ek,
             party_index: index,
-            N_tilde,
-            h1,
-            h2,
-            xhi,
-            xhi_inv,
-            phi,
+            N_tilde: rpparam.N,
+            h1: rpparam.s,
+            h2: rpparam.t,
+            xhi: rpwitness.lambda,
+            xhi_inv: rpwitness.lambdaInv,
+            phi: rpwitness.phi,
         }
     }
     pub fn create_from(u: Scalar<Secp256k1>, index: usize) -> Self {
         let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair().keys();
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) =
-            generate_safe_h1_h2_N_tilde();
+        let (rpparam, rpwitness) = generate_normal_h1_h2_N_tilde();
 
         Self {
             u_i: u,
@@ -208,12 +205,12 @@ impl Keys {
             dk,
             ek,
             party_index: index,
-            N_tilde,
-            h1,
-            h2,
-            xhi,
-            xhi_inv,
-            phi,
+            N_tilde: rpparam.N,
+            h1: rpparam.s,
+            h2: rpparam.t,
+            xhi: rpwitness.lambda,
+            xhi_inv: rpwitness.lambdaInv,
+            phi: rpwitness.phi,
         }
     }
 
@@ -550,8 +547,7 @@ impl PartyPrivate {
         let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair().keys();
 
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) =
-            generate_safe_h1_h2_N_tilde();
+        let (rpparam, rpwitness) = generate_normal_h1_h2_N_tilde();
 
         Keys {
             u_i: u,
@@ -559,12 +555,12 @@ impl PartyPrivate {
             dk,
             ek,
             party_index: index,
-            N_tilde,
-            h1,
-            h2,
-            xhi,
-            xhi_inv,
-            phi,
+            N_tilde: rpparam.N,
+            h1: rpparam.s,
+            h2: rpparam.t,
+            xhi: rpwitness.lambda,
+            xhi_inv: rpwitness.lambdaInv,
+            phi: rpwitness.phi,
         }
     }
 
@@ -578,8 +574,7 @@ impl PartyPrivate {
         let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair_safe_primes().keys();
 
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) =
-            generate_safe_h1_h2_N_tilde();
+        let (rpparam, rpwitness) = generate_safe_h1_h2_N_tilde();
 
         Keys {
             u_i: u,
@@ -587,12 +582,12 @@ impl PartyPrivate {
             dk,
             ek,
             party_index: index,
-            N_tilde,
-            h1,
-            h2,
-            xhi,
-            xhi_inv,
-            phi,
+            N_tilde: rpparam.N,
+            h1: rpparam.s,
+            h2: rpparam.t,
+            xhi: rpwitness.lambda,
+            xhi_inv: rpwitness.lambdaInv,
+            phi: rpwitness.phi,
         }
     }
 

@@ -23,6 +23,8 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use serde_with::serde_as;
 use zeroize::ZeroizeOnDrop;
 
+use crate::utilities::{RingPedersenParams, RingPedersenWitness};
+
 /// Statistical security parameter (i.e. m=80 in CGGMP20).
 const STAT_SECURITY: usize = 80;
 
@@ -106,6 +108,40 @@ fn compute_challenges(
     }
 
     Ok(challenge_bits)
+}
+
+impl PiPrmStatement {
+    pub fn from(rpparams: &RingPedersenParams) -> PiPrmStatement {
+        PiPrmStatement {
+            modulus: rpparams.N.clone(),
+            base: rpparams.s.clone(),
+            value: rpparams.t.clone(),
+        }
+    }
+
+    pub fn inverse_from(rpparams: &RingPedersenParams) -> PiPrmStatement {
+        PiPrmStatement {
+            modulus: rpparams.N.clone(),
+            base: rpparams.t.clone(),
+            value: rpparams.s.clone(),
+        }
+    }
+}
+
+impl PiPrmWitness {
+    pub fn from(witness: &RingPedersenWitness) -> PiPrmWitness {
+        PiPrmWitness {
+            exponent: witness.lambda.clone(),
+            totient: witness.phi.clone(),
+        }
+    }
+
+    pub fn inverse_from(witness: &RingPedersenWitness) -> PiPrmWitness {
+        PiPrmWitness {
+            exponent: witness.lambdaInv.clone(),
+            totient: witness.phi.clone(),
+        }
+    }
 }
 
 impl PiPrmProof {
@@ -203,31 +239,16 @@ mod tests {
         // for testing we use normal primes - it is important in the big
         // protocol that N is a product of safe primes, but not for the invidual
         // test.
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) =
-            generate_normal_h1_h2_N_tilde();
-        let statement_base_h1 = PiPrmStatement {
-            modulus: N_tilde.clone(),
-            base: h1.clone(),
-            value: h2.clone(),
-        };
-        let witness_base_h1 = PiPrmWitness {
-            exponent: xhi,
-            totient: phi.clone(),
-        };
+        let (rpparams, rpwitness) = generate_normal_h1_h2_N_tilde();
+        let statement_base_h1 = PiPrmStatement::from(&rpparams);
+        let witness_base_h1 = PiPrmWitness::from(&rpwitness);
         let proof_base_h1 =
             PiPrmProof::prove(&statement_base_h1, &witness_base_h1).unwrap();
         let result_base_h1 = proof_base_h1.verify(&statement_base_h1);
         assert!(result_base_h1.is_ok());
 
-        let statement_base_h2 = PiPrmStatement {
-            modulus: N_tilde,
-            base: h2,
-            value: h1,
-        };
-        let witness_base_h2 = PiPrmWitness {
-            exponent: xhi_inv,
-            totient: phi,
-        };
+        let statement_base_h2 = PiPrmStatement::inverse_from(&rpparams);
+        let witness_base_h2 = PiPrmWitness::inverse_from(&rpwitness);
         let proof_base_h2 =
             PiPrmProof::prove(&statement_base_h2, &witness_base_h2).unwrap();
         let result_base_h2 = proof_base_h2.verify(&statement_base_h2);
@@ -236,17 +257,14 @@ mod tests {
 
     #[test]
     fn invalid_composite_dlog_proof_fails() {
-        let (N_tilde, h1, h2, _, _, phi) = generate_normal_h1_h2_N_tilde();
+        let (rpparams, rpwitness) = generate_normal_h1_h2_N_tilde();
         // We use a fake/wrong/guessed exponent.
-        let xhi = BigInt::sample_below(&phi);
-        let statement = PiPrmStatement {
-            modulus: N_tilde.clone(),
-            base: h1.clone(),
-            value: h2.clone(),
-        };
+        let xhi = BigInt::sample_below(&rpwitness.phi);
+
+        let statement = PiPrmStatement::from(&rpparams);
         let witness = PiPrmWitness {
             exponent: xhi,
-            totient: phi.clone(),
+            totient: rpwitness.phi,
         };
         let proof = PiPrmProof::prove(&statement, &witness).unwrap();
         let result = proof.verify(&statement);

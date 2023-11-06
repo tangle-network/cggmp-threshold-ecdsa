@@ -55,6 +55,7 @@ use rand::Rng;
 use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
+use tss_core::utilities::RingPedersenParams;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierAffineOpWithGroupComInRangeStatement<
@@ -107,9 +108,7 @@ impl<E: Curve, H: Digest + Clone>
 {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
-        S: BigInt,
-        T: BigInt,
-        N_hat: BigInt,
+        rpparam: RingPedersenParams,
         rho: BigInt,
         rho_y: BigInt,
         prover: EncryptionKey,
@@ -156,9 +155,9 @@ impl<E: Curve, H: Digest + Clone>
 
         (
             Self {
-                S,
-                T,
-                N_hat,
+                S: rpparam.s,
+                T: rpparam.t,
+                N_hat: rpparam.N,
                 N0,
                 N1,
                 NN0,
@@ -529,7 +528,7 @@ mod tests {
 
     #[test]
     fn test_affine_g_proof() {
-        let (N_hat, S, T, _, _, _) = generate_safe_h1_h2_N_tilde();
+        let (rpparam, _) = generate_safe_h1_h2_N_tilde();
         let (ek_prover, _) =
             Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
         let (ek_verifier, _) =
@@ -545,9 +544,7 @@ mod tests {
             Secp256k1,
             Sha256,
         >::generate(
-            S,
-            T,
-            N_hat,
+            rpparam,
             rho,
             rho_y,
             ek_prover,

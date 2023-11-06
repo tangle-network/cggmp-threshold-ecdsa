@@ -34,6 +34,7 @@ use paillier::{
 };
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
+use tss_core::utilities::RingPedersenParams;
 use zk_paillier::zkproofs::IncorrectProof;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -68,9 +69,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeStatement<E, H> {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
         rho: BigInt,
-        s: BigInt,
-        t: BigInt,
-        N_hat: BigInt,
+        rpparam: RingPedersenParams,
         paillier_key: EncryptionKey,
     ) -> (Self, PaillierEncryptionInRangeWitness<E, H>) {
         // Set up exponents
@@ -91,9 +90,9 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeStatement<E, H> {
                 N0,
                 NN0,
                 K,
-                s,
-                t,
-                N_hat,
+                s: rpparam.s,
+                t: rpparam.t,
+                N_hat: rpparam.N,
                 phantom: PhantomData,
             },
             PaillierEncryptionInRangeWitness {
@@ -299,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_paillier_encryption_in_range_proof() {
-        let (N_hat, S, T, _, _, _) = generate_safe_h1_h2_N_tilde();
+        let (rpparam, _) = generate_safe_h1_h2_N_tilde();
         let (paillier_key, _) =
             Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
 
@@ -308,7 +307,7 @@ mod tests {
             Secp256k1,
             Sha256,
         >::generate(
-            rho, S, T, N_hat, paillier_key
+            rho, rpparam, paillier_key
         );
         let proof = PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(
             &witness, &statement,

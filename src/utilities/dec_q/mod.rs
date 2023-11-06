@@ -34,6 +34,7 @@ use rand::Rng;
 use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
+use tss_core::utilities::RingPedersenParams;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierDecryptionModQStatement<E: Curve, H: Digest + Clone> {
@@ -67,9 +68,7 @@ impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQWitness<E, H> {
 impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQStatement<E, H> {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
-        S: BigInt,
-        T: BigInt,
-        N_hat: BigInt,
+        rpparams: RingPedersenParams,
         rho: BigInt,
         prover: EncryptionKey,
     ) -> (Self, PaillierDecryptionModQWitness<E, H>) {
@@ -89,9 +88,9 @@ impl<E: Curve, H: Digest + Clone> PaillierDecryptionModQStatement<E, H> {
         let x = BigInt::mod_floor(&y, Scalar::<E>::group_order());
         (
             Self {
-                S,
-                T,
-                N_hat,
+                S: rpparams.s,
+                T: rpparams.t,
+                N_hat: rpparams.N,
                 N0: prover.n,
                 NN0: prover.nn,
                 C,
@@ -314,14 +313,14 @@ mod tests {
 
     #[test]
     fn test_paillier_decryption_modulo_q() {
-        let (N_hat, S, T, _, _, _) = generate_safe_h1_h2_N_tilde();
+        let (rpparam, _) = generate_safe_h1_h2_N_tilde();
         let (ek_prover, _) =
             Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
         let rho: BigInt = BigInt::from_paillier_key(&ek_prover);
-        let (statement, witness) =
-            PaillierDecryptionModQStatement::<Secp256k1, Sha256>::generate(
-                S, T, N_hat, rho, ek_prover,
-            );
+        let (statement, witness) = PaillierDecryptionModQStatement::<
+            Secp256k1,
+            Sha256,
+        >::generate(rpparam, rho, ek_prover);
         let proof = PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
             &witness, &statement,
         );
