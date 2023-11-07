@@ -35,10 +35,9 @@ use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::{
 };
 use paillier::{Decrypt, EncryptionKey, Paillier};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
 use zk_paillier::zkproofs::NiCorrectKeyProof;
 
-use crate::ring_pedersen_proof::{RingPedersenProof, RingPedersenStatement};
 use tss_core::utilities::generate_safe_h1_h2_N_tilde;
 use tss_core::zkproof::prm::{PiPrmProof, PiPrmStatement, PiPrmWitness};
 
@@ -52,8 +51,9 @@ pub struct JoinMessage<E: Curve, H: Digest + Clone, const M: usize> {
     pub(crate) dlog_statement: PiPrmStatement,
     pub(crate) composite_dlog_proof_base_h1: PiPrmProof,
     pub(crate) composite_dlog_proof_base_h2: PiPrmProof,
-    pub(crate) ring_pedersen_statement: RingPedersenStatement<E, H>,
-    pub(crate) ring_pedersen_proof: RingPedersenProof<E, H, M>,
+    pub(crate) ring_pedersen_pi_prm_statement: PiPrmStatement,
+    pub(crate) ring_pedersen_pi_prm_proof: PiPrmProof,
+    pub phantom: PhantomData<(E, H)>,
 }
 
 /// Generates the DlogStatement and CompositeProofs using the parameters
@@ -98,13 +98,12 @@ impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
             composite_dlog_proof_base_h2,
         ) = generate_dlog_statement_proofs()?;
 
-        let (ring_pedersen_statement, ring_pedersen_witness) =
-            RingPedersenStatement::generate();
-
-        let ring_pedersen_proof = RingPedersenProof::prove(
-            &ring_pedersen_witness,
-            &ring_pedersen_statement,
-        );
+        let (rpparam, rpwitness) = generate_safe_h1_h2_N_tilde();
+        let pi_prm_statement = PiPrmStatement::from(&rpparam);
+        let pi_prm_witness = PiPrmWitness::from(&rpwitness);
+        let pi_prm_proof =
+            PiPrmProof::prove(&pi_prm_statement, &pi_prm_witness)
+                .map_err(|_| FsDkrError::RingPedersenProofError {})?;
 
         let join_message = JoinMessage {
             // in a join message, we only care about the ek and the correctness
@@ -117,9 +116,10 @@ impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
             dlog_statement,
             composite_dlog_proof_base_h1,
             composite_dlog_proof_base_h2,
-            ring_pedersen_statement,
-            ring_pedersen_proof,
+            ring_pedersen_pi_prm_statement: pi_prm_statement,
+            ring_pedersen_pi_prm_proof: pi_prm_proof,
             party_index: None,
+            phantom: PhantomData {},
         };
 
         Ok((join_message, paillier_key_pair))
@@ -149,29 +149,21 @@ impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
         RefreshMessage::validate_collect(refresh_messages, current_t, new_n)?;
 
         for refresh_message in refresh_messages.iter() {
-            RingPedersenProof::verify(
-                &refresh_message.ring_pedersen_proof,
-                &refresh_message.ring_pedersen_statement,
-            )
-            .map_err(|_| {
-                FsDkrError::RingPedersenProofValidation {
+            refresh_message
+                .ring_pedersen_pi_prm_proof
+                .verify(&refresh_message.ring_pedersen_pi_prm_statement)
+                .map_err(|_| FsDkrError::RingPedersenProofValidation {
                     party_index: refresh_message.party_index,
-                }
-            })?;
+                })?;
         }
 
         for join_message in join_messages.iter() {
-            RingPedersenProof::verify(
-                &join_message.ring_pedersen_proof,
-                &join_message.ring_pedersen_statement,
-            )
-            .map_err(|e| {
-                if let Some(party_index) = join_message.party_index {
-                    FsDkrError::RingPedersenProofValidation { party_index }
-                } else {
-                    e
-                }
-            })?;
+            join_message
+                .ring_pedersen_pi_prm_proof
+                .verify(&join_message.ring_pedersen_pi_prm_statement)
+                .map_err(|_| FsDkrError::RingPedersenProofValidation {
+                    party_index: join_message.party_index.unwrap_or(0),
+                })?;
         }
 
         // check if a party_index has been assigned to the current party
