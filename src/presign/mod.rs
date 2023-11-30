@@ -37,9 +37,7 @@ use crate::utilities::{
     },
     mul::{PaillierMulProof, PaillierMulStatement},
 };
-use tss_core::zkproof::enc::{
-    PaillierEncryptionInRangeProof, PaillierEncryptionInRangeStatement,
-};
+use tss_core::zkproof::enc::{PiEncProof, PiEncStatement};
 
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
@@ -125,8 +123,8 @@ pub struct PreSigningP2PMessage1<E: Curve> {
     pub K_i: BigInt,
     pub G_i: BigInt,
     pub ek: EncryptionKey,
-    pub psi_0_j_i: PaillierEncryptionInRangeProof<E, Sha256>,
-    pub enc_j_statement: PaillierEncryptionInRangeStatement<E, Sha256>,
+    pub psi_0_j_i: PiEncProof<E, Sha256>,
+    pub enc_j_statement: PiEncStatement<E, Sha256>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

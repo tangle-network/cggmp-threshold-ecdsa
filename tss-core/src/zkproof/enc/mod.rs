@@ -38,7 +38,7 @@ use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierEncryptionInRangeStatement<E: Curve, H: Digest + Clone> {
+pub struct PiEncStatement<E: Curve, H: Digest + Clone> {
     pub N0: BigInt,
     pub NN0: BigInt,
     pub K: BigInt,
@@ -47,7 +47,7 @@ pub struct PaillierEncryptionInRangeStatement<E: Curve, H: Digest + Clone> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierEncryptionInRangeWitness<E: Curve, H: Digest + Clone> {
+pub struct PiEncWitness<E: Curve, H: Digest + Clone> {
     k: BigInt,
     rho: BigInt,
     phantom: PhantomData<(E, H)>,
@@ -61,9 +61,9 @@ pub enum PiEncError {
     Proof,
 }
 
-impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeWitness<E, H> {
+impl<E: Curve, H: Digest + Clone> PiEncWitness<E, H> {
     pub fn new(k: BigInt, rho: BigInt) -> Self {
-        PaillierEncryptionInRangeWitness {
+        PiEncWitness {
             k,
             rho,
             phantom: PhantomData,
@@ -71,12 +71,12 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeWitness<E, H> {
     }
 }
 
-impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeStatement<E, H> {
+impl<E: Curve, H: Digest + Clone> PiEncStatement<E, H> {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
         rpparam: RingPedersenParams,
         paillier_key: EncryptionKey,
-    ) -> (Self, PaillierEncryptionInRangeWitness<E, H>) {
+    ) -> (Self, PiEncWitness<E, H>) {
         // sample the prover secret inputs
         let rho: BigInt = sample_relatively_prime_integer(&paillier_key.n);
         let k = BigInt::sample_below(Scalar::<E>::group_order());
@@ -100,7 +100,7 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeStatement<E, H> {
                 RPParam: rpparam,
                 phantom: PhantomData,
             },
-            PaillierEncryptionInRangeWitness {
+            PiEncWitness {
                 k,
                 rho,
                 phantom: PhantomData,
@@ -117,7 +117,7 @@ pub struct PaillierEncryptionInRangeCommitment {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierEncryptionInRangeProof<E: Curve, H: Digest + Clone> {
+pub struct PiEncProof<E: Curve, H: Digest + Clone> {
     z_1: BigInt,
     z_2: BigInt,
     z_3: BigInt,
@@ -125,11 +125,10 @@ pub struct PaillierEncryptionInRangeProof<E: Curve, H: Digest + Clone> {
     phantom: PhantomData<(E, H)>,
 }
 
-impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
-    #[allow(dead_code)]
+impl<E: Curve, H: Digest + Clone> PiEncProof<E, H> {
     pub fn prove(
-        witness: &PaillierEncryptionInRangeWitness<E, H>,
-        statement: &PaillierEncryptionInRangeStatement<E, H>,
+        witness: &PiEncWitness<E, H>,
+        statement: &PiEncStatement<E, H>,
     ) -> Self {
         // Step 1: Sample alpha between -2^{L+eps} and 2^{L+eps}
         let alpha_upper = BigInt::pow(&BigInt::from(2), L_PLUS_EPSILON as u32);
@@ -231,10 +230,9 @@ impl<E: Curve, H: Digest + Clone> PaillierEncryptionInRangeProof<E, H> {
         }
     }
 
-    #[allow(dead_code)]
     pub fn verify(
-        proof: &PaillierEncryptionInRangeProof<E, H>,
-        statement: &PaillierEncryptionInRangeStatement<E, H>,
+        proof: &PiEncProof<E, H>,
+        statement: &PiEncStatement<E, H>,
     ) -> Result<(), PiEncError> {
         let e = H::new()
             .chain_bigint(&proof.commitment.S)
@@ -322,16 +320,14 @@ mod tests {
         )
         .keys();
 
-        let (statement, witness) = PaillierEncryptionInRangeStatement::<
-            Secp256k1,
-            Sha256,
-        >::generate(auxRPParam, paillier_key);
-        let proof = PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(
-            &witness, &statement,
-        );
-        assert!(PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(
-            &proof, &statement,
-        )
-        .is_ok());
+        let (statement, witness) =
+            PiEncStatement::<Secp256k1, Sha256>::generate(
+                auxRPParam,
+                paillier_key,
+            );
+        let proof =
+            PiEncProof::<Secp256k1, Sha256>::prove(&witness, &statement);
+        assert!(PiEncProof::<Secp256k1, Sha256>::verify(&proof, &statement,)
+            .is_ok());
     }
 }

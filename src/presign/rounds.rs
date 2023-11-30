@@ -49,10 +49,7 @@ use curv::{
 };
 use tss_core::security_level::L_PRIME;
 use tss_core::utilities::sample_relatively_prime_integer;
-use tss_core::zkproof::enc::{
-    PaillierEncryptionInRangeProof, PaillierEncryptionInRangeStatement,
-    PaillierEncryptionInRangeWitness,
-};
+use tss_core::zkproof::enc::{PiEncProof, PiEncStatement, PiEncWitness};
 
 use paillier::{
     Add, Decrypt, EncryptWithChosenRandomness, EncryptionKey, Mul, Paillier,
@@ -108,12 +105,11 @@ impl Round0 {
             &Randomness(rho_i.clone()),
         )
         .into();
-        let witness_psi_0_j_i =
-            PaillierEncryptionInRangeWitness::new(k_i.clone(), rho_i.clone());
+        let witness_psi_0_j_i = PiEncWitness::new(k_i.clone(), rho_i.clone());
 
         for j in self.ssid.P.iter() {
             if *j != self.ssid.X.i {
-                let statement_psi_0_j_i = PaillierEncryptionInRangeStatement {
+                let statement_psi_0_j_i = PiEncStatement {
                     N0: self.secrets.ek.n.clone(),
                     NN0: self.secrets.ek.nn.clone(),
                     K: K_i.clone(),
@@ -128,11 +124,10 @@ impl Round0 {
                     },
                     phantom: PhantomData,
                 };
-                let psi_0_j_i =
-                    PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::prove(
-                        &witness_psi_0_j_i,
-                        &statement_psi_0_j_i,
-                    );
+                let psi_0_j_i = PiEncProof::<Secp256k1, Sha256>::prove(
+                    &witness_psi_0_j_i,
+                    &statement_psi_0_j_i,
+                );
 
                 let body = PreSigningP2PMessage1 {
                     ssid: self.ssid.clone(),
@@ -226,7 +221,7 @@ impl Round1 {
             let psi_0_i_j = msg.psi_0_j_i;
             let enc_i_statement = msg.enc_j_statement;
             // Verify psi_0_i_j proof
-            if PaillierEncryptionInRangeProof::<Secp256k1, Sha256>::verify(
+            if PiEncProof::<Secp256k1, Sha256>::verify(
                 &psi_0_i_j,
                 &enc_i_statement,
             )
