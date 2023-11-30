@@ -31,12 +31,14 @@ use crate::utilities::{
         PaillierAffineOpWithGroupComInRangeStatement,
     },
     dec_q::{PaillierDecryptionModQProof, PaillierDecryptionModQStatement},
-    enc::{PaillierEncryptionInRangeProof, PaillierEncryptionInRangeStatement},
     log_star::{
         KnowledgeOfExponentPaillierEncryptionProof,
         KnowledgeOfExponentPaillierEncryptionStatement,
     },
     mul::{PaillierMulProof, PaillierMulStatement},
+};
+use tss_core::zkproof::enc::{
+    PaillierEncryptionInRangeProof, PaillierEncryptionInRangeStatement,
 };
 
 use serde::{Deserialize, Serialize};

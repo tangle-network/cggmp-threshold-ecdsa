@@ -15,11 +15,7 @@
     @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
 
-use super::{sample_relatively_prime_integer, L, L_PLUS_EPSILON};
-use crate::{
-    utilities::{fixed_array, mod_pow_with_negative},
-    Error,
-};
+use crate::{utilities::fixed_array, Error};
 use curv::{
     arithmetic::{traits::*, Modulo},
     cryptographic_primitives::hashing::{Digest, DigestExt},
@@ -34,7 +30,11 @@ use rand::Rng;
 use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
+use tss_core::security_level::{L, L_PLUS_EPSILON};
 use tss_core::utilities::RingPedersenParams;
+use tss_core::utilities::{
+    mod_pow_with_negative, sample_relatively_prime_integer,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaillierDecryptionModQStatement<E: Curve, H: Digest + Clone> {

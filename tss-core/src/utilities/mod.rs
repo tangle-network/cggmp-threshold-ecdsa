@@ -5,6 +5,8 @@ use curv::BigInt;
 use paillier::{DecryptionKey, EncryptionKey, KeyGeneration, Paillier};
 use serde::{Deserialize, Serialize};
 
+use crate::security_level::DEFAULT_LEVEL;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RingPedersenParams {
     // modulus N = p*q, where p,q are either safe primes or normal primes
@@ -24,7 +26,10 @@ pub struct RingPedersenWitness {
 
 pub fn generate_safe_h1_h2_N_tilde() -> (RingPedersenParams, RingPedersenWitness)
 {
-    let (ek_tilde, dk_tilde) = Paillier::keypair_safe_primes().keys();
+    let (ek_tilde, dk_tilde) = Paillier::keypair_safe_primes_with_modulus_size(
+        DEFAULT_LEVEL.paillier_key_size,
+    )
+    .keys();
     return get_related_values(&ek_tilde, &dk_tilde);
 }
 
@@ -32,7 +37,9 @@ pub fn generate_safe_h1_h2_N_tilde() -> (RingPedersenParams, RingPedersenWitness
 // values h1 and h2 such that h2 = h1^lambda and h1=h2^lambda_inv.
 pub fn generate_normal_h1_h2_N_tilde(
 ) -> (RingPedersenParams, RingPedersenWitness) {
-    let (ek_tilde, dk_tilde) = Paillier::keypair().keys();
+    let (ek_tilde, dk_tilde) =
+        Paillier::keypair_with_modulus_size(DEFAULT_LEVEL.paillier_key_size)
+            .keys();
     return get_related_values(&ek_tilde, &dk_tilde);
 }
 
@@ -67,4 +74,25 @@ fn get_related_values(
             phi: phi,
         },
     );
+}
+
+pub fn sample_relatively_prime_integer(n: &BigInt) -> BigInt {
+    let mut sample = BigInt::sample_below(n);
+    while BigInt::gcd(&sample, n) != BigInt::from(1) {
+        sample = BigInt::sample_below(n);
+    }
+    sample
+}
+
+pub fn mod_pow_with_negative(
+    v: &BigInt,
+    pow: &BigInt,
+    modulus: &BigInt,
+) -> BigInt {
+    if BigInt::is_negative(pow) {
+        let temp = BigInt::mod_pow(v, &pow.abs(), modulus);
+        BigInt::mod_inv(&temp, modulus).unwrap_or_else(BigInt::zero)
+    } else {
+        BigInt::mod_pow(v, pow, modulus)
+    }
 }

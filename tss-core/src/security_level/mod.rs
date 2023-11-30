@@ -1,35 +1,43 @@
-pub mod aff_g;
-pub mod dec_q;
-pub mod log_star;
-pub mod mul;
-pub mod mul_star;
-pub mod sha2;
-
-/// Extend or truncate a vector of bytes to a fixed length array.
-///
-/// If the length is less than the target amount `N` leading zeroes
-/// are prepended, if the length exceeds `N` it is truncated.
-///
-/// The `ChaChaRng::from_seed()` function requires a `[u8; 32]` but the
-/// chaining of the BigInt's does not guarantee the length
-/// of the underlying bytes so we use this to ensure we seed the RNG
-/// using the correct number of bytes.
-pub fn fixed_array<const N: usize>(
-    mut seed: Vec<u8>,
-) -> Result<[u8; 32], Vec<u8>> {
-    use std::cmp::Ordering;
-    match seed.len().cmp(&N) {
-        Ordering::Greater => {
-            seed.truncate(N);
-        }
-        Ordering::Less => {
-            let padding = vec![0; N - seed.len()];
-            seed.splice(..0, padding.iter().cloned());
-        }
-        _ => {}
-    }
-    seed.try_into()
+pub struct SecurityLevel {
+    // pub param: usize,
+    // pub zk_iterations: usize,
+    pub paillier_key_size: usize,
+    // pub paillier_min_bit_length: usize,
+    // pub paillier_max_bit_length: usize,
+    // pub length: usize,
+    // pub blind_factor: usize,
+    // pub ot_param: usize,
 }
+
+pub const LEVEL1: SecurityLevel = SecurityLevel {
+    // param: 256,
+    // ot_param: 256,
+    // zk_iterations: 80,
+    paillier_key_size: 2048,
+    // paillier_min_bit_length: 2047,
+    // paillier_max_bit_length: 2048,
+    // blind_factor: 256,
+    // length: 256,
+};
+
+pub const LEVEL0: SecurityLevel = SecurityLevel {
+    // param: 64,
+    // zk_iterations: 80,
+    paillier_key_size: 256,
+    // paillier_min_bit_length: 255,
+    // paillier_max_bit_length: 256,
+    // blind_factor: 64,
+    // length: 64,
+    // ot_param: 64,
+};
+
+#[cfg(all(not(test), not(feature = "dev")))]
+pub const DEFAULT_LEVEL: SecurityLevel = LEVEL1;
+#[cfg(any(test, feature = "dev"))]
+pub const DEFAULT_LEVEL: SecurityLevel = LEVEL0;
+
+// placeholders. Use until we can merge the levels. There is some mismatch
+// between the levels between different crates.
 
 pub const SEC_PARAM: usize = 256;
 pub const SEC_BYTES: usize = SEC_PARAM / 8;

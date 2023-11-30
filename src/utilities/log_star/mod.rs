@@ -21,8 +21,6 @@
 //! The Prover has secret input (x,ρ) such that
 //!         x ∈ ± 2l, and C = (1 + N0)^x · ρ^N0 mod N0^2 and X = g^x    ∈ G.
 
-use super::sample_relatively_prime_integer;
-use crate::utilities::{mod_pow_with_negative, L};
 use curv::{
     arithmetic::{traits::*, Modulo},
     cryptographic_primitives::hashing::{Digest, DigestExt},
@@ -35,7 +33,11 @@ use paillier::{
 };
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
+use tss_core::security_level::L;
 use tss_core::utilities::RingPedersenParams;
+use tss_core::utilities::{
+    mod_pow_with_negative, sample_relatively_prime_integer,
+};
 use zk_paillier::zkproofs::IncorrectProof;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -45,11 +45,11 @@ use crate::{
             PaillierMultiplicationVersusGroupStatement,
             PaillierMultiplicationVersusGroupWitness,
         },
-        sample_relatively_prime_integer,
     },
     ErrorType, NoOfflineStageErrorData, ProofVerificationErrorData,
 };
 use thiserror::Error;
+use tss_core::utilities::sample_relatively_prime_integer;
 
 use zeroize::Zeroize;
 

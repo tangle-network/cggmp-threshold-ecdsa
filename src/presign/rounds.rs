@@ -16,6 +16,11 @@
 
 use std::{collections::HashMap, marker::PhantomData};
 
+use super::{
+    IdentifiableAbortBroadcastMessage, PreSigningP2PMessage1,
+    PreSigningP2PMessage2, PreSigningP2PMessage3, PreSigningSecrets,
+    PresigningOutput, PresigningTranscript, DEFAULT_ENCRYPTION_KEY, SSID,
+};
 use crate::{
     utilities::{
         aff_g::{
@@ -27,31 +32,26 @@ use crate::{
             PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
             PaillierDecryptionModQWitness,
         },
-        enc::{
-            PaillierEncryptionInRangeProof, PaillierEncryptionInRangeStatement,
-            PaillierEncryptionInRangeWitness,
-        },
         log_star::{
             KnowledgeOfExponentPaillierEncryptionProof,
             KnowledgeOfExponentPaillierEncryptionStatement,
             KnowledgeOfExponentPaillierEncryptionWitness,
         },
         mul::{PaillierMulProof, PaillierMulStatement, PaillierMulWitness},
-        sample_relatively_prime_integer, L_PRIME,
     },
     ErrorType, ProofVerificationErrorData,
-};
-
-use super::{
-    IdentifiableAbortBroadcastMessage, PreSigningP2PMessage1,
-    PreSigningP2PMessage2, PreSigningP2PMessage3, PreSigningSecrets,
-    PresigningOutput, PresigningTranscript, DEFAULT_ENCRYPTION_KEY, SSID,
 };
 use curv::{
     arithmetic::{traits::*, Modulo, Samplable},
     cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS,
     elliptic::curves::{Point, Scalar, Secp256k1},
     BigInt,
+};
+use tss_core::security_level::L_PRIME;
+use tss_core::utilities::sample_relatively_prime_integer;
+use tss_core::zkproof::enc::{
+    PaillierEncryptionInRangeProof, PaillierEncryptionInRangeStatement,
+    PaillierEncryptionInRangeWitness,
 };
 
 use paillier::{
@@ -117,13 +117,15 @@ impl Round0 {
                     N0: self.secrets.ek.n.clone(),
                     NN0: self.secrets.ek.nn.clone(),
                     K: K_i.clone(),
-                    s: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
-                    t: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
-                    N_hat: self
-                        .N_hats
-                        .get(j)
-                        .unwrap_or(&BigInt::zero())
-                        .clone(),
+                    RPParam: tss_core::utilities::RingPedersenParams {
+                        N: self
+                            .N_hats
+                            .get(j)
+                            .unwrap_or(&BigInt::zero())
+                            .clone(),
+                        s: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
+                        t: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
+                    },
                     phantom: PhantomData,
                 };
                 let psi_0_j_i =
