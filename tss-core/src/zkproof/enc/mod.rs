@@ -74,17 +74,16 @@ impl<E: Curve, H: Digest + Clone> PiEncWitness<E, H> {
 impl<E: Curve, H: Digest + Clone> PiEncStatement<E, H> {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
+        rho: BigInt,
         rpparam: RingPedersenParams,
         paillier_key: EncryptionKey,
     ) -> (Self, PiEncWitness<E, H>) {
-        // sample the prover secret inputs
-        let rho: BigInt = sample_relatively_prime_integer(&paillier_key.n);
-        let k = BigInt::sample_below(Scalar::<E>::group_order());
         // Set up exponents
         let _l_exp = BigInt::pow(&BigInt::from(2), L as u32);
         // Set up moduli
         let N0 = paillier_key.clone().n;
         let NN0 = paillier_key.clone().nn;
+        let k = BigInt::sample_below(Scalar::<E>::group_order());
         let K: BigInt = Paillier::encrypt_with_chosen_randomness(
             &paillier_key,
             RawPlaintext::from(&k),
@@ -320,8 +319,11 @@ mod tests {
         )
         .keys();
 
+        // sample the prover secret inputs
+        let rho: BigInt = sample_relatively_prime_integer(&paillier_key.n);
         let (statement, witness) =
             PiEncStatement::<Secp256k1, Sha256>::generate(
+                rho,
                 auxRPParam,
                 paillier_key,
             );
