@@ -15,7 +15,7 @@
     @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
 
-use crate::{utilities::fixed_array, Error};
+use crate::Error;
 use curv::{
     arithmetic::{traits::*, Modulo},
     cryptographic_primitives::hashing::{Digest, DigestExt},
@@ -33,7 +33,7 @@ use std::marker::PhantomData;
 use tss_core::security_level::{L, L_PLUS_EPSILON};
 use tss_core::utilities::RingPedersenParams;
 use tss_core::utilities::{
-    mod_pow_with_negative, sample_relatively_prime_integer,
+    fixed_array, mod_pow_with_negative, sample_relatively_prime_integer,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -31,11 +31,6 @@ use paillier::*;
 use crate::{
     presign::{PresigningOutput, PresigningTranscript, DEFAULT_ENCRYPTION_KEY},
     utilities::{
-        aff_g::{
-            PaillierAffineOpWithGroupComInRangeProof,
-            PaillierAffineOpWithGroupComInRangeStatement,
-            PaillierAffineOpWithGroupComInRangeWitness,
-        },
         dec_q::{
             PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
             PaillierDecryptionModQWitness,
@@ -49,7 +44,10 @@ use crate::{
     ErrorType, NoOfflineStageErrorData, ProofVerificationErrorData,
 };
 use thiserror::Error;
-use tss_core::utilities::sample_relatively_prime_integer;
+use tss_core::utilities::{
+    sample_relatively_prime_integer, RingPedersenParams,
+};
+use tss_core::zkproof::aff_g::{PiAffGProof, PiAffGStatement, PiAffGWitness};
 
 use zeroize::Zeroize;
 
@@ -183,13 +181,13 @@ impl Round1 {
             // (l,j) to proof for D_j_i
             let mut proofs_D_hat_j_i: HashMap<
                 (u16, u16),
-                PaillierAffineOpWithGroupComInRangeProof<Secp256k1, Sha256>,
+                PiAffGProof<Secp256k1, Sha256>,
             > = HashMap::new();
 
             // (l,j) to statement for D_j_i
             let mut statements_D_hat_j_i: HashMap<
                 (u16, u16),
-                PaillierAffineOpWithGroupComInRangeStatement<Secp256k1, Sha256>,
+                PiAffGStatement<Secp256k1, Sha256>,
             > = HashMap::new();
 
             self.ssid
@@ -213,85 +211,95 @@ impl Round1 {
                             .unwrap()
                             .clone();
 
-                        let witness_D_hat_j_i =
-                            PaillierAffineOpWithGroupComInRangeWitness::new(
-                                self.presigning_transcript.secrets.x_i.clone(),
-                                self.presigning_transcript
-                                    .beta_hat_i
-                                    .get(j)
+                        let witness_D_hat_j_i = PiAffGWitness::new(
+                            self.presigning_transcript.secrets.x_i.clone(),
+                            self.presigning_transcript
+                                .beta_hat_i
+                                .get(j)
+                                .unwrap_or(&BigInt::zero())
+                                .clone(),
+                            self.presigning_transcript
+                                .s_hat_i
+                                .get(j)
+                                .unwrap_or(&BigInt::zero())
+                                .clone(),
+                            self.presigning_transcript
+                                .r_hat_i
+                                .get(j)
+                                .unwrap_or(&BigInt::zero())
+                                .clone(),
+                        );
+                        let statement_D_hat_j_i = PiAffGStatement {
+                            RPParam: RingPedersenParams {
+                                N: self
+                                    .presigning_transcript
+                                    .N_hats
+                                    .get(l)
                                     .unwrap_or(&BigInt::zero())
                                     .clone(),
-                                self.presigning_transcript
-                                    .s_hat_i
-                                    .get(j)
+                                s: self
+                                    .presigning_transcript
+                                    .S
+                                    .get(l)
                                     .unwrap_or(&BigInt::zero())
                                     .clone(),
-                                self.presigning_transcript
-                                    .r_hat_i
-                                    .get(j)
+                                t: self
+                                    .presigning_transcript
+                                    .T
+                                    .get(l)
                                     .unwrap_or(&BigInt::zero())
                                     .clone(),
-                            );
-                        let statement_D_hat_j_i =
-						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeStatement {
-							S: self
-								.presigning_transcript
-								.S
-								.get(l)
-								.unwrap_or(&BigInt::zero())
-								.clone(),
-							T: self
-								.presigning_transcript
-								.T
-								.get(l)
-								.unwrap_or(&BigInt::zero())
-								.clone(),
-							N_hat: self
-								.presigning_transcript
-								.N_hats
-								.get(l)
-								.unwrap_or(&BigInt::zero())
-								.clone(),
-							N0: self.presigning_transcript.secrets.ek.n.clone(),
-							N1: self
-								.presigning_transcript
-								.eks
-								.get(j)
-								.unwrap_or(&DEFAULT_ENCRYPTION_KEY())
-								.n
-								.clone(),
-							NN0: self.presigning_transcript.secrets.ek.nn.clone(),
-							NN1: self
-								.presigning_transcript
-								.eks
-								.get(j)
-								.unwrap_or(&DEFAULT_ENCRYPTION_KEY())
-								.nn
-								.clone(),
-							C: D_hat_j_i,
-							D: self
-								.presigning_transcript
-								.K
-								.get(j)
-								.unwrap_or(&BigInt::zero())
-								.clone(),
-							Y: F_hat_j_i,
-							X: Point::<Secp256k1>::generator().as_point() *
-								Scalar::from_bigint(&self.presigning_transcript.secrets.x_i),
-							ek_prover: self.presigning_transcript.secrets.ek.clone(),
-							ek_verifier: self
-								.presigning_transcript
-								.eks
-								.get(j)
-								.unwrap_or(&DEFAULT_ENCRYPTION_KEY())
-								.clone(),
-							phantom: PhantomData,
-						};
-                        let proof_D_hat_j_i =
-						crate::utilities::aff_g::PaillierAffineOpWithGroupComInRangeProof::<
-							Secp256k1,
-							Sha256,
-						>::prove(&witness_D_hat_j_i, &statement_D_hat_j_i);
+                            },
+                            N0: self.presigning_transcript.secrets.ek.n.clone(),
+                            N1: self
+                                .presigning_transcript
+                                .eks
+                                .get(j)
+                                .unwrap_or(&DEFAULT_ENCRYPTION_KEY())
+                                .n
+                                .clone(),
+                            NN0: self
+                                .presigning_transcript
+                                .secrets
+                                .ek
+                                .nn
+                                .clone(),
+                            NN1: self
+                                .presigning_transcript
+                                .eks
+                                .get(j)
+                                .unwrap_or(&DEFAULT_ENCRYPTION_KEY())
+                                .nn
+                                .clone(),
+                            C: D_hat_j_i,
+                            D: self
+                                .presigning_transcript
+                                .K
+                                .get(j)
+                                .unwrap_or(&BigInt::zero())
+                                .clone(),
+                            Y: F_hat_j_i,
+                            X: Point::<Secp256k1>::generator().as_point()
+                                * Scalar::from_bigint(
+                                    &self.presigning_transcript.secrets.x_i,
+                                ),
+                            ek_prover: self
+                                .presigning_transcript
+                                .secrets
+                                .ek
+                                .clone(),
+                            ek_verifier: self
+                                .presigning_transcript
+                                .eks
+                                .get(j)
+                                .unwrap_or(&DEFAULT_ENCRYPTION_KEY())
+                                .clone(),
+                            phantom: PhantomData,
+                        };
+                        let proof_D_hat_j_i = PiAffGProof::prove(
+                            &witness_D_hat_j_i,
+                            &statement_D_hat_j_i,
+                        );
                         proofs_D_hat_j_i.insert((*l, *j), proof_D_hat_j_i);
                         statements_D_hat_j_i
                             .insert((*l, *j), statement_D_hat_j_i);
@@ -556,11 +564,9 @@ impl Round2 {
                             .get(&(self.ssid.X.i, *j))
                             .unwrap();
 
-                        if PaillierAffineOpWithGroupComInRangeProof::<
-                            Secp256k1,
-                            Sha256,
-                        >::verify(
-                            D_hat_si_j_proof, statement_D_hat_si_j
+                        if PiAffGProof::<Secp256k1, Sha256>::verify(
+                            D_hat_si_j_proof,
+                            statement_D_hat_si_j,
                         )
                         .is_err()
                         {

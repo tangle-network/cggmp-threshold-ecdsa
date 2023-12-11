@@ -26,10 +26,6 @@ use paillier::{DecryptionKey, EncryptionKey};
 use sha2::Sha256;
 
 use crate::utilities::{
-    aff_g::{
-        PaillierAffineOpWithGroupComInRangeProof,
-        PaillierAffineOpWithGroupComInRangeStatement,
-    },
     dec_q::{PaillierDecryptionModQProof, PaillierDecryptionModQStatement},
     log_star::{
         KnowledgeOfExponentPaillierEncryptionProof,
@@ -37,6 +33,7 @@ use crate::utilities::{
     },
     mul::{PaillierMulProof, PaillierMulStatement},
 };
+use tss_core::zkproof::aff_g::{PiAffGProof, PiAffGStatement};
 use tss_core::zkproof::enc::{PiEncProof, PiEncStatement};
 
 use serde::{Deserialize, Serialize};
@@ -136,12 +133,10 @@ pub struct PreSigningP2PMessage2<E: Curve> {
     pub F_j_i: BigInt,
     pub D_hat_j_i: BigInt,
     pub F_hat_j_i: BigInt,
-    pub psi_j_i: PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
-    pub statement_psi_j_i:
-        PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
-    pub psi_hat_j_i: PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
-    pub statement_psi_hat_j_i:
-        PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
+    pub psi_j_i: PiAffGProof<E, Sha256>,
+    pub statement_psi_j_i: PiAffGStatement<E, Sha256>,
+    pub psi_hat_j_i: PiAffGProof<E, Sha256>,
+    pub statement_psi_hat_j_i: PiAffGStatement<E, Sha256>,
     pub psi_prime_j_i: KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
     pub statement_psi_prime_j_i:
         KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
@@ -225,14 +220,8 @@ pub struct PresigningTranscript<E: Curve> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdentifiableAbortBroadcastMessage<E: Curve> {
     pub i: u16,
-    pub statements_D_j_i: HashMap<
-        (u16, u16),
-        PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
-    >,
-    pub proofs_D_j_i: HashMap<
-        (u16, u16),
-        PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
-    >,
+    pub statements_D_j_i: HashMap<(u16, u16), PiAffGStatement<E, Sha256>>,
+    pub proofs_D_j_i: HashMap<(u16, u16), PiAffGProof<E, Sha256>>,
     pub statement_H_i: PaillierMulStatement<E, Sha256>,
     pub proof_H_i: PaillierMulProof<E, Sha256>,
     pub statement_delta_i:
