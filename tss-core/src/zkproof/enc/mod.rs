@@ -52,8 +52,7 @@ pub struct PiEncWitness<E: Curve, H: Digest + Clone> {
     rho: BigInt,
     phantom: PhantomData<(E, H)>,
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PiEncError {
     Serialization,
     Validation,

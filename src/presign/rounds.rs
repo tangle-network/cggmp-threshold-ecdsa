@@ -22,12 +22,9 @@ use super::{
     PresigningOutput, PresigningTranscript, DEFAULT_ENCRYPTION_KEY, SSID,
 };
 use crate::{
-    utilities::{
-        dec_q::{
-            PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
-            PaillierDecryptionModQWitness,
-        },
-        mul::{PaillierMulProof, PaillierMulStatement, PaillierMulWitness},
+    utilities::dec_q::{
+        PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
+        PaillierDecryptionModQWitness,
     },
     ErrorType, ProofVerificationErrorData,
 };
@@ -45,6 +42,7 @@ use tss_core::zkproof::enc::{PiEncProof, PiEncStatement, PiEncWitness};
 use tss_core::zkproof::log_star::{
     PiLogStarProof, PiLogStarStatement, PiLogStarWitness,
 };
+use tss_core::zkproof::mul::{PiMulProof, PiMulStatement, PiMulWitness};
 
 use paillier::{
     Add, Decrypt, EncryptWithChosenRandomness, EncryptionKey, Mul, Paillier,
@@ -1162,12 +1160,12 @@ impl Round3 {
             )
             .into();
 
-            let witness_H_i = PaillierMulWitness::new(
+            let witness_H_i = PiMulWitness::new(
                 self.k_i,
                 self.nu_i.clone(),
                 self.nu_i.mul(&self.gamma_i),
             );
-            let statement_H_i = PaillierMulStatement {
+            let statement_H_i = PiMulStatement {
                 N: self.secrets.ek.n.clone(),
                 NN: self.secrets.ek.nn.clone(),
                 C: self.G_i,
@@ -1177,7 +1175,7 @@ impl Round3 {
                 phantom: PhantomData,
             };
 
-            let proof_H_i = PaillierMulProof::<Secp256k1, Sha256>::prove(
+            let proof_H_i = PiMulProof::<Secp256k1, Sha256>::prove(
                 &witness_H_i,
                 &statement_H_i,
             );
@@ -1346,9 +1344,7 @@ impl Round4 {
                 let proof_H_si = msg.proof_H_i;
                 let statement_H_si = msg.statement_H_i;
 
-                if PaillierMulProof::verify(&proof_H_si, &statement_H_si)
-                    .is_err()
-                {
+                if PiMulProof::verify(&proof_H_si, &statement_H_si).is_err() {
                     let error_data = ProofVerificationErrorData {
                         proof_symbol: "H_si".to_string(),
                         verifying_party: self.ssid.X.i,

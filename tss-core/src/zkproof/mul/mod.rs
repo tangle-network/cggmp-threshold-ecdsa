@@ -15,7 +15,9 @@
     @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
 
-use crate::Error;
+use crate::utilities::{
+    fixed_array, mod_pow_with_negative, sample_relatively_prime_integer,
+};
 use curv::{
     arithmetic::{traits::*, Modulo},
     cryptographic_primitives::hashing::{Digest, DigestExt},
@@ -30,13 +32,17 @@ use rand::Rng;
 use rand_chacha::{rand_core::SeedableRng, ChaChaRng};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use tss_core::utilities::fixed_array;
-use tss_core::utilities::{
-    mod_pow_with_negative, sample_relatively_prime_integer,
-};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierMulStatement<E: Curve, H: Digest + Clone> {
+pub enum PiMulError {
+    Serialization,
+    Validation,
+    Challenge,
+    Proof,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PiMulStatement<E: Curve, H: Digest + Clone> {
     pub N: BigInt,
     pub NN: BigInt,
     pub C: BigInt,
@@ -46,16 +52,16 @@ pub struct PaillierMulStatement<E: Curve, H: Digest + Clone> {
     pub phantom: PhantomData<(E, H)>,
 }
 
-pub struct PaillierMulWitness<E: Curve, H: Digest + Clone> {
+pub struct PiMulWitness<E: Curve, H: Digest + Clone> {
     x: BigInt,
     rho: BigInt,
     rho_x: BigInt,
     phantom: PhantomData<(E, H)>,
 }
 
-impl<E: Curve, H: Digest + Clone> PaillierMulWitness<E, H> {
+impl<E: Curve, H: Digest + Clone> PiMulWitness<E, H> {
     pub fn new(x: BigInt, rho: BigInt, rho_x: BigInt) -> Self {
-        PaillierMulWitness {
+        PiMulWitness {
             x,
             rho,
             rho_x,
@@ -64,14 +70,14 @@ impl<E: Curve, H: Digest + Clone> PaillierMulWitness<E, H> {
     }
 }
 
-impl<E: Curve, H: Digest + Clone> PaillierMulStatement<E, H> {
+impl<E: Curve, H: Digest + Clone> PiMulStatement<E, H> {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
         rho: BigInt,
         rho_x: BigInt,
         prover: EncryptionKey,
         Y: BigInt,
-    ) -> (Self, PaillierMulWitness<E, H>) {
+    ) -> (Self, PiMulWitness<E, H>) {
         let ek_prover = prover.clone();
         // x <- Z_N
         let x = BigInt::sample_below(&prover.n);
@@ -98,7 +104,7 @@ impl<E: Curve, H: Digest + Clone> PaillierMulStatement<E, H> {
                 ek_prover,
                 phantom: PhantomData,
             },
-            PaillierMulWitness {
+            PiMulWitness {
                 x,
                 rho,
                 rho_x,
@@ -109,26 +115,26 @@ impl<E: Curve, H: Digest + Clone> PaillierMulStatement<E, H> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierMulCommitment {
+pub struct PiMulCommitment {
     A: BigInt,
     B: BigInt,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierMulProof<E: Curve, H: Digest + Clone> {
+pub struct PiMulProof<E: Curve, H: Digest + Clone> {
     z: BigInt,
     u: BigInt,
     v: BigInt,
-    commitment: PaillierMulCommitment,
+    commitment: PiMulCommitment,
     phantom: PhantomData<(E, H)>,
 }
 
 // Link to the UC non-interactive threshold ECDSA paper
-impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
+impl<E: Curve, H: Digest + Clone> PiMulProof<E, H> {
     pub fn prove(
-        witness: &PaillierMulWitness<E, H>,
-        statement: &PaillierMulStatement<E, H>,
-    ) -> PaillierMulProof<E, H> {
+        witness: &PiMulWitness<E, H>,
+        statement: &PiMulStatement<E, H>,
+    ) -> PiMulProof<E, H> {
         // α,r,s <- Z∗_N
         let alpha = sample_relatively_prime_integer(&statement.N);
         let r = sample_relatively_prime_integer(&statement.N);
@@ -158,7 +164,7 @@ impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
             .mul(&BigInt::from(-2))
             .add(&BigInt::one())
             .mul(&e);
-        let commitment: PaillierMulCommitment = PaillierMulCommitment { A, B };
+        let commitment: PiMulCommitment = PiMulCommitment { A, B };
         // z = α + e * x mod N
         let z = BigInt::add(&alpha, &BigInt::mul(&e, &witness.x));
         // u = r * rho^e mod N
@@ -174,7 +180,7 @@ impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
             &statement.N,
         );
         // Return the proof
-        PaillierMulProof {
+        PiMulProof {
             z,
             u,
             v,
@@ -184,9 +190,9 @@ impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
     }
 
     pub fn verify(
-        proof: &PaillierMulProof<E, H>,
-        statement: &PaillierMulStatement<E, H>,
-    ) -> Result<(), Error> {
+        proof: &PiMulProof<E, H>,
+        statement: &PiMulStatement<E, H>,
+    ) -> Result<(), PiMulError> {
         // Compute the challenge
         let mut e = H::new()
             .chain_bigint(&proof.commitment.A)
@@ -213,7 +219,9 @@ impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
             &mod_pow_with_negative(&statement.C, &e, &statement.NN),
             &statement.NN,
         );
-        assert!(left_1 == right_1);
+        if left_1 != right_1 {
+            return Err(PiMulError::Proof);
+        }
         /*
             SECOND EQUALITY CHECK
             (1 + N)^z · v^N = B · X^e mod N^2 === Enc(z,c) = B · X^e mod N^2
@@ -229,7 +237,9 @@ impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
             &mod_pow_with_negative(&statement.X, &e, &statement.NN),
             &statement.NN,
         );
-        assert!(left_2.mod_floor(&statement.NN) == right_2);
+        if left_2.mod_floor(&statement.NN) != right_2 {
+            return Err(PiMulError::Proof);
+        }
         Ok(())
     }
 }
@@ -237,10 +247,7 @@ impl<E: Curve, H: Digest + Clone> PaillierMulProof<E, H> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        mpc_ecdsa::utilities::mta::range_proofs::SampleFromMultiplicativeGroup,
-        utilities::BITS_PAILLIER,
-    };
+    use crate::security_level::BITS_PAILLIER;
     use curv::elliptic::curves::secp256_k1::Secp256k1;
     use paillier::{Encrypt, KeyGeneration, Paillier, RawPlaintext};
     use sha2::Sha256;
@@ -249,22 +256,21 @@ mod tests {
     fn test_paillier_mul() {
         let (ek_prover, _) =
             Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
-        let rho: BigInt = BigInt::from_paillier_key(&ek_prover);
-        let rho_x: BigInt = BigInt::from_paillier_key(&ek_prover);
+        let rho: BigInt = sample_relatively_prime_integer(&ek_prover.n);
+        let rho_x: BigInt = sample_relatively_prime_integer(&ek_prover.n);
         let Y =
             Paillier::encrypt(&ek_prover, RawPlaintext::from(BigInt::from(12)));
         let (statement, witness) =
-            PaillierMulStatement::<Secp256k1, Sha256>::generate(
+            PiMulStatement::<Secp256k1, Sha256>::generate(
                 rho,
                 rho_x,
                 ek_prover,
                 Y.0.into_owned(),
             );
         let proof =
-            PaillierMulProof::<Secp256k1, Sha256>::prove(&witness, &statement);
-        assert!(PaillierMulProof::<Secp256k1, Sha256>::verify(
-            &proof, &statement
-        )
-        .is_ok());
+            PiMulProof::<Secp256k1, Sha256>::prove(&witness, &statement);
+        assert!(
+            PiMulProof::<Secp256k1, Sha256>::verify(&proof, &statement).is_ok()
+        );
     }
 }
