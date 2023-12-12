@@ -27,11 +27,6 @@ use crate::{
             PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
             PaillierDecryptionModQWitness,
         },
-        log_star::{
-            KnowledgeOfExponentPaillierEncryptionProof,
-            KnowledgeOfExponentPaillierEncryptionStatement,
-            KnowledgeOfExponentPaillierEncryptionWitness,
-        },
         mul::{PaillierMulProof, PaillierMulStatement, PaillierMulWitness},
     },
     ErrorType, ProofVerificationErrorData,
@@ -42,10 +37,14 @@ use curv::{
     elliptic::curves::{Point, Scalar, Secp256k1},
     BigInt,
 };
+use tss_core::security_level::L_PRIME;
 use tss_core::utilities::sample_relatively_prime_integer;
+use tss_core::utilities::RingPedersenParams;
 use tss_core::zkproof::aff_g::{PiAffGProof, PiAffGStatement, PiAffGWitness};
 use tss_core::zkproof::enc::{PiEncProof, PiEncStatement, PiEncWitness};
-use tss_core::{security_level::L_PRIME, utilities::RingPedersenParams};
+use tss_core::zkproof::log_star::{
+    PiLogStarProof, PiLogStarStatement, PiLogStarWitness,
+};
 
 use paillier::{
     Add, Decrypt, EncryptWithChosenRandomness, EncryptionKey, Mul, Paillier,
@@ -501,35 +500,32 @@ impl Round1 {
                 );
 
                 // psi_prime_j_i
-                let witness_psi_prime_j_i =
-                    KnowledgeOfExponentPaillierEncryptionWitness::new(
-                        self.gamma_i.clone(),
-                        self.nu_i.clone(),
-                    );
-                let statement_psi_prime_j_i =
-                    KnowledgeOfExponentPaillierEncryptionStatement {
-                        N0: self.secrets.ek.n.clone(),
-                        NN0: self.secrets.ek.nn.clone(),
-                        C: self.G_i.clone(),
-                        X: Gamma_i.clone(),
-                        // g is not always the secp256k1 generator, so we have
-                        // to pass it explicitly.
-                        // See [`KnowledgeOfExponentPaillierEncryptionStatement`] inline doc for g field
-                        // for details.
-                        g: Point::generator().to_point(),
-                        s: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
-                        t: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
-                        N_hat: self
+                let witness_psi_prime_j_i = PiLogStarWitness::new(
+                    self.gamma_i.clone(),
+                    self.nu_i.clone(),
+                );
+                let statement_psi_prime_j_i = PiLogStarStatement {
+                    N0: self.secrets.ek.n.clone(),
+                    NN0: self.secrets.ek.nn.clone(),
+                    C: self.G_i.clone(),
+                    X: Gamma_i.clone(),
+                    // g is not always the secp256k1 generator, so we have
+                    // to pass it explicitly.
+                    // See [`PiLogStarStatement`] inline doc for g field
+                    // for details.
+                    g: Point::generator().to_point(),
+                    RPParams: RingPedersenParams {
+                        N: self
                             .N_hats
                             .get(j)
                             .unwrap_or(&BigInt::zero())
                             .clone(),
-                        phantom: PhantomData,
-                    };
-                let psi_prime_j_i = KnowledgeOfExponentPaillierEncryptionProof::<
-                    Secp256k1,
-                    Sha256,
-                >::prove(
+                        s: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
+                        t: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
+                    },
+                    phantom: PhantomData,
+                };
+                let psi_prime_j_i = PiLogStarProof::<Secp256k1, Sha256>::prove(
                     &witness_psi_prime_j_i,
                     &statement_psi_prime_j_i,
                 );
@@ -707,22 +703,22 @@ impl Round2 {
             // Verify psi_prime_i_j
             let psi_prime_i_j = msg.psi_prime_j_i;
             let statement_psi_prime_i_j = msg.statement_psi_prime_j_i;
-            if KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::verify(
-				&psi_prime_i_j,
-				&statement_psi_prime_i_j,
-			)
-			.is_err()
-			{
-				let error_data = ProofVerificationErrorData {
-					proof_symbol: "psi_prime_i_j".to_string(),
-					verifying_party: self.ssid.X.i,
-				};
-				return Err(PresignError::ProofVerificationError(ErrorType {
-					error_type: "log*".to_string(),
-					bad_actors: vec![j.into()],
-					data: bincode::serialize(&error_data).unwrap(),
-				}))
-			}
+            if PiLogStarProof::<Secp256k1, Sha256>::verify(
+                &psi_prime_i_j,
+                &statement_psi_prime_i_j,
+            )
+            .is_err()
+            {
+                let error_data = ProofVerificationErrorData {
+                    proof_symbol: "psi_prime_i_j".to_string(),
+                    verifying_party: self.ssid.X.i,
+                };
+                return Err(PresignError::ProofVerificationError(ErrorType {
+                    error_type: "log*".to_string(),
+                    bad_actors: vec![j.into()],
+                    data: bincode::serialize(&error_data).unwrap(),
+                }));
+            }
         }
 
         // Gamma = Prod_j (Gamma_j)
@@ -813,36 +809,31 @@ impl Round2 {
             if j != &self.ssid.X.i.clone() {
                 // Compute psi_prime_prime_j_i
                 let witness_psi_prime_prime_j_i =
-                    KnowledgeOfExponentPaillierEncryptionWitness::new(
-                        self.k_i.clone(),
-                        self.rho_i.clone(),
-                    );
+                    PiLogStarWitness::new(self.k_i.clone(), self.rho_i.clone());
 
-                let statement_psi_prime_prime_j_i =
-                    KnowledgeOfExponentPaillierEncryptionStatement {
-                        N0: self.secrets.ek.n.clone(),
-                        NN0: self.secrets.ek.nn.clone(),
-                        C: self.K_i.clone(),
-                        X: Delta_i.clone(),
-                        // From the Delta_i = Gamma^{k_i} and Πlog∗ stating X =
-                        // g^x, Since x = k_i and X =
-                        // Delta_i, :- g = Gamma
-                        // (see Figure 7, Round 3 and Figure 25 in paper).
-                        g: Gamma.clone(),
-                        s: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
-                        t: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
-                        N_hat: self
+                let statement_psi_prime_prime_j_i = PiLogStarStatement {
+                    N0: self.secrets.ek.n.clone(),
+                    NN0: self.secrets.ek.nn.clone(),
+                    C: self.K_i.clone(),
+                    X: Delta_i.clone(),
+                    // From the Delta_i = Gamma^{k_i} and Πlog∗ stating X =
+                    // g^x, Since x = k_i and X =
+                    // Delta_i, :- g = Gamma
+                    // (see Figure 7, Round 3 and Figure 25 in paper).
+                    g: Gamma.clone(),
+                    RPParams: RingPedersenParams {
+                        N: self
                             .N_hats
                             .get(j)
                             .unwrap_or(&BigInt::zero())
                             .clone(),
-                        phantom: PhantomData,
-                    };
+                        s: self.S.get(j).unwrap_or(&BigInt::zero()).clone(),
+                        t: self.T.get(j).unwrap_or(&BigInt::zero()).clone(),
+                    },
+                    phantom: PhantomData,
+                };
                 let psi_prime_prime_j_i =
-                    KnowledgeOfExponentPaillierEncryptionProof::<
-                        Secp256k1,
-                        Sha256,
-                    >::prove(
+                    PiLogStarProof::<Secp256k1, Sha256>::prove(
                         &witness_psi_prime_prime_j_i,
                         &statement_psi_prime_prime_j_i,
                     );
@@ -972,22 +963,22 @@ impl Round3 {
             let statement_psi_prime_prime_i_j =
                 msg.statement_psi_prime_prime_j_i;
 
-            if KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::verify(
-				&psi_prime_prime_i_j,
-				&statement_psi_prime_prime_i_j,
-			)
-			.is_err()
-			{
-				let error_data = ProofVerificationErrorData {
-					proof_symbol: "psi_prime_prime_i_j".to_string(),
-					verifying_party: self.ssid.X.i,
-				};
-				return Err(PresignError::ProofVerificationError(ErrorType {
-					error_type: "log*".to_string(),
-					bad_actors: vec![j.into()],
-					data: bincode::serialize(&error_data).unwrap(),
-				}))
-			}
+            if PiLogStarProof::<Secp256k1, Sha256>::verify(
+                &psi_prime_prime_i_j,
+                &statement_psi_prime_prime_i_j,
+            )
+            .is_err()
+            {
+                let error_data = ProofVerificationErrorData {
+                    proof_symbol: "psi_prime_prime_i_j".to_string(),
+                    verifying_party: self.ssid.X.i,
+                };
+                return Err(PresignError::ProofVerificationError(ErrorType {
+                    error_type: "log*".to_string(),
+                    bad_actors: vec![j.into()],
+                    data: bincode::serialize(&error_data).unwrap(),
+                }));
+            }
 
             // Insert into deltas and Deltas
             deltas.insert(j, msg.delta_i);

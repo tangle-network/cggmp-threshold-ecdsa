@@ -27,14 +27,11 @@ use sha2::Sha256;
 
 use crate::utilities::{
     dec_q::{PaillierDecryptionModQProof, PaillierDecryptionModQStatement},
-    log_star::{
-        KnowledgeOfExponentPaillierEncryptionProof,
-        KnowledgeOfExponentPaillierEncryptionStatement,
-    },
     mul::{PaillierMulProof, PaillierMulStatement},
 };
 use tss_core::zkproof::aff_g::{PiAffGProof, PiAffGStatement};
 use tss_core::zkproof::enc::{PiEncProof, PiEncStatement};
+use tss_core::zkproof::log_star::{PiLogStarProof, PiLogStarStatement};
 
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
@@ -137,9 +134,8 @@ pub struct PreSigningP2PMessage2<E: Curve> {
     pub statement_psi_j_i: PiAffGStatement<E, Sha256>,
     pub psi_hat_j_i: PiAffGProof<E, Sha256>,
     pub statement_psi_hat_j_i: PiAffGStatement<E, Sha256>,
-    pub psi_prime_j_i: KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
-    pub statement_psi_prime_j_i:
-        KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
+    pub psi_prime_j_i: PiLogStarProof<E, Sha256>,
+    pub statement_psi_prime_j_i: PiLogStarStatement<E, Sha256>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -148,10 +144,8 @@ pub struct PreSigningP2PMessage3<E: Curve> {
     pub i: u16,
     pub delta_i: BigInt,
     pub Delta_i: Point<E>,
-    pub psi_prime_prime_j_i:
-        KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
-    pub statement_psi_prime_prime_j_i:
-        KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
+    pub psi_prime_prime_j_i: PiLogStarProof<E, Sha256>,
+    pub statement_psi_prime_prime_j_i: PiLogStarStatement<E, Sha256>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

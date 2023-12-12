@@ -21,6 +21,11 @@
 //! The Prover has secret input (x,ρ) such that
 //!         x ∈ ± 2l, and C = (1 + N0)^x · ρ^N0 mod N0^2 and X = g^x    ∈ G.
 
+use crate::security_level::{L, L_PLUS_EPSILON};
+use crate::utilities::RingPedersenParams;
+use crate::utilities::{
+    mod_pow_with_negative, sample_relatively_prime_integer,
+};
 use curv::{
     arithmetic::{traits::*, Modulo},
     cryptographic_primitives::hashing::{Digest, DigestExt},
@@ -33,18 +38,17 @@ use paillier::{
 };
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use tss_core::security_level::L;
-use tss_core::utilities::RingPedersenParams;
-use tss_core::utilities::{
-    mod_pow_with_negative, sample_relatively_prime_integer,
-};
-use zk_paillier::zkproofs::IncorrectProof;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct KnowledgeOfExponentPaillierEncryptionStatement<
-    E: Curve,
-    H: Digest + Clone,
-> {
+pub enum PiLogStarError {
+    Serialization,
+    Validation,
+    Challenge,
+    Proof,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PiLogStarStatement<E: Curve, H: Digest + Clone> {
     pub N0: BigInt,
     pub NN0: BigInt,
     pub C: BigInt,
@@ -58,26 +62,19 @@ pub struct KnowledgeOfExponentPaillierEncryptionStatement<
     // - Delta_i = Gamma^{k_i}
     // :- g = Gamma
     pub g: Point<E>,
-    pub N_hat: BigInt,
-    pub s: BigInt,
-    pub t: BigInt,
+    pub RPParams: RingPedersenParams,
     pub phantom: PhantomData<(E, H)>,
 }
 
-pub struct KnowledgeOfExponentPaillierEncryptionWitness<
-    E: Curve,
-    H: Digest + Clone,
-> {
+pub struct PiLogStarWitness<E: Curve, H: Digest + Clone> {
     x: BigInt,
     rho: BigInt,
     phantom: PhantomData<(E, H)>,
 }
 
-impl<E: Curve, H: Digest + Clone>
-    KnowledgeOfExponentPaillierEncryptionWitness<E, H>
-{
+impl<E: Curve, H: Digest + Clone> PiLogStarWitness<E, H> {
     pub fn new(x: BigInt, rho: BigInt) -> Self {
-        KnowledgeOfExponentPaillierEncryptionWitness {
+        PiLogStarWitness {
             x,
             rho,
             phantom: PhantomData,
@@ -85,16 +82,14 @@ impl<E: Curve, H: Digest + Clone>
     }
 }
 
-impl<E: Curve, H: Digest + Clone>
-    KnowledgeOfExponentPaillierEncryptionStatement<E, H>
-{
+impl<E: Curve, H: Digest + Clone> PiLogStarStatement<E, H> {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
         rho: BigInt,
         g: Option<Point<E>>,
         rpparam: RingPedersenParams,
         paillier_key: EncryptionKey,
-    ) -> (Self, KnowledgeOfExponentPaillierEncryptionWitness<E, H>) {
+    ) -> (Self, PiLogStarWitness<E, H>) {
         // Set up exponents
         let l_exp = BigInt::pow(&BigInt::from(2), L as u32);
         // Set up moduli
@@ -119,12 +114,10 @@ impl<E: Curve, H: Digest + Clone>
                 C,
                 X,
                 g,
-                N_hat: rpparam.N,
-                s: rpparam.s,
-                t: rpparam.t,
+                RPParams: rpparam,
                 phantom: PhantomData,
             },
-            KnowledgeOfExponentPaillierEncryptionWitness {
+            PiLogStarWitness {
                 x,
                 rho,
                 phantom: PhantomData,
@@ -133,7 +126,7 @@ impl<E: Curve, H: Digest + Clone>
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct KnowledgeOfExponentPaillierEncryptionCommitment<E: Curve> {
+pub struct PiLogStarCommitment<E: Curve> {
     S: BigInt,
     A: BigInt,
     Y: Point<E>,
@@ -141,60 +134,57 @@ pub struct KnowledgeOfExponentPaillierEncryptionCommitment<E: Curve> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct KnowledgeOfExponentPaillierEncryptionProof<
-    E: Curve,
-    H: Digest + Clone,
-> {
+pub struct PiLogStarProof<E: Curve, H: Digest + Clone> {
     z_1: BigInt,
     z_2: BigInt,
     z_3: BigInt,
-    commitment: KnowledgeOfExponentPaillierEncryptionCommitment<E>,
+    commitment: PiLogStarCommitment<E>,
     phantom: PhantomData<(E, H)>,
 }
 
 // Link to the UC non-interactive threshold ECDSA paper
-impl<E: Curve, H: Digest + Clone>
-    KnowledgeOfExponentPaillierEncryptionProof<E, H>
-{
+impl<E: Curve, H: Digest + Clone> PiLogStarProof<E, H> {
     pub fn prove(
-        witness: &KnowledgeOfExponentPaillierEncryptionWitness<E, H>,
-        statement: &KnowledgeOfExponentPaillierEncryptionStatement<E, H>,
-    ) -> KnowledgeOfExponentPaillierEncryptionProof<E, H> {
+        witness: &PiLogStarWitness<E, H>,
+        statement: &PiLogStarStatement<E, H>,
+    ) -> PiLogStarProof<E, H> {
         // Step 1: Sample alpha between -2^{l+ε} and 2^{l+ε}
-        let alpha_upper = BigInt::pow(
-            &BigInt::from(2),
-            crate::utilities::L_PLUS_EPSILON as u32,
-        );
+        let alpha_upper = BigInt::pow(&BigInt::from(2), L_PLUS_EPSILON as u32);
         let alpha_lower = BigInt::from(-1).mul(&alpha_upper);
         let alpha = BigInt::sample_range(&alpha_lower, &alpha_upper);
 
         // Step 2: mu, r, gamma
-        // Sample mu between -2^L * N_hat and 2^L * N_hat
+        // Sample mu between -2^L * RPParams.N and 2^L * RPParams.N
         let mu_upper = BigInt::mul(
-            &statement.N_hat,
-            &BigInt::pow(&BigInt::from(2), crate::utilities::L as u32),
+            &statement.RPParams.N,
+            &BigInt::pow(&BigInt::from(2), L as u32),
         );
         let mu_lower = BigInt::from(-1).mul(&mu_upper);
         let mu = BigInt::sample_range(&mu_lower, &mu_upper);
 
         // γ ← ± 2^{l+ε} · Nˆ
         let gamma_upper = BigInt::mul(
-            &statement.N_hat,
-            &BigInt::pow(
-                &BigInt::from(2),
-                crate::utilities::L_PLUS_EPSILON as u32,
-            ),
+            &statement.RPParams.N,
+            &BigInt::pow(&BigInt::from(2), L_PLUS_EPSILON as u32),
         );
         let gamma_lower = BigInt::from(-1).mul(&gamma_upper);
         let gamma = BigInt::sample_range(&gamma_lower, &gamma_upper);
         // Sample r from Z*_{N_0}
         let r = sample_relatively_prime_integer(&statement.N0.clone());
 
-        // S = s^x t^mu mod N_hat
+        // S = s^x t^mu mod RPParams.N
         let S = BigInt::mod_mul(
-            &mod_pow_with_negative(&statement.s, &witness.x, &statement.N_hat),
-            &mod_pow_with_negative(&statement.t, &mu, &statement.N_hat),
-            &statement.N_hat,
+            &mod_pow_with_negative(
+                &statement.RPParams.s,
+                &witness.x,
+                &statement.RPParams.N,
+            ),
+            &mod_pow_with_negative(
+                &statement.RPParams.t,
+                &mu,
+                &statement.RPParams.N,
+            ),
+            &statement.RPParams.N,
         );
 
         // A = (1+N_0)^{alpha}r^{N_0} mod N_0^2
@@ -210,14 +200,22 @@ impl<E: Curve, H: Digest + Clone>
 
         // Y = g^alpha
         let Y = &statement.g * Scalar::from_bigint(&alpha);
-        // D = s^alpha t^gamma mod N_hat
+        // D = s^alpha t^gamma mod RPParams.N
         let D = BigInt::mod_mul(
-            &mod_pow_with_negative(&statement.s, &alpha, &statement.N_hat),
-            &mod_pow_with_negative(&statement.t, &gamma, &statement.N_hat),
-            &statement.N_hat,
+            &mod_pow_with_negative(
+                &statement.RPParams.s,
+                &alpha,
+                &statement.RPParams.N,
+            ),
+            &mod_pow_with_negative(
+                &statement.RPParams.t,
+                &gamma,
+                &statement.RPParams.N,
+            ),
+            &statement.RPParams.N,
         );
 
-        let commitment = KnowledgeOfExponentPaillierEncryptionCommitment {
+        let commitment = PiLogStarCommitment {
             S: S.clone(),
             A: A.clone(),
             Y: Y.clone(),
@@ -253,9 +251,9 @@ impl<E: Curve, H: Digest + Clone>
     }
 
     pub fn verify(
-        proof: &KnowledgeOfExponentPaillierEncryptionProof<E, H>,
-        statement: &KnowledgeOfExponentPaillierEncryptionStatement<E, H>,
-    ) -> Result<(), IncorrectProof> {
+        proof: &PiLogStarProof<E, H>,
+        statement: &PiLogStarStatement<E, H>,
+    ) -> Result<(), PiLogStarError> {
         let e = H::new()
             .chain_bigint(&proof.commitment.S)
             .chain_bigint(&proof.commitment.A)
@@ -287,42 +285,49 @@ impl<E: Curve, H: Digest + Clone>
         let right_2 = proof.commitment.Y.clone()
             + (statement.X.clone() * Scalar::from_bigint(&e));
 
-        // left_3 = s^z_1 t^z_3 mod N_hat
+        // left_3 = s^z_1 t^z_3 mod RPParams.N
         let left_3 = BigInt::mod_mul(
-            &mod_pow_with_negative(&statement.s, &proof.z_1, &statement.N_hat),
-            &mod_pow_with_negative(&statement.t, &proof.z_3, &statement.N_hat),
-            &statement.N_hat,
+            &mod_pow_with_negative(
+                &statement.RPParams.s,
+                &proof.z_1,
+                &statement.RPParams.N,
+            ),
+            &mod_pow_with_negative(
+                &statement.RPParams.t,
+                &proof.z_3,
+                &statement.RPParams.N,
+            ),
+            &statement.RPParams.N,
         );
 
-        // right_3 = D * S^e mod N_hat
+        // right_3 = D * S^e mod RPParams.N
         let right_3 = BigInt::mod_mul(
             &proof.commitment.D,
-            &mod_pow_with_negative(&proof.commitment.S, &e, &statement.N_hat),
-            &statement.N_hat,
+            &mod_pow_with_negative(
+                &proof.commitment.S,
+                &e,
+                &statement.RPParams.N,
+            ),
+            &statement.RPParams.N,
         );
 
         if left_1.mod_floor(&statement.NN0) != right_1
             || left_2 != right_2
             || left_3 != right_3
         {
-            return Err(IncorrectProof);
+            return Err(PiLogStarError::Proof);
         }
 
         // Range Check -2^{L + eps} <= z_1 <= 2^{L+eps}
         let lower_bound_check: bool = proof.z_1
-            >= BigInt::from(-1).mul(&BigInt::pow(
-                &BigInt::from(2),
-                crate::utilities::L_PLUS_EPSILON as u32,
-            ));
+            >= BigInt::from(-1)
+                .mul(&BigInt::pow(&BigInt::from(2), L_PLUS_EPSILON as u32));
 
-        let upper_bound_check = proof.z_1
-            <= BigInt::pow(
-                &BigInt::from(2),
-                crate::utilities::L_PLUS_EPSILON as u32,
-            );
+        let upper_bound_check =
+            proof.z_1 <= BigInt::pow(&BigInt::from(2), L_PLUS_EPSILON as u32);
 
         if !(lower_bound_check && upper_bound_check) {
-            return Err(IncorrectProof);
+            return Err(PiLogStarError::Proof);
         }
         Ok(())
     }
@@ -331,14 +336,11 @@ impl<E: Curve, H: Digest + Clone>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        mpc_ecdsa::utilities::mta::range_proofs::SampleFromMultiplicativeGroup,
-        utilities::BITS_PAILLIER,
-    };
+    use crate::security_level::BITS_PAILLIER;
+    use crate::utilities::generate_safe_h1_h2_N_tilde;
     use curv::elliptic::curves::secp256_k1::Secp256k1;
     use paillier::{KeyGeneration, Paillier};
     use sha2::Sha256;
-    use tss_core::utilities::generate_safe_h1_h2_N_tilde;
 
     #[test]
     fn test_log_star_proof() {
@@ -346,21 +348,19 @@ mod tests {
         let (paillier_key, _) =
             Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
 
-        let rho: BigInt = BigInt::from_paillier_key(&paillier_key);
+        let rho: BigInt = sample_relatively_prime_integer(&paillier_key.n);
         let (statement, witness) =
-			KnowledgeOfExponentPaillierEncryptionStatement::<Secp256k1, Sha256>::generate(
-				rho,
-				Some(Point::<Secp256k1>::generator().to_point()),
-				rpparam,
-				paillier_key,
-			);
-        let proof = KnowledgeOfExponentPaillierEncryptionProof::<
-            Secp256k1,
-            Sha256,
-        >::prove(&witness, &statement);
-        assert!(KnowledgeOfExponentPaillierEncryptionProof::<Secp256k1, Sha256>::verify(
-			&proof, &statement
-		)
-		.is_ok());
+            PiLogStarStatement::<Secp256k1, Sha256>::generate(
+                rho,
+                Some(Point::<Secp256k1>::generator().to_point()),
+                rpparam,
+                paillier_key,
+            );
+        let proof =
+            PiLogStarProof::<Secp256k1, Sha256>::prove(&witness, &statement);
+        assert!(PiLogStarProof::<Secp256k1, Sha256>::verify(
+            &proof, &statement
+        )
+        .is_ok());
     }
 }

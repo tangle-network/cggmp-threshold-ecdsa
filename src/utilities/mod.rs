@@ -1,5 +1,4 @@
 pub mod dec_q;
-pub mod log_star;
 pub mod mul;
 pub mod mul_star;
 pub mod sha2;
