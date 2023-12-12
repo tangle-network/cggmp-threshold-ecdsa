@@ -25,10 +25,8 @@ use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::key
 use paillier::{DecryptionKey, EncryptionKey};
 use sha2::Sha256;
 
-use crate::utilities::dec_q::{
-    PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
-};
 use tss_core::zkproof::aff_g::{PiAffGProof, PiAffGStatement};
+use tss_core::zkproof::dec::{PiDecProof, PiDecStatement};
 use tss_core::zkproof::enc::{PiEncProof, PiEncStatement};
 use tss_core::zkproof::log_star::{PiLogStarProof, PiLogStarStatement};
 use tss_core::zkproof::mul::{PiMulProof, PiMulStatement};
@@ -218,7 +216,6 @@ pub struct IdentifiableAbortBroadcastMessage<E: Curve> {
     pub proofs_D_j_i: HashMap<(u16, u16), PiAffGProof<E, Sha256>>,
     pub statement_H_i: PiMulStatement<E, Sha256>,
     pub proof_H_i: PiMulProof<E, Sha256>,
-    pub statement_delta_i:
-        HashMap<u16, PaillierDecryptionModQStatement<E, Sha256>>,
-    pub proof_delta_i: HashMap<u16, PaillierDecryptionModQProof<E, Sha256>>,
+    pub statement_delta_i: HashMap<u16, PiDecStatement<E, Sha256>>,
+    pub proof_delta_i: HashMap<u16, PiDecProof<E, Sha256>>,
 }

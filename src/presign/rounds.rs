@@ -21,13 +21,7 @@ use super::{
     PreSigningP2PMessage2, PreSigningP2PMessage3, PreSigningSecrets,
     PresigningOutput, PresigningTranscript, DEFAULT_ENCRYPTION_KEY, SSID,
 };
-use crate::{
-    utilities::dec_q::{
-        PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
-        PaillierDecryptionModQWitness,
-    },
-    ErrorType, ProofVerificationErrorData,
-};
+use crate::{ErrorType, ProofVerificationErrorData};
 use curv::{
     arithmetic::{traits::*, Modulo, Samplable},
     cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS,
@@ -38,6 +32,7 @@ use tss_core::security_level::L_PRIME;
 use tss_core::utilities::sample_relatively_prime_integer;
 use tss_core::utilities::RingPedersenParams;
 use tss_core::zkproof::aff_g::{PiAffGProof, PiAffGStatement, PiAffGWitness};
+use tss_core::zkproof::dec::{PiDecProof, PiDecStatement, PiDecWitness};
 use tss_core::zkproof::enc::{PiEncProof, PiEncStatement, PiEncWitness};
 use tss_core::zkproof::log_star::{
     PiLogStarProof, PiLogStarStatement, PiLogStarWitness,
@@ -1200,7 +1195,7 @@ impl Round3 {
                 }
             });
 
-            let witness_delta_i = PaillierDecryptionModQWitness::new(
+            let witness_delta_i = PiDecWitness::new(
                 Paillier::decrypt(
                     &self.secrets.dk,
                     RawCiphertext::from(ciphertext_delta_i.clone()),
@@ -1212,25 +1207,25 @@ impl Round3 {
             // l to statement
             let mut statement_delta_i: HashMap<
                 u16,
-                PaillierDecryptionModQStatement<Secp256k1, Sha256>,
+                PiDecStatement<Secp256k1, Sha256>,
             > = HashMap::new();
 
             // l to proof
-            let mut proof_delta_i: HashMap<
-                u16,
-                PaillierDecryptionModQProof<Secp256k1, Sha256>,
-            > = HashMap::new();
+            let mut proof_delta_i: HashMap<u16, PiDecProof<Secp256k1, Sha256>> =
+                HashMap::new();
 
             self.ssid.P.iter().for_each(|l| {
                 if *l != self.ssid.X.i {
-                    let statement_delta_l_i = PaillierDecryptionModQStatement {
-                        S: self.S.get(l).unwrap_or(&BigInt::zero()).clone(),
-                        T: self.T.get(l).unwrap_or(&BigInt::zero()).clone(),
-                        N_hat: self
-                            .N_hats
-                            .get(l)
-                            .unwrap_or(&BigInt::zero())
-                            .clone(),
+                    let statement_delta_l_i = PiDecStatement {
+                        RPParams: RingPedersenParams {
+                            N: self
+                                .N_hats
+                                .get(l)
+                                .unwrap_or(&BigInt::zero())
+                                .clone(),
+                            s: self.S.get(l).unwrap_or(&BigInt::zero()).clone(),
+                            t: self.T.get(l).unwrap_or(&BigInt::zero()).clone(),
+                        },
                         N0: self.secrets.ek.n.clone(),
                         NN0: self.secrets.ek.nn.clone(),
                         C: ciphertext_delta_i.clone(),
@@ -1243,7 +1238,7 @@ impl Round3 {
 
                     proof_delta_i.insert(
                         *l,
-                        PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
+                        PiDecProof::<Secp256k1, Sha256>::prove(
                             &witness_delta_i,
                             &statement_delta_l_i,
                         ),
@@ -1363,11 +1358,8 @@ impl Round4 {
                 let statement_delta_si =
                     msg.statement_delta_i.get(&self.ssid.X.i).unwrap();
 
-                if PaillierDecryptionModQProof::verify(
-                    proof_delta_si,
-                    statement_delta_si,
-                )
-                .is_err()
+                if PiDecProof::verify(proof_delta_si, statement_delta_si)
+                    .is_err()
                 {
                     let error_data = ProofVerificationErrorData {
                         proof_symbol: "delta_si".to_string(),

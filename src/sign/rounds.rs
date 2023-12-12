@@ -30,10 +30,6 @@ use paillier::*;
 
 use crate::{
     presign::{PresigningOutput, PresigningTranscript, DEFAULT_ENCRYPTION_KEY},
-    utilities::dec_q::{
-        PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
-        PaillierDecryptionModQWitness,
-    },
     ErrorType, NoOfflineStageErrorData, ProofVerificationErrorData,
 };
 use thiserror::Error;
@@ -41,6 +37,7 @@ use tss_core::utilities::{
     sample_relatively_prime_integer, RingPedersenParams,
 };
 use tss_core::zkproof::aff_g::{PiAffGProof, PiAffGStatement, PiAffGWitness};
+use tss_core::zkproof::dec::{PiDecProof, PiDecStatement, PiDecWitness};
 use tss_core::zkproof::mul_star::{
     PiMulStarProof, PiMulStarStatement, PiMulStarWitness,
 };
@@ -425,7 +422,7 @@ impl Round1 {
                 &self.presigning_transcript.secrets.ek.nn,
             ));
 
-            let witness_sigma_i = PaillierDecryptionModQWitness::new(
+            let witness_sigma_i = PiDecWitness::new(
                 Paillier::decrypt(
                     &self.presigning_transcript.secrets.dk,
                     RawCiphertext::from(ciphertext.clone()),
@@ -437,36 +434,36 @@ impl Round1 {
             // l to statement
             let mut statement_sigma_i: HashMap<
                 u16,
-                PaillierDecryptionModQStatement<Secp256k1, Sha256>,
+                PiDecStatement<Secp256k1, Sha256>,
             > = HashMap::new();
 
             // l to proof
-            let mut proof_sigma_i: HashMap<
-                u16,
-                PaillierDecryptionModQProof<Secp256k1, Sha256>,
-            > = HashMap::new();
+            let mut proof_sigma_i: HashMap<u16, PiDecProof<Secp256k1, Sha256>> =
+                HashMap::new();
 
             self.ssid.P.iter().for_each(|l| {
                 if *l != self.ssid.X.i {
-                    let statement_sigma_l_i = PaillierDecryptionModQStatement {
-                        S: self
-                            .presigning_transcript
-                            .S
-                            .get(l)
-                            .unwrap_or(&BigInt::zero())
-                            .clone(),
-                        T: self
-                            .presigning_transcript
-                            .T
-                            .get(l)
-                            .unwrap_or(&BigInt::zero())
-                            .clone(),
-                        N_hat: self
-                            .presigning_transcript
-                            .N_hats
-                            .get(l)
-                            .unwrap_or(&BigInt::zero())
-                            .clone(),
+                    let statement_sigma_l_i = PiDecStatement {
+                        RPParams: RingPedersenParams {
+                            N: self
+                                .presigning_transcript
+                                .N_hats
+                                .get(l)
+                                .unwrap_or(&BigInt::zero())
+                                .clone(),
+                            s: self
+                                .presigning_transcript
+                                .S
+                                .get(l)
+                                .unwrap_or(&BigInt::zero())
+                                .clone(),
+                            t: self
+                                .presigning_transcript
+                                .T
+                                .get(l)
+                                .unwrap_or(&BigInt::zero())
+                                .clone(),
+                        },
                         N0: self.presigning_transcript.secrets.ek.n.clone(),
                         NN0: self.presigning_transcript.secrets.ek.nn.clone(),
                         C: ciphertext.clone(),
@@ -483,7 +480,7 @@ impl Round1 {
 
                     proof_sigma_i.insert(
                         *l,
-                        PaillierDecryptionModQProof::<Secp256k1, Sha256>::prove(
+                        PiDecProof::<Secp256k1, Sha256>::prove(
                             &witness_sigma_i,
                             &statement_sigma_l_i,
                         ),
@@ -601,11 +598,8 @@ impl Round2 {
                 let statement_sigma_si =
                     msg.statement_sigma_i.get(&self.ssid.X.i).unwrap();
 
-                if PaillierDecryptionModQProof::verify(
-                    proof_sigma_si,
-                    statement_sigma_si,
-                )
-                .is_err()
+                if PiDecProof::verify(proof_sigma_si, statement_sigma_si)
+                    .is_err()
                 {
                     let error_data = ProofVerificationErrorData {
                         proof_symbol: "sigma_si".to_string(),
