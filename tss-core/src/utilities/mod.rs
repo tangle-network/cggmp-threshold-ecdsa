@@ -30,7 +30,7 @@ pub fn generate_safe_h1_h2_N_tilde() -> (RingPedersenParams, RingPedersenWitness
         DEFAULT_LEVEL.paillier_key_size,
     )
     .keys();
-    return get_related_values(&ek_tilde, &dk_tilde);
+    get_related_values(&ek_tilde, &dk_tilde)
 }
 
 // generate_normal_h1_h2_N_tilde generates Paillier modulus N = p*q and related
@@ -40,7 +40,7 @@ pub fn generate_normal_h1_h2_N_tilde(
     let (ek_tilde, dk_tilde) =
         Paillier::keypair_with_modulus_size(DEFAULT_LEVEL.paillier_key_size)
             .keys();
-    return get_related_values(&ek_tilde, &dk_tilde);
+    get_related_values(&ek_tilde, &dk_tilde)
 }
 
 fn get_related_values(
@@ -54,7 +54,7 @@ fn get_related_values(
     let tau = BigInt::sample_below(&ek.n);
     let h1 = BigInt::mod_pow(&tau, &BigInt::from(2), &ek.n);
     // For GG18/20 implementation, we need the inverse of lambda as well.
-    let (lambda, lambda_inv) = loop {
+    let (lambda, lambdaInv) = loop {
         let lambda_ = BigInt::sample_below(&phi);
         match BigInt::mod_inv(&lambda_, &phi) {
             Some(inv) => break (lambda_, inv),
@@ -62,18 +62,18 @@ fn get_related_values(
         }
     };
     let h2 = BigInt::mod_pow(&h1, &lambda, &ek.n);
-    return (
+    (
         RingPedersenParams {
             N: ek.n.clone(),
             s: h1,
             t: h2,
         },
         RingPedersenWitness {
-            lambda: lambda,
-            lambdaInv: lambda_inv,
-            phi: phi,
+            lambda,
+            lambdaInv,
+            phi,
         },
-    );
+    )
 }
 
 pub fn sample_relatively_prime_integer(n: &BigInt) -> BigInt {
