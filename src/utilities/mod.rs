@@ -1,5 +1,4 @@
 pub mod dec_q;
-pub mod mul_star;
 pub mod sha2;
 
 pub const SEC_PARAM: usize = 256;

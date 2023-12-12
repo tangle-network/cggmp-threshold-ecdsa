@@ -20,14 +20,11 @@ use serde::{Deserialize, Serialize};
 
 use sha2::Sha256;
 
-use crate::utilities::{
-    dec_q::{PaillierDecryptionModQProof, PaillierDecryptionModQStatement},
-    mul_star::{
-        PaillierMultiplicationVersusGroupProof,
-        PaillierMultiplicationVersusGroupStatement,
-    },
+use crate::utilities::dec_q::{
+    PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
 };
 use tss_core::zkproof::aff_g::{PiAffGProof, PiAffGStatement};
+use tss_core::zkproof::mul_star::{PiMulStarProof, PiMulStarStatement};
 
 use crate::presign::SSID;
 pub mod rounds;
@@ -53,10 +50,8 @@ pub struct SigningIdentifiableAbortMessage<E: Curve> {
     pub i: u16,
     pub proofs_D_hat_j_i: HashMap<(u16, u16), PiAffGProof<E, Sha256>>,
     pub statements_D_hat_j_i: HashMap<(u16, u16), PiAffGStatement<E, Sha256>>,
-    pub proof_H_hat_i:
-        HashMap<u16, PaillierMultiplicationVersusGroupProof<E, Sha256>>,
-    pub statement_H_hat_i:
-        HashMap<u16, PaillierMultiplicationVersusGroupStatement<E, Sha256>>,
+    pub proof_H_hat_i: HashMap<u16, PiMulStarProof<E, Sha256>>,
+    pub statement_H_hat_i: HashMap<u16, PiMulStarStatement<E, Sha256>>,
     pub proof_sigma_i: HashMap<u16, PaillierDecryptionModQProof<E, Sha256>>,
     pub statement_sigma_i:
         HashMap<u16, PaillierDecryptionModQStatement<E, Sha256>>,

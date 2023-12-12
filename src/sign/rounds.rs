@@ -30,16 +30,9 @@ use paillier::*;
 
 use crate::{
     presign::{PresigningOutput, PresigningTranscript, DEFAULT_ENCRYPTION_KEY},
-    utilities::{
-        dec_q::{
-            PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
-            PaillierDecryptionModQWitness,
-        },
-        mul_star::{
-            PaillierMultiplicationVersusGroupProof,
-            PaillierMultiplicationVersusGroupStatement,
-            PaillierMultiplicationVersusGroupWitness,
-        },
+    utilities::dec_q::{
+        PaillierDecryptionModQProof, PaillierDecryptionModQStatement,
+        PaillierDecryptionModQWitness,
     },
     ErrorType, NoOfflineStageErrorData, ProofVerificationErrorData,
 };
@@ -48,6 +41,9 @@ use tss_core::utilities::{
     sample_relatively_prime_integer, RingPedersenParams,
 };
 use tss_core::zkproof::aff_g::{PiAffGProof, PiAffGStatement, PiAffGWitness};
+use tss_core::zkproof::mul_star::{
+    PiMulStarProof, PiMulStarStatement, PiMulStarWitness,
+};
 
 use zeroize::Zeroize;
 
@@ -320,7 +316,7 @@ impl Round1 {
                 &Randomness::from(H_hat_i_randomness.clone()),
             )
             .into();
-            let witness_H_hat_i = PaillierMultiplicationVersusGroupWitness::new(
+            let witness_H_hat_i = PiMulStarWitness::new(
                 self.presigning_transcript.secrets.x_i.clone(),
                 self.presigning_transcript.rho_i.mul(&H_hat_i_randomness),
             );
@@ -330,28 +326,23 @@ impl Round1 {
 
             let mut proof_H_hat_i: HashMap<
                 u16,
-                PaillierMultiplicationVersusGroupProof<Secp256k1, Sha256>,
+                PiMulStarProof<Secp256k1, Sha256>,
             > = HashMap::new();
             let mut statement_H_hat_i: HashMap<
                 u16,
-                PaillierMultiplicationVersusGroupStatement<Secp256k1, Sha256>,
+                PiMulStarStatement<Secp256k1, Sha256>,
             > = HashMap::new();
 
             self.ssid.P.iter().for_each(|l| {
                 if *l != self.ssid.X.i {
-                    let statement_H_hat_l_i =
-                        PaillierMultiplicationVersusGroupStatement {
-                            N0: self.presigning_transcript.secrets.ek.n.clone(),
-                            NN0: self
-                                .presigning_transcript
-                                .secrets
-                                .ek
-                                .nn
-                                .clone(),
-                            C: self.presigning_transcript.K_i.clone(),
-                            D: H_hat_i.clone(),
-                            X: X_i.clone(),
-                            N_hat: self
+                    let statement_H_hat_l_i = PiMulStarStatement {
+                        N0: self.presigning_transcript.secrets.ek.n.clone(),
+                        NN0: self.presigning_transcript.secrets.ek.nn.clone(),
+                        C: self.presigning_transcript.K_i.clone(),
+                        D: H_hat_i.clone(),
+                        X: X_i.clone(),
+                        RPParams: RingPedersenParams {
+                            N: self
                                 .presigning_transcript
                                 .N_hats
                                 .get(l)
@@ -369,18 +360,17 @@ impl Round1 {
                                 .get(l)
                                 .unwrap_or(&BigInt::zero())
                                 .clone(),
-                            phantom: PhantomData,
-                        };
+                        },
+                        phantom: PhantomData,
+                    };
 
                     statement_H_hat_i.insert(*l, statement_H_hat_l_i.clone());
 
                     proof_H_hat_i.insert(
                         *l,
-                        PaillierMultiplicationVersusGroupProof::<
-                            Secp256k1,
-                            Sha256,
-                        >::prove(
-                            &witness_H_hat_i, &statement_H_hat_l_i
+                        PiMulStarProof::<Secp256k1, Sha256>::prove(
+                            &witness_H_hat_i,
+                            &statement_H_hat_l_i,
                         ),
                     );
                 }
@@ -592,11 +582,8 @@ impl Round2 {
                 let statement_H_hat_si =
                     msg.statement_H_hat_i.get(&self.ssid.X.i).unwrap();
 
-                if PaillierMultiplicationVersusGroupProof::verify(
-                    proof_H_hat_si,
-                    statement_H_hat_si,
-                )
-                .is_err()
+                if PiMulStarProof::verify(proof_H_hat_si, statement_H_hat_si)
+                    .is_err()
                 {
                     let error_data = ProofVerificationErrorData {
                         proof_symbol: "H_hat_si".to_string(),
