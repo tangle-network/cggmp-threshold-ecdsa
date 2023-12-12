@@ -19,20 +19,10 @@ use crate::utilities::sha2::Sha256;
 use std::{collections::HashMap, fmt, mem::replace, time::Duration};
 use thiserror::Error;
 
-pub type Round0Messages = Store<
-    BroadcastMsgs<
-        Option<
-            JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
-        >,
-    >,
->;
-pub type Round1Messages = Store<
-    BroadcastMsgs<
-        Option<
-            RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
-        >,
-    >,
->;
+pub type Round0Messages =
+    Store<BroadcastMsgs<Option<JoinMessage<Secp256k1, Sha256>>>>;
+pub type Round1Messages =
+    Store<BroadcastMsgs<Option<RefreshMessage<Secp256k1, Sha256>>>>;
 
 pub struct KeyRefresh {
     // Current round
@@ -401,16 +391,8 @@ pub struct ProtocolMessage(M);
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 enum M {
-    Round1(
-        Option<
-            JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
-        >,
-    ),
-    Round2(
-        Option<
-            RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
-        >,
-    ),
+    Round1(Option<JoinMessage<Secp256k1, Sha256>>),
+    Round2(Option<RefreshMessage<Secp256k1, Sha256>>),
 }
 
 // Error

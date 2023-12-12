@@ -31,7 +31,7 @@ use tss_core::{
 // Everything here can be broadcasted
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(bound = "E: Curve, H: Digest + Clone")]
-pub struct RefreshMessage<E: Curve, H: Digest + Clone, const M: usize> {
+pub struct RefreshMessage<E: Curve, H: Digest + Clone> {
     pub(crate) old_party_index: u16,
     pub(crate) party_index: u16,
     pdl_proof_vec: Vec<PDLwSlackProof<E, H>>,
@@ -50,13 +50,13 @@ pub struct RefreshMessage<E: Curve, H: Digest + Clone, const M: usize> {
     pub hash_choice: HashChoice<H>,
 }
 
-impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
+impl<E: Curve, H: Digest + Clone> RefreshMessage<E, H> {
     pub fn distribute(
         old_party_index: u16,
         local_key: &mut LocalKey<E>,
         new_t: u16,
         new_n: u16,
-    ) -> FsDkrResult<(RefreshMessage<E, H, M>, DecryptionKey)> {
+    ) -> FsDkrResult<(RefreshMessage<E, H>, DecryptionKey)> {
         assert!(new_t <= new_n / 2);
         let secret = local_key.keys_linear.x_i.clone();
         // secret share old key
@@ -263,7 +263,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
     }
 
     pub fn replace(
-        new_parties: &[JoinMessage<E, H, M>],
+        new_parties: &[JoinMessage<E, H>],
         key: &mut LocalKey<E>,
         old_to_new_map: &HashMap<u16, u16>,
         new_t: u16,
@@ -355,7 +355,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
         refresh_messages: &[Self],
         local_key: &mut LocalKey<E>,
         new_dk: DecryptionKey,
-        join_messages: &[JoinMessage<E, H, M>],
+        join_messages: &[JoinMessage<E, H>],
         current_t: u16,
     ) -> FsDkrResult<()> {
         let new_n = refresh_messages.len() + join_messages.len();

@@ -44,7 +44,7 @@ use tss_core::zkproof::prm::{PiPrmProof, PiPrmStatement, PiPrmWitness};
 /// Message used by new parties to join the protocol.
 #[derive(Clone, Deserialize, Serialize, Debug)]
 #[serde(bound = "E: Curve, H: Digest + Clone")]
-pub struct JoinMessage<E: Curve, H: Digest + Clone, const M: usize> {
+pub struct JoinMessage<E: Curve, H: Digest + Clone> {
     pub(crate) ek: EncryptionKey,
     pub(crate) dk_correctness_proof: NiCorrectKeyProof,
     pub(crate) party_index: Option<u16>,
@@ -82,7 +82,7 @@ fn generate_dlog_statement_proofs(
     ))
 }
 
-impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
+impl<E: Curve, H: Digest + Clone> JoinMessage<E, H> {
     pub fn set_party_index(&mut self, new_party_index: u16) {
         self.party_index = Some(new_party_index);
     }
@@ -139,9 +139,9 @@ impl<E: Curve, H: Digest + Clone, const M: usize> JoinMessage<E, H, M> {
     /// (multiple parties can be added/replaced at once).
     pub fn collect(
         &self,
-        refresh_messages: &[RefreshMessage<E, H, M>],
+        refresh_messages: &[RefreshMessage<E, H>],
         paillier_key: Keys,
-        join_messages: &[JoinMessage<E, H, M>],
+        join_messages: &[JoinMessage<E, H>],
         new_t: u16,
         new_n: u16,
         current_t: u16,
