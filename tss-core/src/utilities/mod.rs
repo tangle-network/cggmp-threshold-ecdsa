@@ -22,6 +22,14 @@ pub struct RingPedersenWitness {
     pub lambda: BigInt,
     pub lambdaInv: BigInt,
     pub phi: BigInt,
+    // we need p and q for computing square root mod N (composite)
+    pub p: BigInt,
+    pub q: BigInt,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RingPedersenError {
+    NoSqrt,
 }
 
 pub fn generate_safe_h1_h2_N_tilde() -> (RingPedersenParams, RingPedersenWitness)
@@ -72,6 +80,8 @@ fn get_related_values(
             lambda,
             lambdaInv,
             phi,
+            p: dk.p.clone(),
+            q: dk.q.clone(),
         },
     )
 }
@@ -95,6 +105,14 @@ pub fn mod_pow_with_negative(
     } else {
         BigInt::mod_pow(v, pow, modulus)
     }
+}
+
+pub fn legendre(a: &BigInt, modulus: &BigInt) -> BigInt {
+    let one = BigInt::from(1);
+    let two = BigInt::from(2);
+    let exp = (modulus - &one) / &two;
+    let l = BigInt::mod_pow(a, &exp, modulus);
+    return l;
 }
 
 /// Extend or truncate a vector of bytes to a fixed length array.
@@ -121,4 +139,58 @@ pub fn fixed_array<const N: usize>(
         _ => {}
     }
     seed.try_into()
+}
+
+pub fn sqrt(
+    x: &BigInt,
+    rpw: &RingPedersenWitness,
+) -> Result<BigInt, RingPedersenError> {
+    let one = BigInt::from(1);
+    let two = BigInt::from(2);
+    let three = BigInt::from(3);
+    let four = BigInt::from(4);
+    if &rpw.p % &four != three {
+        return Err(RingPedersenError::NoSqrt);
+    }
+    if &rpw.q % &four != three {
+        return Err(RingPedersenError::NoSqrt);
+    }
+    // instead of checking Legendre symbol, we check that the square of parts equals input
+    let x_mod_p = x % &rpw.p;
+    let x_mod_q = x % &rpw.q;
+    let p_exp = (&rpw.p + &one) / &four;
+    let q_exp = (&rpw.q + &one) / &four;
+    let lpart = BigInt::mod_pow(&x_mod_p, &p_exp, &rpw.p);
+    let rpart = BigInt::mod_pow(&x_mod_q, &q_exp, &rpw.q);
+    if BigInt::mod_pow(&lpart, &two, &rpw.p) != x_mod_p {
+        return Err(RingPedersenError::NoSqrt);
+    }
+    if BigInt::mod_pow(&rpart, &two, &rpw.q) != x_mod_q {
+        return Err(RingPedersenError::NoSqrt);
+    }
+    let pinv = BigInt::mod_inv(&rpw.p, &rpw.q).unwrap();
+    let xsqrt = &lpart + &rpw.p * ((&rpart - &lpart) * &pinv);
+    return Ok(xsqrt);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_sqrt() {
+        let (rpparams, rpwitness) = generate_safe_h1_h2_N_tilde();
+        let mut x = BigInt::sample_below(&rpparams.N);
+        while legendre(&x, &rpwitness.p) != BigInt::from(1)
+            || legendre(&x, &rpwitness.q) != BigInt::from(1)
+        {
+            x = BigInt::sample_below(&rpparams.N);
+        }
+        let xsqrtres = sqrt(&x, &rpwitness);
+        assert!(xsqrtres.is_ok());
+        let xsqrt = xsqrtres.unwrap();
+        let xx = BigInt::mod_pow(&xsqrt, &BigInt::from(2), &rpparams.N);
+        assert_eq!(x, xx);
+
+        // assert_eq!()
+    }
 }
