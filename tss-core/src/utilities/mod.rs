@@ -112,6 +112,9 @@ pub fn legendre(a: &BigInt, modulus: &BigInt) -> BigInt {
     let two = BigInt::from(2);
     let exp = (modulus - &one) / &two;
     let l = BigInt::mod_pow(a, &exp, modulus);
+    if &l + &one == *modulus {
+        return BigInt::from(-1);
+    }
     return l;
 }
 
