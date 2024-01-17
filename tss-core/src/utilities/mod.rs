@@ -144,35 +144,36 @@ pub fn fixed_array<const N: usize>(
     seed.try_into()
 }
 
-pub fn sqrt(
+pub fn sqrt_comp(
     x: &BigInt,
-    rpw: &RingPedersenWitness,
+    p: &BigInt,
+    q: &BigInt,
 ) -> Result<BigInt, RingPedersenError> {
     let one = BigInt::from(1);
     let two = BigInt::from(2);
     let three = BigInt::from(3);
     let four = BigInt::from(4);
-    if &rpw.p % &four != three {
+    if p % &four != three {
         return Err(RingPedersenError::NoSqrt);
     }
-    if &rpw.q % &four != three {
+    if q % &four != three {
         return Err(RingPedersenError::NoSqrt);
     }
     // instead of checking Legendre symbol, we check that the square of parts equals input
-    let x_mod_p = x % &rpw.p;
-    let x_mod_q = x % &rpw.q;
-    let p_exp = (&rpw.p + &one) / &four;
-    let q_exp = (&rpw.q + &one) / &four;
-    let lpart = BigInt::mod_pow(&x_mod_p, &p_exp, &rpw.p);
-    let rpart = BigInt::mod_pow(&x_mod_q, &q_exp, &rpw.q);
-    if BigInt::mod_pow(&lpart, &two, &rpw.p) != x_mod_p {
+    let x_mod_p = BigInt::modulus(x, p);
+    let x_mod_q = BigInt::modulus(x, q);
+    let p_exp = (p + &one) / &four;
+    let q_exp = (q + &one) / &four;
+    let lpart = BigInt::mod_pow(&x_mod_p, &p_exp, p);
+    let rpart = BigInt::mod_pow(&x_mod_q, &q_exp, q);
+    if BigInt::mod_pow(&lpart, &two, p) != x_mod_p {
         return Err(RingPedersenError::NoSqrt);
     }
-    if BigInt::mod_pow(&rpart, &two, &rpw.q) != x_mod_q {
+    if BigInt::mod_pow(&rpart, &two, q) != x_mod_q {
         return Err(RingPedersenError::NoSqrt);
     }
-    let pinv = BigInt::mod_inv(&rpw.p, &rpw.q).unwrap();
-    let xsqrt = &lpart + &rpw.p * ((&rpart - &lpart) * &pinv);
+    let pinv = BigInt::mod_inv(p, q).unwrap();
+    let xsqrt = &lpart + p * ((&rpart - &lpart) * &pinv);
     return Ok(xsqrt);
 }
 
@@ -188,12 +189,10 @@ mod tests {
         {
             x = BigInt::sample_below(&rpparams.N);
         }
-        let xsqrtres = sqrt(&x, &rpwitness);
+        let xsqrtres = sqrt_comp(&x, &rpwitness.p, &rpwitness.q);
         assert!(xsqrtres.is_ok());
         let xsqrt = xsqrtres.unwrap();
         let xx = BigInt::mod_pow(&xsqrt, &BigInt::from(2), &rpparams.N);
         assert_eq!(x, xx);
-
-        // assert_eq!()
     }
 }
