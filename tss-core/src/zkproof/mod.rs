@@ -1,6 +1,7 @@
 pub mod aff_g;
 pub mod dec;
 pub mod enc;
+pub mod fac;
 pub mod log_star;
 pub mod modulus;
 pub mod mul;
