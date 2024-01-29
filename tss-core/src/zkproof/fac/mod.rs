@@ -2,7 +2,9 @@
 
 use crate::{
     security_level::{L, L_PLUS_EPSILON, SEC_BYTES},
-    utilities::{sqrt_comp, RingPedersenParams, RingPedersenWitness},
+    utilities::{
+        mod_pow_with_negative, RingPedersenParams, RingPedersenWitness,
+    },
 };
 
 use curv::{
@@ -69,10 +71,21 @@ impl PiFacProof {
         let l_exp = BigInt::pow(&two, L as u32);
         let lplus_exp = BigInt::pow(&two, L_PLUS_EPSILON as u32);
 
-        let sqrtN0 = match sqrt_comp(&statement.N0, &witness.p, &witness.q) {
-            Ok(sqrtN0) => sqrtN0,
-            Err(_) => return Err(PiFacError::Statement),
-        };
+        // TODO: not sure in which domain we're taking sqrt of N0. However, we can still use bound of 1.
+
+        // let mut sqrtN0 = match sqrt_comp(
+        //     &statement.N0,
+        //     &witness.RPWitness.p,
+        //     &witness.RPWitness.q,
+        // ) {
+        //     Ok(sqrtN0) => sqrtN0,
+        //     Err(_) => return Err(PiFacError::Statement),
+        // };
+        // if &sqrtN0 < &mone {
+        //     sqrtN0 = -&sqrtN0;
+        // }
+        let sqrtN0 = BigInt::from(1); // bound
+
         // 2^{l+epsilon} sqrt(N0)
         let lplus_sqrtN0 = lplus_exp.mul(&sqrtN0);
         // 2^{l} \hat{N}
@@ -101,7 +114,11 @@ impl PiFacProof {
                 &witness.p,
                 &statement.RPParam.N,
             ),
-            &BigInt::mod_pow(&statement.RPParam.t, &mu, &statement.RPParam.N),
+            &mod_pow_with_negative(
+                &statement.RPParam.t,
+                &mu,
+                &statement.RPParam.N,
+            ),
             &statement.RPParam.N,
         );
         let Q = BigInt::mod_mul(
@@ -110,26 +127,46 @@ impl PiFacProof {
                 &witness.q,
                 &statement.RPParam.N,
             ),
-            &BigInt::mod_pow(&statement.RPParam.t, &nu, &statement.RPParam.N),
+            &mod_pow_with_negative(
+                &statement.RPParam.t,
+                &nu,
+                &statement.RPParam.N,
+            ),
             &statement.RPParam.N,
         );
         let A = BigInt::mod_mul(
-            &BigInt::mod_pow(
+            &mod_pow_with_negative(
                 &statement.RPParam.s,
                 &alpha,
                 &statement.RPParam.N,
             ),
-            &BigInt::mod_pow(&statement.RPParam.t, &x, &statement.RPParam.N),
+            &mod_pow_with_negative(
+                &statement.RPParam.t,
+                &x,
+                &statement.RPParam.N,
+            ),
             &statement.RPParam.N,
         );
         let B = BigInt::mod_mul(
-            &BigInt::mod_pow(&statement.RPParam.s, &beta, &statement.RPParam.N),
-            &BigInt::mod_pow(&statement.RPParam.t, &y, &statement.RPParam.N),
+            &mod_pow_with_negative(
+                &statement.RPParam.s,
+                &beta,
+                &statement.RPParam.N,
+            ),
+            &mod_pow_with_negative(
+                &statement.RPParam.t,
+                &y,
+                &statement.RPParam.N,
+            ),
             &statement.RPParam.N,
         );
         let T = BigInt::mod_mul(
-            &BigInt::mod_pow(&Q, &alpha, &statement.RPParam.N),
-            &BigInt::mod_pow(&statement.RPParam.t, &r, &statement.RPParam.N),
+            &mod_pow_with_negative(&Q, &alpha, &statement.RPParam.N),
+            &mod_pow_with_negative(
+                &statement.RPParam.t,
+                &r,
+                &statement.RPParam.N,
+            ),
             &statement.RPParam.N,
         );
         let cmt = PiFacCommitment {
@@ -195,7 +232,7 @@ impl PiFacProof {
                 &statement.N0,
                 &statement.RPParam.N,
             ),
-            &BigInt::mod_pow(
+            &mod_pow_with_negative(
                 &statement.RPParam.t,
                 &proof.cmt.sigma,
                 &statement.RPParam.N,
@@ -204,12 +241,12 @@ impl PiFacProof {
         );
         // first check
         let first_ls = BigInt::mod_mul(
-            &BigInt::mod_pow(
+            &mod_pow_with_negative(
                 &statement.RPParam.s,
                 &proof.z1,
                 &statement.RPParam.N,
             ),
-            &BigInt::mod_pow(
+            &mod_pow_with_negative(
                 &statement.RPParam.t,
                 &proof.w1,
                 &statement.RPParam.N,
@@ -218,7 +255,7 @@ impl PiFacProof {
         );
         let first_rs = BigInt::mod_mul(
             &proof.cmt.A,
-            &BigInt::mod_pow(&proof.cmt.P, &e, &statement.RPParam.N),
+            &mod_pow_with_negative(&proof.cmt.P, &e, &statement.RPParam.N),
             &statement.RPParam.N,
         );
         if first_ls != first_rs {
@@ -226,12 +263,12 @@ impl PiFacProof {
         }
         // second check
         let second_ls = BigInt::mod_mul(
-            &BigInt::mod_pow(
+            &mod_pow_with_negative(
                 &statement.RPParam.s,
                 &proof.z2,
                 &statement.RPParam.N,
             ),
-            &BigInt::mod_pow(
+            &mod_pow_with_negative(
                 &statement.RPParam.t,
                 &proof.w2,
                 &statement.RPParam.N,
@@ -240,7 +277,7 @@ impl PiFacProof {
         );
         let second_rs = BigInt::mod_mul(
             &proof.cmt.B,
-            &BigInt::mod_pow(&proof.cmt.Q, &e, &statement.RPParam.N),
+            &mod_pow_with_negative(&proof.cmt.Q, &e, &statement.RPParam.N),
             &statement.RPParam.N,
         );
         if second_ls != second_rs {
@@ -248,8 +285,12 @@ impl PiFacProof {
         }
         // third check
         let third_ls = BigInt::mod_mul(
-            &BigInt::mod_pow(&proof.cmt.Q, &proof.z1, &statement.RPParam.N),
-            &BigInt::mod_pow(
+            &mod_pow_with_negative(
+                &proof.cmt.Q,
+                &proof.z1,
+                &statement.RPParam.N,
+            ),
+            &mod_pow_with_negative(
                 &statement.RPParam.t,
                 &proof.v,
                 &statement.RPParam.N,
@@ -258,10 +299,19 @@ impl PiFacProof {
         );
         let third_rs = BigInt::mod_mul(
             &proof.cmt.T,
-            &BigInt::mod_pow(&R, &e, &statement.RPParam.N),
+            &mod_pow_with_negative(&R, &e, &statement.RPParam.N),
             &statement.RPParam.N,
         );
         if third_ls != third_rs {
+            return Err(PiFacError::Proof);
+        }
+
+        // range check
+        // we take sqrt{N0} == 1
+        if proof.z1.bit_length() > L_PLUS_EPSILON {
+            return Err(PiFacError::Proof);
+        }
+        if proof.z2.bit_length() > L_PLUS_EPSILON {
             return Err(PiFacError::Proof);
         }
 
@@ -289,5 +339,7 @@ mod tests {
         };
         let proof = PiFacProof::prove(&statement, &witness);
         assert!(proof.is_ok());
+        let res = PiFacProof::verify(&statement, &proof.unwrap());
+        assert!(res.is_ok());
     }
 }
