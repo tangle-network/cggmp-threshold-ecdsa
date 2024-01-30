@@ -47,7 +47,7 @@ log = "0.4.17"
 merlin = "3.0.0"
 serde_repr = "0.1.16"
 serde_with = "3.3.0"
-subtle = { version = "2" }
+subtle = { version = "2.5" }
 
 [dev-dependencies]
 criterion = "0.3"
