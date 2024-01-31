@@ -115,7 +115,7 @@ pub fn legendre(a: &BigInt, modulus: &BigInt) -> BigInt {
     if &l + &one == *modulus {
         return BigInt::from(-1);
     }
-    return l;
+    l
 }
 
 /// Extend or truncate a vector of bytes to a fixed length array.
@@ -174,7 +174,7 @@ pub fn sqrt_comp(
     }
     let pinv = BigInt::mod_inv(p, q).unwrap();
     let xsqrt = &lpart + p * ((&rpart - &lpart) * &pinv);
-    return Ok(xsqrt);
+    Ok(xsqrt)
 }
 
 #[cfg(test)]

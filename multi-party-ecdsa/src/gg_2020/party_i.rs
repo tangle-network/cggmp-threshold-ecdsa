@@ -160,8 +160,8 @@ impl Keys {
         Self {
             u_i: u,
             y_i: y,
-            dk: dk,
-            ek: ek,
+            dk,
+            ek,
             party_index: index,
             N_tilde: rpparam.N,
             h1: rpparam.s,

@@ -94,7 +94,7 @@ impl PiModProof {
             let mut challenge_bytes = [0u8; SEC_BYTES];
             transcript.challenge_bytes(b"PiModChallenge", &mut challenge_bytes);
             let mut yi = BigInt::from_bytes(&challenge_bytes);
-            yi = yi % &statement.N;
+            yi %= &statement.N;
             y.push(yi.clone());
             let zi = BigInt::mod_pow(&yi, &ninv, &statement.N);
             z.push(zi.clone());
@@ -166,7 +166,7 @@ impl PiModProof {
             let mut challenge_bytes = [0u8; SEC_BYTES];
             transcript.challenge_bytes(b"PiModChallenge", &mut challenge_bytes);
             let mut yi = BigInt::from_bytes(&challenge_bytes);
-            yi = yi % &statement.N;
+            yi &= &statement.N;
 
             let zi = match proof.z.get(i) {
                 Some(zi) => zi,
@@ -200,7 +200,7 @@ impl PiModProof {
             }
         }
 
-        return Ok(());
+        Ok(())
     }
 }
 

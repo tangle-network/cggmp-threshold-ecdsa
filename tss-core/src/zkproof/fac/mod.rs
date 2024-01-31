@@ -201,7 +201,7 @@ impl PiFacProof {
         let z2 = BigInt::add(&beta, &e.mul(&witness.q));
         let w1 = BigInt::add(&x, &e.mul(&mu));
         let w2 = BigInt::add(&y, &e.mul(&nu));
-        let v = BigInt::add(&r, &e.mul(&sigmahat));
+        let v = BigInt::add(&r, &e.mul(sigmahat));
 
         Ok(PiFacProof {
             cmt,
