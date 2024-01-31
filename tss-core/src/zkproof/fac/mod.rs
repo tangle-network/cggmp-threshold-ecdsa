@@ -187,8 +187,13 @@ impl PiFacProof {
             .append_message(b"PiFacCommitment", &bincode::serialize(&cmt)?);
         let mut challenge_bytes = [0u8; SEC_BYTES];
         transcript.challenge_bytes(b"PiFacChallenge", &mut challenge_bytes);
-        let e = BigInt::from_bytes(&challenge_bytes);
-        // TODO: also sample the sign bit?
+        let mut e = BigInt::from_bytes(&challenge_bytes);
+        let mut challenge_sign_byte = [0u8; 1];
+        transcript
+            .challenge_bytes(b"PiFacChallengeSign", &mut challenge_sign_byte);
+        if challenge_sign_byte[0] % 2 == 0 {
+            e = -e;
+        }
 
         let sigmahat = &sigma.sub(&nu.mul(&witness.p));
 
@@ -223,7 +228,13 @@ impl PiFacProof {
         );
         let mut challenge_bytes = [0u8; SEC_BYTES];
         transcript.challenge_bytes(b"PiFacChallenge", &mut challenge_bytes);
-        let e = BigInt::from_bytes(&challenge_bytes);
+        let mut e = BigInt::from_bytes(&challenge_bytes);
+        let mut challenge_sign_byte = [0u8; 1];
+        transcript
+            .challenge_bytes(b"PiFacChallengeSign", &mut challenge_sign_byte);
+        if challenge_sign_byte[0] % 2 == 0 {
+            e = -e;
+        }
         // TODO: also sample the sign bit?
 
         let R = BigInt::mod_mul(
