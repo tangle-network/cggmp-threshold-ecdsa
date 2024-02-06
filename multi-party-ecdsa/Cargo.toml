@@ -37,6 +37,7 @@ zk-paillier.workspace = true
 sha2.workspace = true
 paillier.workspace = true
 round-based.workspace = true
+tss-core.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 zeroize.workspace = true

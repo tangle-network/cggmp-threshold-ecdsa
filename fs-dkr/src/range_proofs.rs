@@ -19,10 +19,10 @@ use curv::{
     elliptic::curves::{Curve, Point, Scalar, Secp256k1},
     BigInt,
 };
-use multi_party_ecdsa::utilities::zk_composite_dlog::CompositeDLogStatement;
 use paillier::{EncryptionKey, Randomness};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, marker::PhantomData};
+use tss_core::zkproof::prm::PiPrmStatement;
 use zeroize::Zeroize;
 
 /// Represents the first round of the interactive version of the proof
@@ -41,7 +41,7 @@ struct AliceZkpRound1 {
 impl AliceZkpRound1 {
     fn from(
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         a: &BigInt,
         q: &BigInt,
     ) -> Self {
@@ -118,7 +118,7 @@ impl<E: Curve, H: Digest + Clone> AliceProof<E, H> {
         &self,
         cipher: &BigInt,
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
     ) -> bool {
         let N = &alice_ek.n;
         let NN = &alice_ek.nn;
@@ -178,7 +178,7 @@ impl<E: Curve, H: Digest + Clone> AliceProof<E, H> {
         a: &BigInt,
         cipher: &BigInt,
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         r: &BigInt,
     ) -> Self {
         let q = Scalar::<E>::group_order();
@@ -257,7 +257,7 @@ impl<E: Curve> BobZkpRound1<E> {
     /// `a_encrypted` - Alice's secret encrypted by Alice
     fn from(
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         b: &Scalar<E>,
         beta_prim: &BigInt,
         a_encrypted: &BigInt,
@@ -378,7 +378,7 @@ impl<E: Curve, H: Digest + Clone> BobProof<E, H> {
         a_enc: &BigInt,
         mta_avc_out: &BigInt,
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         check: Option<&BobCheck<E>>,
     ) -> bool {
         let N = &alice_ek.n;
@@ -474,7 +474,7 @@ impl<E: Curve, H: Digest + Clone> BobProof<E, H> {
         b: &Scalar<E>,
         beta_prim: &BigInt,
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         r: &Randomness,
         check: bool,
     ) -> (BobProof<E, H>, Option<Point<E>>) {
@@ -552,7 +552,7 @@ impl<E: Curve, H: Digest + Clone> BobProofExt<E, H> {
         a_enc: &BigInt,
         mta_avc_out: &BigInt,
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         X: &Point<E>,
     ) -> bool {
         // check basic proof first
@@ -590,7 +590,7 @@ impl<E: Curve, H: Digest + Clone> BobProofExt<E, H> {
         b: &Scalar<E>,
         beta_prim: &BigInt,
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         r: &Randomness,
     ) -> BobProofExt<E, H> {
         // proving a basic proof (with modified hash)
@@ -651,7 +651,7 @@ pub(crate) mod tests {
     type FE = Secp256k1Scalar;
 
     pub(crate) fn generate_init(
-    ) -> (CompositeDLogStatement, EncryptionKey, DecryptionKey) {
+    ) -> (PiPrmStatement, EncryptionKey, DecryptionKey) {
         let (ek_tilde, dk_tilde) =
             Paillier::keypair_with_modulus_size(crate::PAILLIER_KEY_SIZE)
                 .keys();
@@ -670,7 +670,7 @@ pub(crate) mod tests {
         let (ek, dk) =
             Paillier::keypair_with_modulus_size(crate::PAILLIER_KEY_SIZE)
                 .keys();
-        let dlog_statement = CompositeDLogStatement {
+        let dlog_statement = PiPrmStatement {
             base: h1,
             value: h2,
             modulus: ek_tilde.n,

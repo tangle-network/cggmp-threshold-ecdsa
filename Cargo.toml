@@ -11,6 +11,7 @@ authors = [
 members = [
   "multi-party-ecdsa",
   "fs-dkr",
+  "tss-core",
 ]
 
 [workspace.dependencies]
@@ -22,6 +23,9 @@ serde = { version = "1.0", features = ["derive"] }
 zeroize = "1"
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", version = "0.1.4", features = ["dev"] }
 thiserror = "1.0.23"
+tss-core = { path = "tss-core" }
+rand_chacha = "0.3.1"
+rand = "0.8.5"
 
 [workspace.dependencies.multi-party-ecdsa]
 version = "0.8"
@@ -44,13 +48,14 @@ zeroize.workspace = true
 paillier.workspace = true
 round-based.workspace = true
 thiserror.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true
 fs-dkr = { path = "fs-dkr", default-features = false }
 bincode = "1.3.3"
 digest = "0.9"
 generic-array = "0.14"
-rand_chacha = "0.3.1"
-rand = "0.8.5"
 getrandom = { version = "0.2", optional = true }
+tss-core.workspace = true
 
 [dev-dependencies]
 criterion = "0.3"

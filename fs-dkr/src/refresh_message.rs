@@ -23,14 +23,15 @@ use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, collections::HashMap, fmt::Debug};
 use zeroize::Zeroize;
 use zk_paillier::zkproofs::{NiCorrectKeyProof, SALT_STRING};
-use multi_party_ecdsa::utilities::zk_composite_dlog::CompositeDLogStatement;
-
-use crate::ring_pedersen_proof::{RingPedersenProof, RingPedersenStatement};
+use tss_core::{
+    utilities::generate_safe_h1_h2_N_tilde,
+    zkproof::prm::{PiPrmStatement, PiPrmWitness, PiPrmProof},
+};
 
 // Everything here can be broadcasted
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(bound = "E: Curve, H: Digest + Clone")]
-pub struct RefreshMessage<E: Curve, H: Digest + Clone, const M: usize> {
+pub struct RefreshMessage<E: Curve, H: Digest + Clone> {
     pub(crate) old_party_index: u16,
     pub(crate) party_index: u16,
     pdl_proof_vec: Vec<PDLwSlackProof<E, H>>,
@@ -39,23 +40,23 @@ pub struct RefreshMessage<E: Curve, H: Digest + Clone, const M: usize> {
     pub(crate) points_committed_vec: Vec<Point<E>>,
     points_encrypted_vec: Vec<BigInt>,
     dk_correctness_proof: NiCorrectKeyProof,
-    pub(crate) dlog_statement: CompositeDLogStatement,
+    pub(crate) dlog_statement: PiPrmStatement,
     pub(crate) ek: EncryptionKey,
     pub(crate) remove_party_indices: Vec<u16>,
     pub(crate) public_key: Point<E>,
-    pub(crate) ring_pedersen_statement: RingPedersenStatement<E, H>,
-    pub(crate) ring_pedersen_proof: RingPedersenProof<E, H, M>,
+    pub(crate) ring_pedersen_pi_prm_statement: PiPrmStatement,
+    pub(crate) ring_pedersen_pi_prm_proof: PiPrmProof,
     #[serde(skip)]
     pub hash_choice: HashChoice<H>,
 }
 
-impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
+impl<E: Curve, H: Digest + Clone> RefreshMessage<E, H> {
     pub fn distribute(
         old_party_index: u16,
         local_key: &mut LocalKey<E>,
         new_t: u16,
         new_n: u16,
-    ) -> FsDkrResult<(RefreshMessage<E, H, M>, DecryptionKey)> {
+    ) -> FsDkrResult<(RefreshMessage<E, H>, DecryptionKey)> {
         assert!(new_t <= new_n / 2);
         let secret = local_key.keys_linear.x_i.clone();
         // secret share old key
@@ -125,14 +126,13 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
             Paillier::keypair_with_modulus_size(crate::PAILLIER_KEY_SIZE)
                 .keys();
         let dk_correctness_proof = NiCorrectKeyProof::proof(&dk, None);
+        let (rpparam, rpwitness) = generate_safe_h1_h2_N_tilde();
+        let pi_prm_statement = PiPrmStatement::from(&rpparam);
+        let pi_prm_witness = PiPrmWitness::from(&rpwitness);
+        let pi_prm_proof =
+            PiPrmProof::prove(&pi_prm_statement, &pi_prm_witness)
+                .map_err(|_| FsDkrError::RingPedersenProofError {})?;
 
-        let (ring_pedersen_statement, ring_pedersen_witness) =
-            RingPedersenStatement::generate();
-
-        let ring_pedersen_proof = RingPedersenProof::prove(
-            &ring_pedersen_witness,
-            &ring_pedersen_statement,
-        );
         Ok((
             RefreshMessage {
                 old_party_index,
@@ -149,8 +149,8 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
                 ek,
                 remove_party_indices: Vec::new(),
                 public_key: local_key.y_sum_s.clone(),
-                ring_pedersen_statement,
-                ring_pedersen_proof,
+                ring_pedersen_pi_prm_statement: pi_prm_statement,
+                ring_pedersen_pi_prm_proof: pi_prm_proof,
                 hash_choice: HashChoice::new(),
             },
             dk,
@@ -263,7 +263,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
     }
 
     pub fn replace(
-        new_parties: &[JoinMessage<E, H, M>],
+        new_parties: &[JoinMessage<E, H>],
         key: &mut LocalKey<E>,
         old_to_new_map: &HashMap<u16, u16>,
         new_t: u16,
@@ -272,7 +272,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
         let current_len = key.paillier_key_vec.len() as u16;
         let mut paillier_key_h1_h2_n_tilde_hash_map: HashMap<
             u16,
-            (EncryptionKey, CompositeDLogStatement),
+            (EncryptionKey, PiPrmStatement),
         > = HashMap::new();
         for old_party_index in old_to_new_map.keys() {
             let paillier_key = key
@@ -355,7 +355,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
         refresh_messages: &[Self],
         local_key: &mut LocalKey<E>,
         new_dk: DecryptionKey,
-        join_messages: &[JoinMessage<E, H, M>],
+        join_messages: &[JoinMessage<E, H>],
         current_t: u16,
     ) -> FsDkrResult<()> {
         let new_n = refresh_messages.len() + join_messages.len();
@@ -389,17 +389,21 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
 
         // Verify ring-pedersen parameters
         for refresh_message in refresh_messages.iter() {
-            RingPedersenProof::verify(
-                &refresh_message.ring_pedersen_proof,
-                &refresh_message.ring_pedersen_statement,
-            )?;
+            refresh_message
+                .ring_pedersen_pi_prm_proof
+                .verify(&refresh_message.ring_pedersen_pi_prm_statement)
+                .map_err(|_| FsDkrError::RingPedersenProofValidation {
+                    party_index: refresh_message.party_index,
+                })?;
         }
 
         for join_message in join_messages.iter() {
-            RingPedersenProof::verify(
-                &join_message.ring_pedersen_proof,
-                &join_message.ring_pedersen_statement,
-            )?;
+            join_message
+                .ring_pedersen_pi_prm_proof
+                .verify(&join_message.ring_pedersen_pi_prm_statement)
+                .map_err(|_| FsDkrError::RingPedersenProofValidation {
+                    party_index: join_message.party_index.unwrap_or(0),
+                })?;
         }
 
         let old_ek =
@@ -452,7 +456,7 @@ impl<E: Curve, H: Digest + Clone, const M: usize> RefreshMessage<E, H, M> {
             }
 
             // creating an inverse dlog statement
-            let dlog_statement_base_h2 = CompositeDLogStatement {
+            let dlog_statement_base_h2 = PiPrmStatement {
                 modulus: join_message.dlog_statement.modulus.clone(),
                 // Base and value are swapped because we're using h1's statement.
                 base: join_message.dlog_statement.value.clone(),

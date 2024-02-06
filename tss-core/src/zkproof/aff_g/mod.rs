@@ -33,13 +33,11 @@
 //! and
 //!             D = C^{x} · (1+N0)^{y} · ρ^{N0} mod N0^{2}.
 
-use super::sample_relatively_prime_integer;
-use crate::{
-    utilities::{
-        fixed_array, mod_pow_with_negative, L, L_PLUS_EPSILON, L_PRIME,
-        L_PRIME_PLUS_EPSILON,
-    },
-    Error,
+use crate::security_level::{L, L_PLUS_EPSILON, L_PRIME, L_PRIME_PLUS_EPSILON};
+use crate::utilities::fixed_array;
+use crate::utilities::RingPedersenParams;
+use crate::utilities::{
+    mod_pow_with_negative, sample_relatively_prime_integer,
 };
 use curv::{
     arithmetic::{traits::*, Modulo},
@@ -57,13 +55,8 @@ use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierAffineOpWithGroupComInRangeStatement<
-    E: Curve,
-    H: Digest + Clone,
-> {
-    pub S: BigInt,
-    pub T: BigInt,
-    pub N_hat: BigInt,
+pub struct PiAffGStatement<E: Curve, H: Digest + Clone> {
+    pub RPParam: RingPedersenParams,
     pub N0: BigInt,
     pub N1: BigInt,
     pub NN0: BigInt,
@@ -77,10 +70,16 @@ pub struct PaillierAffineOpWithGroupComInRangeStatement<
     pub phantom: PhantomData<(E, H)>,
 }
 
-pub struct PaillierAffineOpWithGroupComInRangeWitness<
-    E: Curve,
-    H: Digest + Clone,
-> {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum PiAffGError {
+    Serialization,
+    Validation,
+    Challenge,
+    Proof,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PiAffGWitness<E: Curve, H: Digest + Clone> {
     x: BigInt,
     y: BigInt,
     rho: BigInt,
@@ -88,11 +87,9 @@ pub struct PaillierAffineOpWithGroupComInRangeWitness<
     phantom: PhantomData<(E, H)>,
 }
 
-impl<E: Curve, H: Digest + Clone>
-    PaillierAffineOpWithGroupComInRangeWitness<E, H>
-{
+impl<E: Curve, H: Digest + Clone> PiAffGWitness<E, H> {
     pub fn new(x: BigInt, y: BigInt, rho: BigInt, rho_y: BigInt) -> Self {
-        PaillierAffineOpWithGroupComInRangeWitness {
+        PiAffGWitness {
             x,
             y,
             rho,
@@ -102,20 +99,16 @@ impl<E: Curve, H: Digest + Clone>
     }
 }
 
-impl<E: Curve, H: Digest + Clone>
-    PaillierAffineOpWithGroupComInRangeStatement<E, H>
-{
+impl<E: Curve, H: Digest + Clone> PiAffGStatement<E, H> {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
-        S: BigInt,
-        T: BigInt,
-        N_hat: BigInt,
+        rpparam: RingPedersenParams,
         rho: BigInt,
         rho_y: BigInt,
         prover: EncryptionKey,
         verifier: EncryptionKey,
         C: BigInt,
-    ) -> (Self, PaillierAffineOpWithGroupComInRangeWitness<E, H>) {
+    ) -> (Self, PiAffGWitness<E, H>) {
         // Set up exponents
         let l_exp = BigInt::pow(&BigInt::from(2), L as u32);
         let lprime_exp = BigInt::pow(&BigInt::from(2), L_PRIME as u32);
@@ -156,9 +149,7 @@ impl<E: Curve, H: Digest + Clone>
 
         (
             Self {
-                S,
-                T,
-                N_hat,
+                RPParam: rpparam,
                 N0,
                 N1,
                 NN0,
@@ -171,7 +162,7 @@ impl<E: Curve, H: Digest + Clone>
                 ek_verifier,
                 phantom: PhantomData,
             },
-            PaillierAffineOpWithGroupComInRangeWitness {
+            PiAffGWitness {
                 x,
                 y,
                 rho,
@@ -183,7 +174,7 @@ impl<E: Curve, H: Digest + Clone>
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierAffineOpWithGroupComInRangeCommitment<E: Curve> {
+pub struct PiAffGCommitment<E: Curve> {
     A: BigInt,
     B_x: Point<E>,
     B_y: BigInt,
@@ -194,26 +185,23 @@ pub struct PaillierAffineOpWithGroupComInRangeCommitment<E: Curve> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaillierAffineOpWithGroupComInRangeProof<E: Curve, H: Digest + Clone>
-{
+pub struct PiAffGProof<E: Curve, H: Digest + Clone> {
     z1: BigInt,
     z2: BigInt,
     z3: BigInt,
     z4: BigInt,
     w: BigInt,
     wy: BigInt,
-    commitment: PaillierAffineOpWithGroupComInRangeCommitment<E>,
+    commitment: PiAffGCommitment<E>,
     phantom: PhantomData<(E, H)>,
 }
 
 // Link to the UC non-interactive threshold ECDSA paper
-impl<E: Curve, H: Digest + Clone>
-    PaillierAffineOpWithGroupComInRangeProof<E, H>
-{
+impl<E: Curve, H: Digest + Clone> PiAffGProof<E, H> {
     pub fn prove(
-        witness: &PaillierAffineOpWithGroupComInRangeWitness<E, H>,
-        statement: &PaillierAffineOpWithGroupComInRangeStatement<E, H>,
-    ) -> PaillierAffineOpWithGroupComInRangeProof<E, H> {
+        witness: &PiAffGWitness<E, H>,
+        statement: &PiAffGStatement<E, H>,
+    ) -> PiAffGProof<E, H> {
         // Set up exponents
         let l_exp = BigInt::pow(&BigInt::from(2), L as u32);
         let lplus_exp = BigInt::pow(&BigInt::from(2), L_PLUS_EPSILON as u32);
@@ -233,23 +221,23 @@ impl<E: Curve, H: Digest + Clone>
         let ry = sample_relatively_prime_integer(&statement.N1);
         // γ ← ± 2^{l+ε} · Nˆ
         let gamma = BigInt::sample_range(
-            &BigInt::from(-1).mul(&lplus_exp).mul(&statement.N_hat),
-            &lplus_exp.mul(&statement.N_hat),
+            &BigInt::from(-1).mul(&lplus_exp).mul(&statement.RPParam.N),
+            &lplus_exp.mul(&statement.RPParam.N),
         );
         // m ← ± 2l · Nˆ
         let m = BigInt::sample_range(
-            &BigInt::from(-1).mul(&l_exp).mul(&statement.N_hat),
-            &l_exp.mul(&statement.N_hat),
+            &BigInt::from(-1).mul(&l_exp).mul(&statement.RPParam.N),
+            &l_exp.mul(&statement.RPParam.N),
         );
         // δ ← ± 2^{l+ε} · Nˆ
         let delta = BigInt::sample_range(
-            &BigInt::from(-1).mul(&lplus_exp).mul(&statement.N_hat),
-            &lplus_exp.mul(&statement.N_hat),
+            &BigInt::from(-1).mul(&lplus_exp).mul(&statement.RPParam.N),
+            &lplus_exp.mul(&statement.RPParam.N),
         );
         // mu ← ± 2l · Nˆ
         let mu = BigInt::sample_range(
-            &BigInt::from(-1).mul(&l_exp).mul(&statement.N_hat),
-            &l_exp.mul(&statement.N_hat),
+            &BigInt::from(-1).mul(&l_exp).mul(&statement.RPParam.N),
+            &l_exp.mul(&statement.RPParam.N),
         );
         // A = C^α · (1 + N0)^β · r^N0 mod N0^2
         let A = {
@@ -275,27 +263,59 @@ impl<E: Curve, H: Digest + Clone>
         );
         // E = s^α · t^γ mod Nˆ
         let E = BigInt::mod_mul(
-            &mod_pow_with_negative(&statement.S, &alpha, &statement.N_hat),
-            &mod_pow_with_negative(&statement.T, &gamma, &statement.N_hat),
-            &statement.N_hat,
+            &mod_pow_with_negative(
+                &statement.RPParam.s,
+                &alpha,
+                &statement.RPParam.N,
+            ),
+            &mod_pow_with_negative(
+                &statement.RPParam.t,
+                &gamma,
+                &statement.RPParam.N,
+            ),
+            &statement.RPParam.N,
         );
         // big S = s^x · t^m mod Nˆ
         let big_S = BigInt::mod_mul(
-            &mod_pow_with_negative(&statement.S, &witness.x, &statement.N_hat),
-            &mod_pow_with_negative(&statement.T, &m, &statement.N_hat),
-            &statement.N_hat,
+            &mod_pow_with_negative(
+                &statement.RPParam.s,
+                &witness.x,
+                &statement.RPParam.N,
+            ),
+            &mod_pow_with_negative(
+                &statement.RPParam.t,
+                &m,
+                &statement.RPParam.N,
+            ),
+            &statement.RPParam.N,
         );
         // F = s^β · t^δ mod Nˆ
         let F = BigInt::mod_mul(
-            &mod_pow_with_negative(&statement.S, &beta, &statement.N_hat),
-            &mod_pow_with_negative(&statement.T, &delta, &statement.N_hat),
-            &statement.N_hat,
+            &mod_pow_with_negative(
+                &statement.RPParam.s,
+                &beta,
+                &statement.RPParam.N,
+            ),
+            &mod_pow_with_negative(
+                &statement.RPParam.t,
+                &delta,
+                &statement.RPParam.N,
+            ),
+            &statement.RPParam.N,
         );
         // big T = s^y · t^mu mod Nˆ
         let big_T = BigInt::mod_mul(
-            &mod_pow_with_negative(&statement.S, &witness.y, &statement.N_hat),
-            &mod_pow_with_negative(&statement.T, &mu, &statement.N_hat),
-            &statement.N_hat,
+            &mod_pow_with_negative(
+                &statement.RPParam.s,
+                &witness.y,
+                &statement.RPParam.N,
+            ),
+            &mod_pow_with_negative(
+                &statement.RPParam.t,
+                &mu,
+                &statement.RPParam.N,
+            ),
+            &statement.RPParam.N,
         );
         // Hash all prover messages to generate NIZK challenge
         let mut e: BigInt = H::new()
@@ -315,7 +335,7 @@ impl<E: Curve, H: Digest + Clone>
             .add(&BigInt::one())
             .mul(&e);
         // Compute Fiat-Shamir commitment preimage
-        let commitment = PaillierAffineOpWithGroupComInRangeCommitment::<E> {
+        let commitment = PiAffGCommitment::<E> {
             A,
             B_x,
             B_y: B_y.clone().into(),
@@ -358,9 +378,9 @@ impl<E: Curve, H: Digest + Clone>
     }
 
     pub fn verify(
-        proof: &PaillierAffineOpWithGroupComInRangeProof<E, H>,
-        statement: &PaillierAffineOpWithGroupComInRangeStatement<E, H>,
-    ) -> Result<(), Error> {
+        proof: &PiAffGProof<E, H>,
+        statement: &PiAffGStatement<E, H>,
+    ) -> Result<(), PiAffGError> {
         // Hash all prover messages to generate NIZK challenge
         let mut e: BigInt = H::new()
             .chain_bigint(&proof.commitment.big_S.clone())
@@ -383,17 +403,13 @@ impl<E: Curve, H: Digest + Clone>
             RANGE CHECKS
         */
         // z1 ∈ [-2^{l+ε}, 2^{l+ε}]
-        assert!(
-            proof.z1.bit_length() <= L_PLUS_EPSILON,
-            "z1 is too large {:?}",
-            proof.z1.bit_length()
-        );
+        if proof.z1.bit_length() > L_PLUS_EPSILON {
+            return Err(PiAffGError::Validation);
+        }
         // z2 ∈ [-2^{l'+ε}, 2^{l'+ε}]
-        assert!(
-            proof.z2.bit_length() <= L_PRIME_PLUS_EPSILON,
-            "z2 is too large {:?}",
-            proof.z2.bit_length()
-        );
+        if proof.z2.bit_length() > L_PRIME_PLUS_EPSILON {
+            return Err(PiAffGError::Validation);
+        }
 
         /*
             FIRST EQUALITY CHECK
@@ -418,7 +434,9 @@ impl<E: Curve, H: Digest + Clone>
             &statement.NN0,
         );
         // Assert left == right
-        assert!(left_1 == right_1);
+        if left_1 != right_1 {
+            return Err(PiAffGError::Proof);
+        }
         /*
             SECOND EQUALITY CHECK
         */
@@ -428,7 +446,9 @@ impl<E: Curve, H: Digest + Clone>
         let right_2 = proof.commitment.B_x.clone()
             + (statement.X.clone() * Scalar::from_bigint(&e));
         // Assert left == right
-        assert!(left_2 == right_2);
+        if left_2 != right_2 {
+            return Err(PiAffGError::Proof);
+        }
         /*
             THIRD EQUALITY CHECK
         */
@@ -446,71 +466,85 @@ impl<E: Curve, H: Digest + Clone>
             &statement.NN1,
         );
         // Assert left == right
-        assert!(left_3.mod_floor(&statement.NN1) == right_3);
+        if left_3.mod_floor(&statement.NN1) != right_3 {
+            return Err(PiAffGError::Proof);
+        }
         /*
             FOURTH EQUALITY CHECK
         */
-        // s^{z1} · t^{z3} = E · big_S^e mod N_hat
+        // s^{z1} · t^{z3} = E · big_S^e mod RPParam.N
         let left_4 = {
-            // s^{z1} mod N_hat^2
+            // s^{z1} mod RPParam.N^2
             let temp_left_4_1 = mod_pow_with_negative(
-                &statement.S,
+                &statement.RPParam.s,
                 &proof.z1,
-                &statement.N_hat,
+                &statement.RPParam.N,
             );
-            // t^{z3} mod N_hat^2
+            // t^{z3} mod RPParam.N^2
             let temp_left_4_2 = mod_pow_with_negative(
-                &statement.T,
+                &statement.RPParam.t,
                 &proof.z3,
-                &statement.N_hat,
+                &statement.RPParam.N,
             );
-            // s^{z1} · t^{z3} mod N_hat^2
-            BigInt::mod_mul(&temp_left_4_1, &temp_left_4_2, &statement.N_hat)
+            // s^{z1} · t^{z3} mod RPParam.N^2
+            BigInt::mod_mul(
+                &temp_left_4_1,
+                &temp_left_4_2,
+                &statement.RPParam.N,
+            )
         };
-        // E · big_S^e mod N_hat^2
+        // E · big_S^e mod RPParam.N^2
         let right_4 = BigInt::mod_mul(
             &proof.commitment.E,
             &mod_pow_with_negative(
                 &proof.commitment.big_S,
                 &e,
-                &statement.N_hat,
+                &statement.RPParam.N,
             ),
-            &statement.N_hat,
+            &statement.RPParam.N,
         );
         // Assert left == right
-        assert!(left_4 == right_4);
+        if left_4 != right_4 {
+            return Err(PiAffGError::Proof);
+        }
         /*
             FIFTH EQUALITY CHECK
         */
-        // s^{z2} · t^{z4} = F · big_T^e mod N_hat
+        // s^{z2} · t^{z4} = F · big_T^e mod RPParam.N
         let left_5 = {
-            // s^{z2} mod N_hat^2
+            // s^{z2} mod RPParam.N^2
             let temp_left_5_1 = mod_pow_with_negative(
-                &statement.S,
+                &statement.RPParam.s,
                 &proof.z2,
-                &statement.N_hat,
+                &statement.RPParam.N,
             );
-            // t^{z4} mod N_hat^2
+            // t^{z4} mod RPParam.N^2
             let temp_left_5_2 = mod_pow_with_negative(
-                &statement.T,
+                &statement.RPParam.t,
                 &proof.z4,
-                &statement.N_hat,
+                &statement.RPParam.N,
             );
-            // s^{z2} · t^{z4} mod N_hat^2
-            BigInt::mod_mul(&temp_left_5_1, &temp_left_5_2, &statement.N_hat)
+            // s^{z2} · t^{z4} mod RPParam.N^2
+            BigInt::mod_mul(
+                &temp_left_5_1,
+                &temp_left_5_2,
+                &statement.RPParam.N,
+            )
         };
-        // F · big_T^e mod N_hat^2
+        // F · big_T^e mod RPParam.N^2
         let right_5 = BigInt::mod_mul(
             &proof.commitment.F,
             &mod_pow_with_negative(
                 &proof.commitment.big_T,
                 &e,
-                &statement.N_hat,
+                &statement.RPParam.N,
             ),
-            &statement.N_hat,
+            &statement.RPParam.N,
         );
         // Assert left == right
-        assert!(left_5 == right_5);
+        if left_5 != right_5 {
+            return Err(PiAffGError::Proof);
+        }
         Ok(())
     }
 }
@@ -518,49 +552,38 @@ impl<E: Curve, H: Digest + Clone>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        mpc_ecdsa::utilities::mta::range_proofs::SampleFromMultiplicativeGroup,
-        utilities::BITS_PAILLIER,
-    };
+    use crate::security_level::BITS_PAILLIER;
+    use crate::utilities::generate_safe_h1_h2_N_tilde;
     use curv::elliptic::curves::secp256_k1::Secp256k1;
-    use fs_dkr::ring_pedersen_proof::RingPedersenStatement;
     use paillier::{Encrypt, KeyGeneration, Paillier, RawPlaintext};
     use sha2::Sha256;
 
     #[test]
     fn test_affine_g_proof() {
-        let (ring_pedersen_statement, _witness) =
-            RingPedersenStatement::<Secp256k1, Sha256>::generate();
+        let (rpparam, _) = generate_safe_h1_h2_N_tilde();
         let (ek_prover, _) =
             Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
         let (ek_verifier, _) =
             Paillier::keypair_with_modulus_size(BITS_PAILLIER).keys();
 
-        let rho: BigInt = BigInt::from_paillier_key(&ek_verifier);
-        let rho_y: BigInt = BigInt::from_paillier_key(&ek_prover);
+        let rho: BigInt = sample_relatively_prime_integer(&ek_verifier.n);
+        let rho_y: BigInt = sample_relatively_prime_integer(&ek_prover.n);
         let C = Paillier::encrypt(
             &ek_verifier,
             RawPlaintext::from(BigInt::from(12)),
         );
-        let (statement, witness) = PaillierAffineOpWithGroupComInRangeStatement::<
-            Secp256k1,
-            Sha256,
-        >::generate(
-            ring_pedersen_statement.S,
-            ring_pedersen_statement.T,
-            ring_pedersen_statement.N,
-            rho,
-            rho_y,
-            ek_prover,
-            ek_verifier,
-            C.0.into_owned(),
-        );
-        let proof = PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::prove(
-			&witness, &statement,
-		);
-        assert!(PaillierAffineOpWithGroupComInRangeProof::<Secp256k1, Sha256>::verify(
-			&proof, &statement
-		)
-		.is_ok());
+        let (statement, witness) =
+            PiAffGStatement::<Secp256k1, Sha256>::generate(
+                rpparam,
+                rho,
+                rho_y,
+                ek_prover,
+                ek_verifier,
+                C.0.into_owned(),
+            );
+        let proof =
+            PiAffGProof::<Secp256k1, Sha256>::prove(&witness, &statement);
+        assert!(PiAffGProof::<Secp256k1, Sha256>::verify(&proof, &statement)
+            .is_ok());
     }
 }

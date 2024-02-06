@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use zeroize::Zeroize;
 
-use crate::utilities::zk_composite_dlog::CompositeDLogStatement;
+use tss_core::zkproof::prm::PiPrmStatement;
 
 /// Represents the first round of the interactive version of the proof
 #[derive(Zeroize)]
@@ -43,7 +43,7 @@ struct AliceZkpRound1 {
 impl AliceZkpRound1 {
     fn from(
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         a: &BigInt,
         q: &BigInt,
     ) -> Self {
@@ -115,7 +115,7 @@ impl AliceProof {
         &self,
         cipher: &BigInt,
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
     ) -> bool {
         let N = &alice_ek.n;
         let NN = &alice_ek.nn;
@@ -174,7 +174,7 @@ impl AliceProof {
         a: &BigInt,
         cipher: &BigInt,
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         r: &BigInt,
     ) -> Self {
         let round1 = AliceZkpRound1::from(
@@ -230,7 +230,7 @@ impl BobZkpRound1 {
     /// `a_encrypted` - Alice's secret encrypted by Alice
     fn from(
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         b: &Scalar<Secp256k1>,
         beta_prim: &BigInt,
         a_encrypted: &BigInt,
@@ -343,7 +343,7 @@ impl BobProof {
         a_enc: &BigInt,
         mta_avc_out: &BigInt,
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         check: Option<&BobCheck>,
     ) -> bool {
         let N = &alice_ek.n;
@@ -444,7 +444,7 @@ impl BobProof {
         b: &Scalar<Secp256k1>,
         beta_prim: &BigInt,
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         r: &Randomness,
         check: bool,
     ) -> (BobProof, Option<Point<Secp256k1>>) {
@@ -528,7 +528,7 @@ impl BobProofExt {
         a_enc: &BigInt,
         mta_avc_out: &BigInt,
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         X: &Point<Secp256k1>,
     ) -> bool {
         // check basic proof first
@@ -597,7 +597,7 @@ pub(crate) mod tests {
         b: &Scalar<Secp256k1>,
         beta_prim: &BigInt,
         alice_ek: &EncryptionKey,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
         r: &Randomness,
     ) -> BobProofExt {
         // proving a basic proof (with modified hash)
@@ -619,7 +619,7 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn generate_init(
-    ) -> (CompositeDLogStatement, EncryptionKey, DecryptionKey) {
+    ) -> (PiPrmStatement, EncryptionKey, DecryptionKey) {
         let (ek_tilde, dk_tilde) = Paillier::keypair().keys();
         let one = BigInt::one();
         let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
@@ -634,7 +634,7 @@ pub(crate) mod tests {
         let h2 = BigInt::mod_pow(&h1, &xhi, &ek_tilde.n);
 
         let (ek, dk) = Paillier::keypair().keys();
-        let dlog_statement = CompositeDLogStatement {
+        let dlog_statement = PiPrmStatement {
             base: h1,
             value: h2,
             modulus: ek_tilde.n,

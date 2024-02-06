@@ -15,13 +15,7 @@ use crate::utilities::sha2::Sha256;
 
 pub enum PartyType {
     Existing(Box<LocalKey<Secp256k1>>),
-    New(
-        Box<(
-            JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
-            Keys,
-            u16,
-        )>,
-    ),
+    New(Box<(JoinMessage<Secp256k1, Sha256>, Keys, u16)>),
 }
 
 use super::state_machine::{Round0Messages, Round1Messages};
@@ -38,17 +32,7 @@ pub struct Round0 {
 impl Round0 {
     pub fn proceed<O>(self, mut output: O) -> Result<Round1>
     where
-        O: Push<
-            Msg<
-                Option<
-                    JoinMessage<
-                        Secp256k1,
-                        Sha256,
-                        { crate::utilities::STAT_PARAM },
-                    >,
-                >,
-            >,
-        >,
+        O: Push<Msg<Option<JoinMessage<Secp256k1, Sha256>>>>,
     {
         match self.local_key_option {
             Some(local_key) => {
@@ -112,34 +96,15 @@ pub struct Round1 {
 impl Round1 {
     pub fn proceed<O>(
         self,
-        input: BroadcastMsgs<
-            Option<
-                JoinMessage<
-                    Secp256k1,
-                    Sha256,
-                    { crate::utilities::STAT_PARAM },
-                >,
-            >,
-        >,
+        input: BroadcastMsgs<Option<JoinMessage<Secp256k1, Sha256>>>,
         mut output: O,
     ) -> Result<Round2>
     where
-        O: Push<
-            Msg<
-                Option<
-                    RefreshMessage<
-                        Secp256k1,
-                        Sha256,
-                        { crate::utilities::STAT_PARAM },
-                    >,
-                >,
-            >,
-        >,
+        O: Push<Msg<Option<RefreshMessage<Secp256k1, Sha256>>>>,
     {
         let join_message_option_vec = input.into_vec();
-        let mut join_message_vec: Vec<
-            JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
-        > = Vec::new();
+        let mut join_message_vec: Vec<JoinMessage<Secp256k1, Sha256>> =
+            Vec::new();
         for join_message_option in join_message_option_vec.into_iter().flatten()
         {
             join_message_vec.push(join_message_option)
@@ -210,11 +175,8 @@ impl Round1 {
 
 pub struct Round2 {
     pub party_type: PartyType,
-    pub join_messages:
-        Vec<JoinMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>>,
-    pub refresh_message: Option<
-        RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
-    >,
+    pub join_messages: Vec<JoinMessage<Secp256k1, Sha256>>,
+    pub refresh_message: Option<RefreshMessage<Secp256k1, Sha256>>,
     pub new_paillier_decryption_key: DecryptionKey,
     new_t: u16,
     new_n: u16,
@@ -224,21 +186,12 @@ pub struct Round2 {
 impl Round2 {
     pub fn proceed(
         self,
-        input: BroadcastMsgs<
-            Option<
-                RefreshMessage<
-                    Secp256k1,
-                    Sha256,
-                    { crate::utilities::STAT_PARAM },
-                >,
-            >,
-        >,
+        input: BroadcastMsgs<Option<RefreshMessage<Secp256k1, Sha256>>>,
     ) -> Result<LocalKey<Secp256k1>> {
         let refresh_message_option_vec =
             input.into_vec_including_me(self.refresh_message);
-        let mut refresh_message_vec: Vec<
-            RefreshMessage<Secp256k1, Sha256, { crate::utilities::STAT_PARAM }>,
-        > = Vec::new();
+        let mut refresh_message_vec: Vec<RefreshMessage<Secp256k1, Sha256>> =
+            Vec::new();
         for refresh_message_option in
             refresh_message_option_vec.into_iter().flatten()
         {

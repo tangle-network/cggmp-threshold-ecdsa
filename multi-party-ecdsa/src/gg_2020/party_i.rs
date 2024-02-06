@@ -47,17 +47,18 @@ use zk_paillier::zkproofs::NiCorrectKeyProof;
 
 use crate::{
     protocols::multi_party_ecdsa::gg_2020::ErrorType,
-    utilities::zk_composite_dlog::{
-        CompositeDLogProof, CompositeDLogStatement,
-    },
     utilities::zk_pdl_with_slack::{
         PDLwSlackProof, PDLwSlackStatement, PDLwSlackWitness,
     },
 };
 use curv::cryptographic_primitives::proofs::sigma_valid_pedersen::PedersenProof;
 
-use crate::utilities::zk_composite_dlog::CompositeDLogWitness;
 use std::convert::TryInto;
+
+use tss_core::{
+    utilities::{generate_normal_h1_h2_N_tilde, generate_safe_h1_h2_N_tilde},
+    zkproof::prm::{PiPrmProof, PiPrmStatement, PiPrmWitness},
+};
 
 const SECURITY: usize = 256;
 const PAILLIER_MIN_BIT_LENGTH: usize = 2047;
@@ -94,11 +95,11 @@ pub struct PartyPrivate {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct KeyGenBroadcastMessage1 {
     pub e: EncryptionKey,
-    pub dlog_statement: CompositeDLogStatement,
+    pub dlog_statement: PiPrmStatement,
     pub com: BigInt,
     pub correct_key_proof: NiCorrectKeyProof,
-    pub composite_dlog_proof_base_h1: CompositeDLogProof,
-    pub composite_dlog_proof_base_h2: CompositeDLogProof,
+    pub composite_dlog_proof_base_h1: PiPrmProof,
+    pub composite_dlog_proof_base_h2: PiPrmProof,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -149,40 +150,12 @@ pub struct SignatureRecid {
     pub recid: u8,
 }
 
-pub fn generate_h1_h2_N_tilde(
-) -> (BigInt, BigInt, BigInt, BigInt, BigInt, BigInt) {
-    // Uses safe primes in production.
-    #[cfg(all(not(test), not(feature = "dev")))]
-    let (ek_tilde, dk_tilde) = Paillier::keypair_safe_primes().keys();
-    // Doesn't use safe primes in tests (for speed).
-    #[cfg(any(test, feature = "dev"))]
-    let (ek_tilde, dk_tilde) = Paillier::keypair().keys();
-
-    // Generate h1 and h2 (s and t in CGGMP20) following section 6.4.1 (and Figure 6) of CGGMP20 .
-    // Ref: <https://eprint.iacr.org/2021/060.pdf#page=38>.
-    let one = BigInt::one();
-    let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
-    let tau = BigInt::sample_below(&ek_tilde.n);
-    let h1 = BigInt::mod_pow(&tau, &BigInt::from(2), &ek_tilde.n);
-    // For GG18/20 implementation, we need the inverse of lambda as well.
-    let (lambda, lambda_inv) = loop {
-        let lambda_ = BigInt::sample_below(&phi);
-        match BigInt::mod_inv(&lambda_, &phi) {
-            Some(inv) => break (lambda_, inv),
-            None => continue,
-        }
-    };
-    let h2 = BigInt::mod_pow(&h1, &lambda, &ek_tilde.n);
-
-    (ek_tilde.n, h1, h2, lambda, lambda_inv, phi)
-}
-
 impl Keys {
     pub fn create(index: usize) -> Self {
         let u = Scalar::<Secp256k1>::random();
         let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair().keys();
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) = generate_h1_h2_N_tilde();
+        let (rpparam, rpwitness) = generate_safe_h1_h2_N_tilde();
 
         Self {
             u_i: u,
@@ -190,12 +163,12 @@ impl Keys {
             dk,
             ek,
             party_index: index,
-            N_tilde,
-            h1,
-            h2,
-            xhi,
-            xhi_inv,
-            phi,
+            N_tilde: rpparam.N,
+            h1: rpparam.s,
+            h2: rpparam.t,
+            xhi: rpwitness.lambda,
+            xhi_inv: rpwitness.lambdaInv,
+            phi: rpwitness.phi,
         }
     }
 
@@ -205,7 +178,7 @@ impl Keys {
         let y = Point::generator() * &u;
 
         let (ek, dk) = Paillier::keypair_safe_primes().keys();
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) = generate_h1_h2_N_tilde();
+        let (rpparam, rpwitness) = generate_safe_h1_h2_N_tilde();
 
         Self {
             u_i: u,
@@ -213,18 +186,18 @@ impl Keys {
             dk,
             ek,
             party_index: index,
-            N_tilde,
-            h1,
-            h2,
-            xhi,
-            xhi_inv,
-            phi,
+            N_tilde: rpparam.N,
+            h1: rpparam.s,
+            h2: rpparam.t,
+            xhi: rpwitness.lambda,
+            xhi_inv: rpwitness.lambdaInv,
+            phi: rpwitness.phi,
         }
     }
     pub fn create_from(u: Scalar<Secp256k1>, index: usize) -> Self {
         let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair().keys();
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) = generate_h1_h2_N_tilde();
+        let (rpparam, rpwitness) = generate_normal_h1_h2_N_tilde();
 
         Self {
             u_i: u,
@@ -232,12 +205,12 @@ impl Keys {
             dk,
             ek,
             party_index: index,
-            N_tilde,
-            h1,
-            h2,
-            xhi,
-            xhi_inv,
-            phi,
+            N_tilde: rpparam.N,
+            h1: rpparam.s,
+            h2: rpparam.t,
+            xhi: rpwitness.lambda,
+            xhi_inv: rpwitness.lambdaInv,
+            phi: rpwitness.phi,
         }
     }
 
@@ -248,22 +221,22 @@ impl Keys {
         let blind_factor = BigInt::sample(SECURITY);
         let correct_key_proof = NiCorrectKeyProof::proof(&self.dk, None);
 
-        let dlog_statement_base_h1 = CompositeDLogStatement {
+        let dlog_statement_base_h1 = PiPrmStatement {
             modulus: self.N_tilde.clone(),
             base: self.h1.clone(),
             value: self.h2.clone(),
         };
-        let dlog_witness_base_h1 = CompositeDLogWitness {
+        let dlog_witness_base_h1 = PiPrmWitness {
             exponent: self.xhi.clone(),
             totient: self.phi.clone(),
         };
 
-        let dlog_statement_base_h2 = CompositeDLogStatement {
+        let dlog_statement_base_h2 = PiPrmStatement {
             modulus: self.N_tilde.clone(),
             base: self.h2.clone(),
             value: self.h1.clone(),
         };
-        let dlog_witness_base_h2 = CompositeDLogWitness {
+        let dlog_witness_base_h2 = PiPrmWitness {
             exponent: self.xhi_inv.clone(),
             totient: self.phi.clone(),
         };
@@ -273,16 +246,12 @@ impl Keys {
             bad_actors: vec![],
             data: vec![],
         };
-        let composite_dlog_proof_base_h1 = CompositeDLogProof::prove(
-            &dlog_statement_base_h1,
-            &dlog_witness_base_h1,
-        )
-        .map_err(|_| dlog_proof_error.clone())?;
-        let composite_dlog_proof_base_h2 = CompositeDLogProof::prove(
-            &dlog_statement_base_h2,
-            &dlog_witness_base_h2,
-        )
-        .map_err(|_| dlog_proof_error)?;
+        let composite_dlog_proof_base_h1 =
+            PiPrmProof::prove(&dlog_statement_base_h1, &dlog_witness_base_h1)
+                .map_err(|_| dlog_proof_error.clone())?;
+        let composite_dlog_proof_base_h2 =
+            PiPrmProof::prove(&dlog_statement_base_h2, &dlog_witness_base_h2)
+                .map_err(|_| dlog_proof_error)?;
 
         let com = HashCommitment::<Sha256>::create_commitment_with_user_defined_randomness(
             &BigInt::from_bytes(self.y_i.to_bytes(true).as_ref()),
@@ -320,7 +289,7 @@ impl Keys {
         // decommitments
         let correct_key_correct_decom_all = (0..bc1_vec.len())
             .map(|i| {
-                let dlog_statement_base_h2 = CompositeDLogStatement {
+                let dlog_statement_base_h2 = PiPrmStatement {
                     modulus: bc1_vec[i].dlog_statement.modulus.clone(),
                     // Base and value are swapped because we're using h1's statement.
                     base: bc1_vec[i].dlog_statement.value.clone(),
@@ -578,7 +547,7 @@ impl PartyPrivate {
         let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair().keys();
 
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) = generate_h1_h2_N_tilde();
+        let (rpparam, rpwitness) = generate_normal_h1_h2_N_tilde();
 
         Keys {
             u_i: u,
@@ -586,12 +555,12 @@ impl PartyPrivate {
             dk,
             ek,
             party_index: index,
-            N_tilde,
-            h1,
-            h2,
-            xhi,
-            xhi_inv,
-            phi,
+            N_tilde: rpparam.N,
+            h1: rpparam.s,
+            h2: rpparam.t,
+            xhi: rpwitness.lambda,
+            xhi_inv: rpwitness.lambdaInv,
+            phi: rpwitness.phi,
         }
     }
 
@@ -605,7 +574,7 @@ impl PartyPrivate {
         let y = Point::generator() * &u;
         let (ek, dk) = Paillier::keypair_safe_primes().keys();
 
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) = generate_h1_h2_N_tilde();
+        let (rpparam, rpwitness) = generate_safe_h1_h2_N_tilde();
 
         Keys {
             u_i: u,
@@ -613,12 +582,12 @@ impl PartyPrivate {
             dk,
             ek,
             party_index: index,
-            N_tilde,
-            h1,
-            h2,
-            xhi,
-            xhi_inv,
-            phi,
+            N_tilde: rpparam.N,
+            h1: rpparam.s,
+            h2: rpparam.t,
+            xhi: rpwitness.lambda,
+            xhi_inv: rpwitness.lambdaInv,
+            phi: rpwitness.phi,
         }
     }
 
@@ -830,7 +799,7 @@ impl LocalSignature {
         ek: &EncryptionKey,
         k_i: &Scalar<Secp256k1>,
         k_enc_randomness: &BigInt,
-        dlog_statement: &CompositeDLogStatement,
+        dlog_statement: &PiPrmStatement,
     ) -> PDLwSlackProof {
         // Generate PDL with slack statement, witness and proof
         let pdl_w_slack_statement = PDLwSlackStatement {
@@ -857,7 +826,7 @@ impl LocalSignature {
         R: &Point<Secp256k1>,
         k_ciphertext: &BigInt,
         ek: &EncryptionKey,
-        dlog_statement: &[CompositeDLogStatement],
+        dlog_statement: &[PiPrmStatement],
         s: &[usize],
         i: usize,
     ) -> Result<(), ErrorType> {

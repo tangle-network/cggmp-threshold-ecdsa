@@ -23,25 +23,27 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use serde_with::serde_as;
 use zeroize::ZeroizeOnDrop;
 
+use crate::utilities::{RingPedersenParams, RingPedersenWitness};
+
 /// Statistical security parameter (i.e. m=80 in CGGMP20).
 const STAT_SECURITY: usize = 80;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompositeDLogStatement {
+pub struct PiPrmStatement {
     pub modulus: BigInt,
     pub base: BigInt,
     pub value: BigInt,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ZeroizeOnDrop)]
-pub struct CompositeDLogWitness {
+pub struct PiPrmWitness {
     pub exponent: BigInt,
     pub totient: BigInt,
 }
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompositeDLogProof {
+pub struct PiPrmProof {
     pub commitments: Vec<BigInt>,
     #[serde_as(as = "[_; STAT_SECURITY]")]
     pub challenges: [ChallengeBit; STAT_SECURITY],
@@ -58,14 +60,14 @@ pub enum ChallengeBit {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CompositeDLogError {
+pub enum PiPrmError {
     Serialization,
     Validation,
     Challenge,
     Proof,
 }
 
-impl From<Box<bincode::ErrorKind>> for CompositeDLogError {
+impl From<Box<bincode::ErrorKind>> for PiPrmError {
     fn from(_: Box<bincode::ErrorKind>) -> Self {
         Self::Serialization
     }
@@ -73,23 +75,20 @@ impl From<Box<bincode::ErrorKind>> for CompositeDLogError {
 
 /// Computes Fiat-Shamir transform challenges using merlin transcript.
 fn compute_challenges(
-    statement: &CompositeDLogStatement,
+    statement: &PiPrmStatement,
     commitments: &[BigInt],
-) -> Result<[ChallengeBit; STAT_SECURITY], CompositeDLogError> {
-    let mut transcript = Transcript::new(b"CompositeDLogProof");
+) -> Result<[ChallengeBit; STAT_SECURITY], PiPrmError> {
+    let mut transcript = Transcript::new(b"PiPrmProof");
+    transcript
+        .append_message(b"PiPrmStatement", &bincode::serialize(&statement)?);
     transcript.append_message(
-        b"CompositeDLogStatement",
-        &bincode::serialize(&statement)?,
-    );
-    transcript.append_message(
-        b"CompositeDLogCommitments",
+        b"PiPrmCommitments",
         &bincode::serialize(&commitments)?,
     );
 
     // Each challenge is only a bit so we divide 8.
     let mut challenge_bytes = [0u8; STAT_SECURITY / 8];
-    transcript
-        .challenge_bytes(b"CompositeDLogChallenges", &mut challenge_bytes);
+    transcript.challenge_bytes(b"PiPrmChallenges", &mut challenge_bytes);
 
     // Parses challenge bits.
     let mut challenge_bits = [ChallengeBit::ZERO; STAT_SECURITY];
@@ -111,11 +110,45 @@ fn compute_challenges(
     Ok(challenge_bits)
 }
 
-impl CompositeDLogProof {
+impl PiPrmStatement {
+    pub fn from(rpparams: &RingPedersenParams) -> PiPrmStatement {
+        PiPrmStatement {
+            modulus: rpparams.N.clone(),
+            base: rpparams.s.clone(),
+            value: rpparams.t.clone(),
+        }
+    }
+
+    pub fn inverse_from(rpparams: &RingPedersenParams) -> PiPrmStatement {
+        PiPrmStatement {
+            modulus: rpparams.N.clone(),
+            base: rpparams.t.clone(),
+            value: rpparams.s.clone(),
+        }
+    }
+}
+
+impl PiPrmWitness {
+    pub fn from(witness: &RingPedersenWitness) -> PiPrmWitness {
+        PiPrmWitness {
+            exponent: witness.lambda.clone(),
+            totient: witness.phi.clone(),
+        }
+    }
+
+    pub fn inverse_from(witness: &RingPedersenWitness) -> PiPrmWitness {
+        PiPrmWitness {
+            exponent: witness.lambdaInv.clone(),
+            totient: witness.phi.clone(),
+        }
+    }
+}
+
+impl PiPrmProof {
     pub fn prove(
-        statement: &CompositeDLogStatement,
-        witness: &CompositeDLogWitness,
-    ) -> Result<Self, CompositeDLogError> {
+        statement: &PiPrmStatement,
+        witness: &PiPrmWitness,
+    ) -> Result<Self, PiPrmError> {
         // a_i ← Z_{φ(N)} in CGGMP20.
         let mut randomness: Vec<BigInt> = Vec::with_capacity(STAT_SECURITY);
         // A_i = t^{a_i} mod N in CGGMP20.
@@ -148,29 +181,26 @@ impl CompositeDLogProof {
             })
             .collect();
 
-        Ok(CompositeDLogProof {
+        Ok(PiPrmProof {
             commitments,
             challenges,
             responses,
         })
     }
 
-    pub fn verify(
-        &self,
-        statement: &CompositeDLogStatement,
-    ) -> Result<(), CompositeDLogError> {
+    pub fn verify(&self, statement: &PiPrmStatement) -> Result<(), PiPrmError> {
         // Validate expected lengths i.e m in CGGMP20.
         if self.commitments.len() != STAT_SECURITY
             || self.challenges.len() != STAT_SECURITY
             || self.responses.len() != STAT_SECURITY
         {
-            return Err(CompositeDLogError::Validation);
+            return Err(PiPrmError::Validation);
         }
 
         // Verify Fiat-Shamir challenges .i.e e_i ← {0, 1} in CGGMP20.
         let challenges = compute_challenges(statement, &self.commitments)?;
         if challenges != self.challenges {
-            return Err(CompositeDLogError::Challenge);
+            return Err(PiPrmError::Challenge);
         }
 
         // Verify responses i.e t^{z_i} = {A_i} * s^{e_i} mod N in CGGMP20.
@@ -190,7 +220,7 @@ impl CompositeDLogProof {
                     ),
                 }
             {
-                return Err(CompositeDLogError::Proof);
+                return Err(PiPrmError::Proof);
             }
         }
 
@@ -202,58 +232,42 @@ impl CompositeDLogProof {
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
-    use crate::gg_2020::party_i::generate_h1_h2_N_tilde;
+    use crate::utilities::generate_normal_h1_h2_N_tilde;
 
     #[test]
     fn valid_composite_dlog_proof_works() {
-        let (N_tilde, h1, h2, xhi, xhi_inv, phi) = generate_h1_h2_N_tilde();
-        let statement_base_h1 = CompositeDLogStatement {
-            modulus: N_tilde.clone(),
-            base: h1.clone(),
-            value: h2.clone(),
-        };
-        let witness_base_h1 = CompositeDLogWitness {
-            exponent: xhi,
-            totient: phi.clone(),
-        };
+        // for testing we use normal primes - it is important in the big
+        // protocol that N is a product of safe primes, but not for the invidual
+        // test.
+        let (rpparams, rpwitness) = generate_normal_h1_h2_N_tilde();
+        let statement_base_h1 = PiPrmStatement::from(&rpparams);
+        let witness_base_h1 = PiPrmWitness::from(&rpwitness);
         let proof_base_h1 =
-            CompositeDLogProof::prove(&statement_base_h1, &witness_base_h1)
-                .unwrap();
+            PiPrmProof::prove(&statement_base_h1, &witness_base_h1).unwrap();
         let result_base_h1 = proof_base_h1.verify(&statement_base_h1);
         assert!(result_base_h1.is_ok());
 
-        let statement_base_h2 = CompositeDLogStatement {
-            modulus: N_tilde,
-            base: h2,
-            value: h1,
-        };
-        let witness_base_h2 = CompositeDLogWitness {
-            exponent: xhi_inv,
-            totient: phi,
-        };
+        let statement_base_h2 = PiPrmStatement::inverse_from(&rpparams);
+        let witness_base_h2 = PiPrmWitness::inverse_from(&rpwitness);
         let proof_base_h2 =
-            CompositeDLogProof::prove(&statement_base_h2, &witness_base_h2)
-                .unwrap();
+            PiPrmProof::prove(&statement_base_h2, &witness_base_h2).unwrap();
         let result_base_h2 = proof_base_h2.verify(&statement_base_h2);
         assert!(result_base_h2.is_ok());
     }
 
     #[test]
     fn invalid_composite_dlog_proof_fails() {
-        let (N_tilde, h1, h2, _, _, phi) = generate_h1_h2_N_tilde();
+        let (rpparams, rpwitness) = generate_normal_h1_h2_N_tilde();
         // We use a fake/wrong/guessed exponent.
-        let xhi = BigInt::sample_below(&phi);
-        let statement = CompositeDLogStatement {
-            modulus: N_tilde.clone(),
-            base: h1.clone(),
-            value: h2.clone(),
-        };
-        let witness = CompositeDLogWitness {
+        let xhi = BigInt::sample_below(&rpwitness.phi);
+
+        let statement = PiPrmStatement::from(&rpparams);
+        let witness = PiPrmWitness {
             exponent: xhi,
-            totient: phi.clone(),
+            totient: rpwitness.phi,
         };
-        let proof = CompositeDLogProof::prove(&statement, &witness).unwrap();
+        let proof = PiPrmProof::prove(&statement, &witness).unwrap();
         let result = proof.verify(&statement);
-        assert_eq!(result, Err(CompositeDLogError::Proof));
+        assert_eq!(result, Err(PiPrmError::Proof));
     }
 }

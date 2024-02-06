@@ -25,19 +25,11 @@ use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2020::state_machine::key
 use paillier::{DecryptionKey, EncryptionKey};
 use sha2::Sha256;
 
-use crate::utilities::{
-    aff_g::{
-        PaillierAffineOpWithGroupComInRangeProof,
-        PaillierAffineOpWithGroupComInRangeStatement,
-    },
-    dec_q::{PaillierDecryptionModQProof, PaillierDecryptionModQStatement},
-    enc::{PaillierEncryptionInRangeProof, PaillierEncryptionInRangeStatement},
-    log_star::{
-        KnowledgeOfExponentPaillierEncryptionProof,
-        KnowledgeOfExponentPaillierEncryptionStatement,
-    },
-    mul::{PaillierMulProof, PaillierMulStatement},
-};
+use tss_core::zkproof::aff_g::{PiAffGProof, PiAffGStatement};
+use tss_core::zkproof::dec::{PiDecProof, PiDecStatement};
+use tss_core::zkproof::enc::{PiEncProof, PiEncStatement};
+use tss_core::zkproof::log_star::{PiLogStarProof, PiLogStarStatement};
+use tss_core::zkproof::mul::{PiMulProof, PiMulStatement};
 
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
@@ -123,8 +115,8 @@ pub struct PreSigningP2PMessage1<E: Curve> {
     pub K_i: BigInt,
     pub G_i: BigInt,
     pub ek: EncryptionKey,
-    pub psi_0_j_i: PaillierEncryptionInRangeProof<E, Sha256>,
-    pub enc_j_statement: PaillierEncryptionInRangeStatement<E, Sha256>,
+    pub psi_0_j_i: PiEncProof<E, Sha256>,
+    pub enc_j_statement: PiEncStatement<E, Sha256>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,15 +128,12 @@ pub struct PreSigningP2PMessage2<E: Curve> {
     pub F_j_i: BigInt,
     pub D_hat_j_i: BigInt,
     pub F_hat_j_i: BigInt,
-    pub psi_j_i: PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
-    pub statement_psi_j_i:
-        PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
-    pub psi_hat_j_i: PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
-    pub statement_psi_hat_j_i:
-        PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
-    pub psi_prime_j_i: KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
-    pub statement_psi_prime_j_i:
-        KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
+    pub psi_j_i: PiAffGProof<E, Sha256>,
+    pub statement_psi_j_i: PiAffGStatement<E, Sha256>,
+    pub psi_hat_j_i: PiAffGProof<E, Sha256>,
+    pub statement_psi_hat_j_i: PiAffGStatement<E, Sha256>,
+    pub psi_prime_j_i: PiLogStarProof<E, Sha256>,
+    pub statement_psi_prime_j_i: PiLogStarStatement<E, Sha256>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -153,10 +142,8 @@ pub struct PreSigningP2PMessage3<E: Curve> {
     pub i: u16,
     pub delta_i: BigInt,
     pub Delta_i: Point<E>,
-    pub psi_prime_prime_j_i:
-        KnowledgeOfExponentPaillierEncryptionProof<E, Sha256>,
-    pub statement_psi_prime_prime_j_i:
-        KnowledgeOfExponentPaillierEncryptionStatement<E, Sha256>,
+    pub psi_prime_prime_j_i: PiLogStarProof<E, Sha256>,
+    pub statement_psi_prime_prime_j_i: PiLogStarStatement<E, Sha256>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -225,17 +212,10 @@ pub struct PresigningTranscript<E: Curve> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdentifiableAbortBroadcastMessage<E: Curve> {
     pub i: u16,
-    pub statements_D_j_i: HashMap<
-        (u16, u16),
-        PaillierAffineOpWithGroupComInRangeStatement<E, Sha256>,
-    >,
-    pub proofs_D_j_i: HashMap<
-        (u16, u16),
-        PaillierAffineOpWithGroupComInRangeProof<E, Sha256>,
-    >,
-    pub statement_H_i: PaillierMulStatement<E, Sha256>,
-    pub proof_H_i: PaillierMulProof<E, Sha256>,
-    pub statement_delta_i:
-        HashMap<u16, PaillierDecryptionModQStatement<E, Sha256>>,
-    pub proof_delta_i: HashMap<u16, PaillierDecryptionModQProof<E, Sha256>>,
+    pub statements_D_j_i: HashMap<(u16, u16), PiAffGStatement<E, Sha256>>,
+    pub proofs_D_j_i: HashMap<(u16, u16), PiAffGProof<E, Sha256>>,
+    pub statement_H_i: PiMulStatement<E, Sha256>,
+    pub proof_H_i: PiMulProof<E, Sha256>,
+    pub statement_delta_i: HashMap<u16, PiDecStatement<E, Sha256>>,
+    pub proof_delta_i: HashMap<u16, PiDecProof<E, Sha256>>,
 }
